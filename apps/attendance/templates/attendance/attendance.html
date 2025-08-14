@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Factory — Посещаемость</title>
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        .stat-card { background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%); backdrop-filter: blur(10px); }
+        .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #3B82F6; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-present { background-color: #10B981; color: white; }
+        .status-checked-out { background-color: #6B7280; color: white; }
+        .status-absent { background-color: #EF4444; color: white; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div x-data="attendanceDashboard()" x-init="init()">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <a href="/dashboard/" class="mr-4 p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
+                    </a>
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                        <span class="text-white font-bold text-xl">S</span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">Посещаемость</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button @click="refreshData()" class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                        Обновить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Page Title -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-gray-900">Управление посещаемостью</h2>
+            <p class="text-gray-600 mt-2">Мониторинг прихода и ухода сотрудников</p>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Present Today -->
+            <div class="stat-card rounded-xl p-6 border border-gray-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Присутствуют сегодня</p>
+                        <p class="text-2xl font-bold text-green-600" x-text="overview.today?.present || 0"></p>
+                        <p class="text-sm text-gray-500">чел.</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="users" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Checked Out Today -->
+            <div class="stat-card rounded-xl p-6 border border-gray-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Ушли сегодня</p>
+                        <p class="text-2xl font-bold text-gray-600" x-text="overview.today?.checked_out || 0"></p>
+                        <p class="text-sm text-gray-500">чел.</p>
+                    </div>
+                    <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="log-out" class="w-6 h-6 text-gray-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Week Attendance -->
+            <div class="stat-card rounded-xl p-6 border border-gray-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">За неделю</p>
+                        <p class="text-2xl font-bold text-blue-600" x-text="overview.week?.attendance || 0"></p>
+                        <p class="text-sm text-gray-500">записей</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="calendar" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Month Attendance -->
+            <div class="stat-card rounded-xl p-6 border border-gray-200 shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">За месяц</p>
+                        <p class="text-2xl font-bold text-purple-600" x-text="overview.month?.attendance || 0"></p>
+                        <p class="text-sm text-gray-500">записей</p>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="calendar-days" class="w-6 h-6 text-purple-600"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters and Actions -->
+        <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm mb-8">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <h3 class="text-lg font-semibold text-gray-900">Фильтры и поиск</h3>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="date" x-model="filters.date_from" @change="loadAttendanceData()" 
+                           class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <input type="date" x-model="filters.date_to" @change="loadAttendanceData()" 
+                           class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <select x-model="filters.status" @change="loadAttendanceData()" 
+                            class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">Все статусы</option>
+                        <option value="present">Присутствуют</option>
+                        <option value="checked_out">Ушли</option>
+                    </select>
+                    <button @click="clearFilters()" 
+                            class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        Сбросить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Records Table -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Записи посещаемости</h3>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Сотрудник</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Приход</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Уход</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <template x-for="record in attendanceRecords" :key="record.id">
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                            <span class="text-blue-600 text-sm font-medium" x-text="record.employee.avatar"></span>
+                                        </div>
+                                        <span class="text-sm font-medium text-gray-900" x-text="record.employee.name"></span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="formatDate(record.date)"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="formatTime(record.check_in)"></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" x-text="record.check_out ? formatTime(record.check_out) : '-'"></td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full" 
+                                          :class="getStatusClass(record.status)"
+                                          x-text="getStatusText(record.status)"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <button x-show="record.status === 'present'" 
+                                            @click="checkoutEmployee(record.employee.id)"
+                                            class="text-blue-600 hover:text-blue-900 transition-colors">
+                                        Отметить уход
+                                    </button>
+                                    <span x-show="record.status === 'checked_out'" class="text-gray-500">Завершено</span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+                
+                <!-- Loading State -->
+                <div x-show="loading" class="text-center py-8">
+                    <div class="flex items-center justify-center space-x-2">
+                        <div class="spinner"></div>
+                        <span class="text-gray-600">Загрузка...</span>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div x-show="!loading && attendanceRecords.length === 0" class="text-center py-8 text-gray-500">
+                    <p class="text-sm">Нет записей о посещаемости</p>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div x-show="pagination.pages > 1" class="px-6 py-4 border-t border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div class="text-sm text-gray-700">
+                        Показано <span x-text="(pagination.page - 1) * pagination.per_page + 1"></span> - 
+                        <span x-text="Math.min(pagination.page * pagination.per_page, pagination.total)"></span> 
+                        из <span x-text="pagination.total"></span> записей
+                    </div>
+                    <div class="flex space-x-2">
+                        <button x-show="pagination.page > 1" 
+                                @click="changePage(pagination.page - 1)"
+                                class="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            Назад
+                        </button>
+                        <span class="px-3 py-1 text-sm text-gray-700">
+                            Страница <span x-text="pagination.page"></span> из <span x-text="pagination.pages"></span>
+                        </span>
+                        <button x-show="pagination.page < pagination.pages" 
+                                @click="changePage(pagination.page + 1)"
+                                class="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            Вперед
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Employees -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Топ сотрудников по посещаемости</h3>
+                <div class="space-y-3">
+                    <template x-for="emp in overview.top_employees" :key="emp.id">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-blue-600 text-sm font-medium" x-text="emp.avatar"></span>
+                                </div>
+                                <span class="text-sm font-medium text-gray-900" x-text="emp.name"></span>
+                            </div>
+                            <span class="text-sm text-gray-600" x-text="emp.attendance_count + ' дней'"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Быстрые действия</h3>
+                <div class="space-y-3">
+                    <a href="/attendance/scan/" class="flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                        <i data-lucide="qr-code" class="w-5 h-5 text-blue-600 mr-3"></i>
+                        <span class="text-sm font-medium text-blue-900">QR-сканер для отметки</span>
+                    </a>
+                    <button @click="exportData()" class="w-full flex items-center p-3 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+                        <i data-lucide="download" class="w-5 h-5 text-green-600 mr-3"></i>
+                        <span class="text-sm font-medium text-green-900">Экспорт данных</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    function attendanceDashboard() {
+        return {
+            overview: {},
+            attendanceRecords: [],
+            pagination: {
+                page: 1,
+                per_page: 20,
+                total: 0,
+                pages: 0
+            },
+            filters: {
+                date_from: '',
+                date_to: '',
+                status: ''
+            },
+            loading: false,
+
+            async init() {
+                await this.loadOverviewData();
+                await this.loadAttendanceData();
+                lucide.createIcons();
+                this.$nextTick(() => {
+                    lucide.createIcons();
+                });
+            },
+
+            async loadOverviewData() {
+                try {
+                    const response = await fetch('/attendance/api/overview/');
+                    if (response.ok) {
+                        this.overview = await response.json();
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки обзора:', e);
+                }
+            },
+
+            async loadAttendanceData() {
+                try {
+                    this.loading = true;
+                    
+                    const params = new URLSearchParams({
+                        page: this.pagination.page,
+                        per_page: this.pagination.per_page
+                    });
+                    
+                    if (this.filters.date_from) params.append('date_from', this.filters.date_from);
+                    if (this.filters.date_to) params.append('date_to', this.filters.date_to);
+                    if (this.filters.status) params.append('status', this.filters.status);
+                    
+                    const response = await fetch(`/attendance/api/list/?${params}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.attendanceRecords = data.records;
+                        this.pagination = data.pagination;
+                    }
+                } catch (e) {
+                    console.error('Ошибка загрузки данных:', e);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async checkoutEmployee(employeeId) {
+                try {
+                    const response = await fetch('/attendance/api/checkout/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCsrfToken()
+                        },
+                        body: JSON.stringify({ employee_id: employeeId })
+                    });
+                    
+                    if (response.ok) {
+                        await this.loadAttendanceData();
+                        await this.loadOverviewData();
+                    }
+                } catch (e) {
+                    console.error('Ошибка отметки ухода:', e);
+                }
+            },
+
+            async refreshData() {
+                await Promise.all([
+                    this.loadOverviewData(),
+                    this.loadAttendanceData()
+                ]);
+            },
+
+            changePage(page) {
+                this.pagination.page = page;
+                this.loadAttendanceData();
+            },
+
+            clearFilters() {
+                this.filters = {
+                    date_from: '',
+                    date_to: '',
+                    status: ''
+                };
+                this.pagination.page = 1;
+                this.loadAttendanceData();
+            },
+
+            exportData() {
+                // Создаем красивый Excel файл
+                this.createExcelFile();
+            },
+
+            createExcelFile() {
+                try {
+                    // Создаем новую книгу Excel
+                    const wb = XLSX.utils.book_new();
+                    
+                    // Данные для основного листа
+                    const mainData = [
+                        // Заголовок отчета
+                        ['Отчет по посещаемости - Smart Factory'],
+                        [''],
+                        ['Статистика:'],
+                        [`Присутствуют сегодня: ${this.overview.today?.present || 0} чел.`, `Ушли сегодня: ${this.overview.today?.checked_out || 0} чел.`],
+                        [`За неделю: ${this.overview.week?.attendance || 0} записей`, `За месяц: ${this.overview.month?.attendance || 0} записей`],
+                        [''],
+                        // Заголовки таблицы
+                        ['Сотрудник', 'Дата', 'Время прихода', 'Время ухода', 'Статус', 'Примечание'],
+                        // Данные записей
+                        ...this.attendanceRecords.map(record => [
+                            record.employee.name,
+                            this.formatDate(record.date),
+                            this.formatTime(record.check_in),
+                            record.check_out ? this.formatTime(record.check_out) : '-',
+                            this.getStatusText(record.status),
+                            record.note || '-'
+                        ])
+                    ];
+                    
+                    // Создаем лист с данными
+                    const ws = XLSX.utils.aoa_to_sheet(mainData);
+                    
+                    // Настраиваем стили и форматирование
+                    ws['!cols'] = [
+                        { width: 25 }, // Сотрудник
+                        { width: 15 }, // Дата
+                        { width: 15 }, // Время прихода
+                        { width: 15 }, // Время ухода
+                        { width: 15 }, // Статус
+                        { width: 20 }  // Примечание
+                    ];
+                    
+                    // Добавляем лист в книгу
+                    XLSX.utils.book_append_sheet(wb, ws, 'Посещаемость');
+                    
+                    // Создаем лист со статистикой
+                    const statsData = [
+                        ['Топ сотрудников по посещаемости'],
+                        [''],
+                        ['Место', 'Сотрудник', 'Дней посещения'],
+                        ...(this.overview.top_employees || []).map((emp, index) => [
+                            index + 1,
+                            emp.name,
+                            emp.attendance_count
+                        ]),
+                        [''],
+                        ['Общая статистика'],
+                        ['Всего сотрудников', this.overview.today?.total_employees || 0],
+                        ['Присутствуют сегодня', this.overview.today?.present || 0],
+                        ['Ушли сегодня', this.overview.today?.checked_out || 0],
+                        ['Записей за неделю', this.overview.week?.attendance || 0],
+                        ['Записей за месяц', this.overview.month?.attendance || 0],
+                        [''],
+                        ['Отчет сгенерирован:', new Date().toLocaleString('ru-RU')]
+                    ];
+                    
+                    const statsWs = XLSX.utils.aoa_to_sheet(statsData);
+                    statsWs['!cols'] = [
+                        { width: 15 }, // Место
+                        { width: 30 }, // Сотрудник
+                        { width: 20 }  // Дней посещения
+                    ];
+                    
+                    XLSX.utils.book_append_sheet(wb, statsWs, 'Статистика');
+                    
+                    // Создаем лист с фильтрами
+                    const filtersData = [
+                        ['Примененные фильтры'],
+                        [''],
+                        ['Параметр', 'Значение'],
+                        ['Дата с', this.filters.date_from || 'Не указано'],
+                        ['Дата по', this.filters.date_to || 'Не указано'],
+                        ['Статус', this.filters.status ? this.getStatusText(this.filters.status) : 'Все'],
+                        [''],
+                        ['Всего записей в выборке:', this.pagination.total],
+                        ['Текущая страница:', this.pagination.page],
+                        ['Записей на странице:', this.pagination.per_page]
+                    ];
+                    
+                    const filtersWs = XLSX.utils.aoa_to_sheet(filtersData);
+                    filtersWs['!cols'] = [
+                        { width: 25 }, // Параметр
+                        { width: 30 }  // Значение
+                    ];
+                    
+                    XLSX.utils.book_append_sheet(wb, filtersWs, 'Фильтры');
+                    
+                    // Генерируем файл
+                    const fileName = `attendance_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    XLSX.writeFile(wb, fileName);
+                    
+                } catch (error) {
+                    console.error('Ошибка при создании Excel файла:', error);
+                    alert('Ошибка при создании Excel файла. Попробуйте еще раз.');
+                }
+            },
+
+            getCsrfToken() {
+                return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+            },
+
+            formatDate(dateString) {
+                if (!dateString) return '';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('ru-RU');
+            },
+
+            formatTime(timeString) {
+                if (!timeString) return '';
+                const time = new Date(timeString);
+                return time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            },
+
+            getStatusClass(status) {
+                const statusClasses = {
+                    'present': 'status-present',
+                    'checked_out': 'status-checked-out',
+                    'absent': 'status-absent'
+                };
+                return statusClasses[status] || 'bg-gray-100 text-gray-800';
+            },
+
+            getStatusText(status) {
+                const statusTexts = {
+                    'present': 'Присутствует',
+                    'checked_out': 'Ушел',
+                    'absent': 'Отсутствует'
+                };
+                return statusTexts[status] || 'Неизвестно';
+            }
+        }
+    }
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+</script>
+</body>
+</html> 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Скоро будет — Уведомления</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+  <header class="bg-white border-b border-gray-200 py-4">
+    <div class="max-w-5xl mx-auto px-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+          <span class="text-white font-bold text-xl">S</span>
+        </div>
+        <h1 class="text-xl font-semibold text-gray-900">Уведомления</h1>
+      </div>
+      <a href="/dashboard/" class="text-sm text-gray-600 hover:text-gray-900">На главную</a>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-16">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
+      <div class="mx-auto w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center">
+        <i data-lucide="bell" class="w-8 h-8 text-blue-600"></i>
+      </div>
+      <h2 class="mt-6 text-3xl font-bold text-gray-900">Скоро будет</h2>
+      <p class="mt-3 text-gray-600 text-lg">Раздел уведомлений для ПК в разработке. Совсем скоро здесь появятся новые функции.</p>
+      <div class="mt-8 flex items-center justify-center space-x-3">
+        <a href="/notifications/" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">К списку уведомлений</a>
+        <a href="/notifications/settings/" class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">Настройки</a>
+      </div>
+    </div>
+  </main>
+
+  <script>document.addEventListener('DOMContentLoaded', ()=>{ lucide.createIcons(); });</script>
+</body>
+</html> 

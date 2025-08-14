@@ -1,0 +1,159 @@
+from django.shortcuts import render
+from rest_framework import viewsets, permissions, status
+from .models import Order, OrderStage, OrderDefect, OrderItem
+from .serializers import OrderSerializer, OrderStageConfirmSerializer, OrderStageSerializer
+from django.views import View
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.generics import get_object_or_404
+from django.db.models import Sum, Count, F
+from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+
+# Create your views here.
+
+class OrderViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Order.objects.select_related('client', 'workshop', 'product').prefetch_related('items__product', 'stages__workshop', 'order_defects__workshop').all().order_by('-created_at')
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class OrderCreateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    @method_decorator(csrf_exempt)
+    def post(self, request):
+        serializer = OrderSerializer(data=request.data)
+        if serializer.is_valid():
+            order = serializer.save()
+            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        print('ORDER CREATE ERROR:', serializer.errors, 'DATA:', request.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class OrderPageView(View):
+    def get(self, request):
+        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+        is_mobile = any(m in user_agent for m in ['android', 'iphone', 'ipad', 'mobile'])
+        template = 'orders_mobile.html' if is_mobile else 'orders.html'
+        show_create = request.GET.get('create') == 'True' or request.GET.get('create') == 'true' or request.GET.get('create') == '1'
+        return render(request, template, {'show_create': show_create})
+
+class OrderStageConfirmAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request, stage_id):
+        stage = get_object_or_404(OrderStage, pk=stage_id)
+        serializer = OrderStageConfirmSerializer(data=request.data)
+        if serializer.is_valid():
+            completed_qty = serializer.validated_data['completed_quantity']
+            stage.confirm_stage(completed_qty)
+            return Response({'status': 'ok', 'stage': stage.id, 'completed_quantity': completed_qty})
+        return Response(serializer.errors, status=400)
+
+class OrderStageTransferAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request, stage_id):
+        stage = get_object_or_404(OrderStage, pk=stage_id)
+        # Перевести этап дальше: считаем, что всё выполнено
+        stage.confirm_stage(stage.plan_quantity)
+        return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred'})
+
+class OrderStagePostponeAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request, stage_id):
+        stage = get_object_or_404(OrderStage, pk=stage_id)
+        # Переносим дедлайн на следующий рабочий день (просто +1 день)
+        if stage.deadline:
+            from datetime import timedelta
+            stage.deadline = stage.deadline + timedelta(days=1)
+            stage.save()
+            return Response({'status': 'ok', 'stage': stage.id, 'new_deadline': stage.deadline, 'action': 'postponed'})
+        return Response({'status': 'error', 'error': 'No deadline set'}, status=400)
+
+class OrderStageNoTransferAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request, stage_id):
+        stage = get_object_or_404(OrderStage, pk=stage_id)
+        # Фиксируем этап как "не переводить" (например, статус waiting)
+        stage.status = 'waiting'
+        stage.save()
+        return Response({'status': 'ok', 'stage': stage.id, 'action': 'no_transfer'})
+
+class DashboardOverviewAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def get(self, request):
+        # Доход — сумма (цена продукта * количество) по всем позициям заявок
+        total_income = OrderItem.objects.aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
+        # Продажи — сумма quantity по всем позициям
+        product_sales = OrderItem.objects.aggregate(total=Sum('quantity'))['total'] or 0
+        # Брак — сумма quantity по всем OrderDefect + сумма defective_quantity по всем EmployeeTask
+        from apps.employee_tasks.models import EmployeeTask
+        order_defects_total = OrderDefect.objects.aggregate(total=Sum('quantity'))['total'] or 0
+        employee_tasks_defects_total = EmployeeTask.objects.aggregate(total=Sum('defective_quantity'))['total'] or 0
+        defective_products = order_defects_total + employee_tasks_defects_total
+        # Сотрудники — всего
+        from apps.employees.models import User
+        total_employees = User.objects.count()
+        return Response({
+            'total_income': total_income,
+            'product_sales': product_sales,
+            'defective_products': defective_products,
+            'total_employees': total_employees,
+            'user_name': request.user.get_full_name() or request.user.username,
+        })
+
+class DashboardRevenueChartAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def get(self, request):
+        period = request.GET.get('period', 'week')
+        now = timezone.now()
+        if period == 'month':
+            days = 30
+        elif period == 'year':
+            days = 365
+        else:
+            days = 7
+        labels = []
+        revenue = []
+        defects = []
+        orders_count = []
+        sales = []
+        for i in range(days):
+            day = now - timezone.timedelta(days=days - i - 1)
+            day_orders = Order.objects.filter(created_at__date=day.date())
+            # Доход за день — по позициям, относящимся к заказам этого дня
+            day_income = OrderItem.objects.filter(order__in=day_orders).aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
+            # Брак: сумма из OrderDefect + сумма defective_quantity из EmployeeTask за этот день
+            from apps.employee_tasks.models import EmployeeTask
+            day_order_defects = OrderDefect.objects.filter(date__date=day.date()).aggregate(total=Sum('quantity'))['total'] or 0
+            day_employee_defects = EmployeeTask.objects.filter(created_at__date=day.date()).aggregate(total=Sum('defective_quantity'))['total'] or 0
+            day_defects = day_order_defects + day_employee_defects
+            day_orders_num = day_orders.count()
+            # Продажи — сумма quantities по позициям заказов этого дня
+            day_sales = OrderItem.objects.filter(order__in=day_orders).aggregate(total=Sum('quantity'))['total'] or 0
+            labels.append(day.strftime('%d.%m'))
+            revenue.append(day_income)
+            defects.append(day_defects)
+            orders_count.append(day_orders_num)
+            sales.append(day_sales)
+        return Response({
+            'labels': labels,
+            'revenue': revenue,
+            'defects': defects,
+            'orders_count': orders_count,
+            'sales': sales,
+        })
+
+class StageViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = OrderStage.objects.select_related('workshop', 'order').all().order_by('deadline', 'sequence')
+    serializer_class = OrderStageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
+        workshop_param = self.request.query_params.get('workshop')
+        if workshop_param:
+            qs = qs.filter(workshop_id=workshop_param)
+        return qs

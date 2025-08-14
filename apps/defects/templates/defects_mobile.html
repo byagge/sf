@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Браки — Мобильная версия</title>
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-50" x-data="defectsMobileData()" x-init="init()">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 px-4 py-3 fixed top-0 left-0 right-0 z-30">
+        <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">S</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-semibold text-gray-900">Браки</h1>
+                    <p class="text-xs text-gray-500">Управление дефектами</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button @click="showFilters = !showFilters" class="p-2 text-gray-600 hover:text-gray-900">
+                    <i data-lucide="filter" class="w-5 h-5"></i>
+                </button>
+                <a href="/notifications/" class="p-2 text-gray-600 hover:text-gray-900">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                </a>
+        </div>
+        </div>
+    </header>
+
+    <!-- Filters -->
+    <div x-show="showFilters" x-transition class="bg-white border-b border-gray-200 px-4 py-3 mt-16">
+        <div class="space-y-3">
+            <input type="text" placeholder="Поиск по продукту или сотруднику..." x-model="searchTerm"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+            <select x-model="statusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                <option value="">Все статусы</option>
+                <option value="pending_master_review">Ожидает проверки мастера</option>
+                <option value="master_confirmed">Подтвержден мастером</option>
+                <option value="can_be_fixed">Можно починить</option>
+                <option value="sent_to_workshop">Отправлен в цех</option>
+                <option value="fixed">Исправлен</option>
+                <option value="unrepairable">Не подлежит восстановлению</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="pt-20 pb-20 px-4">
+        <!-- Статистика -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+            <div class="bg-red-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-red-600 mb-1">Всего браков</p>
+                <p class="text-xl font-bold text-red-900" x-text="stats().totalDefects"></p>
+            </div>
+            <div class="bg-yellow-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-yellow-600 mb-1">Ожидают проверки</p>
+                <p class="text-xl font-bold text-yellow-900" x-text="stats().pendingReview"></p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-blue-600 mb-1">В восстановлении</p>
+                <p class="text-xl font-bold text-blue-900" x-text="stats().inRepair"></p>
+            </div>
+            <div class="bg-green-50 rounded-lg p-4 text-center">
+                <p class="text-xs text-green-600 mb-1">Исправлено</p>
+                <p class="text-xl font-bold text-green-900" x-text="stats().fixed"></p>
+            </div>
+        </div>
+
+        <!-- Список браков -->
+        <div class="space-y-3">
+            <template x-for="defect in filteredDefects()" :key="defect.id">
+                <div class="bg-white rounded-lg border border-gray-200 p-4">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 text-sm mb-1" 
+                                x-text="defect.product && defect.product.name ? defect.product.name : 'N/A'"></h3>
+                            <p class="text-xs text-gray-500" 
+                               x-text="'Сотрудник: ' + (defect.user && defect.user.full_name ? defect.user.full_name : 'N/A')"></p>
+                        </div>
+                        <span class="px-2 py-1 text-xs rounded-full ml-2" 
+                              :class="getStatusClass(defect.status)"
+                              x-text="getStatusText(defect.status)"></span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
+                        <span x-text="formatDate(defect.created_at)"></span>
+                        <span x-text="defect.defect_type ? getDefectTypeText(defect.defect_type) : ''"></span>
+                    </div>
+                    
+                    <!-- Действия -->
+                    <div class="flex space-x-2">
+                        <!-- Кнопка для мастера -->
+                        <template x-if="defect.status === 'pending_master_review' && isMaster()">
+                            <button @click="showMasterReviewModal(defect)" 
+                                    class="flex-1 px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
+                                Проверить брак
+                            </button>
+                        </template>
+                        
+                        <!-- Кнопка для рабочего -->
+                        <template x-if="defect.status === 'sent_to_workshop' && isWorker()">
+                            <button @click="markAsFixed(defect)" 
+                                    class="flex-1 px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700">
+                                Отметить исправленным
+                            </button>
+                        </template>
+                        
+                        <!-- Информация о подтверждении -->
+                        <template x-if="defect.master_confirmed_by">
+                            <span class="text-xs text-gray-500 flex-1 text-center" 
+                                  x-text="'Подтвержден: ' + defect.master_confirmed_by.full_name"></span>
+                        </template>
+        </div>
+    </div>
+        </template>
+            
+            <!-- Пустое состояние -->
+            <div x-show="filteredDefects().length === 0" class="text-center py-12">
+                <i data-lucide="alert-triangle" class="mx-auto text-gray-400 mb-4" style="width: 48px; height: 48px;"></i>
+                <p class="text-gray-500 text-lg">Браки не найдены</p>
+            </div>
+                        </div>
+    </main>
+
+    <!-- Модальное окно подтверждения проверки -->
+    <div x-show="showConfirmationModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center p-4" @click="showConfirmationModal = false">
+        <div class="bg-white rounded-t-lg w-full max-w-md" @click.stop>
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold">Подтверждение проверки</h3>
+            </div>
+            <div class="p-4">
+                <p class="text-gray-600 mb-4 text-center">Вы подтверждаете, что подошли и тщательно проверили брак?</p>
+                <div class="space-y-3">
+                    <button @click="confirmInspection()" 
+                            class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Да, подтверждаю
+                    </button>
+                    <button @click="showConfirmationModal = false" 
+                            class="w-full px-4 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно оценки возможности восстановления -->
+    <div x-show="showRepairabilityModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center p-4" @click="showRepairabilityModal = false">
+        <div class="bg-white rounded-t-lg w-full max-w-md" @click.stop>
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold">Оценка восстановления</h3>
+            </div>
+            <div class="p-4">
+                <p class="text-gray-600 mb-4 text-center">Можно ли починить брак?</p>
+                <div class="space-y-3">
+                    <button @click="setRepairability(true)" 
+                            class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                        Да, можно починить
+                    </button>
+                    <button @click="setRepairability(false)" 
+                            class="w-full px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                        Нет, нельзя починить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно выбора цеха для восстановления -->
+    <div x-show="showWorkshopModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center p-4" @click="showWorkshopModal = false">
+        <div class="bg-white rounded-t-lg w-full max-w-md" @click.stop>
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold">Выбор цеха</h3>
+            </div>
+            <div class="p-4">
+                <p class="text-gray-600 mb-4 text-center">В какой цех перевести брак для восстановления?</p>
+                <select x-model="selectedWorkshop" class="w-full px-3 py-3 border border-gray-300 rounded-lg mb-4 text-center">
+                    <option value="">Выберите цех</option>
+                    <template x-for="workshop in availableWorkshops" :key="workshop.id">
+                        <option :value="workshop.id" x-text="workshop.name"></option>
+                    </template>
+                </select>
+                <div class="space-y-3">
+                    <button @click="sendToWorkshop()" 
+                            :disabled="!selectedWorkshop"
+                            class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                        Отправить в цех
+                    </button>
+                    <button @click="showRepairabilityModal = true; showWorkshopModal = false" 
+                            class="w-full px-4 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                        Назад
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно выбора типа брака -->
+    <div x-show="showDefectTypeModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center p-4" @click="showDefectTypeModal = false">
+        <div class="bg-white rounded-t-lg w-full max-w-md" @click.stop>
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold">Тип брака</h3>
+            </div>
+            <div class="p-4">
+                <p class="text-gray-600 mb-4 text-center">Выберите вид брака:</p>
+                <div class="space-y-3 mb-4">
+                    <label class="flex items-center p-3 border border-gray-200 rounded-lg">
+                        <input type="radio" x-model="selectedDefectType" value="technical" class="mr-3">
+                        <div>
+                            <span class="font-medium">Технический</span>
+                            <p class="text-xs text-gray-500">Штраф не списывается</p>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-3 border border-gray-200 rounded-lg">
+                        <input type="radio" x-model="selectedDefectType" value="manual" class="mr-3">
+                        <div>
+                            <span class="font-medium">Ручной</span>
+                            <p class="text-xs text-gray-500">Штраф списывается с сотрудника</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="space-y-3">
+                    <button @click="setDefectType()" 
+                            :disabled="!selectedDefectType"
+                            class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                        Подтвердить
+                    </button>
+                    <button @click="showRepairabilityModal = true; showDefectTypeModal = false" 
+                            class="w-full px-4 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">
+                        Назад
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 z-30">
+        <div class="flex justify-around">
+            <a href="/dashboard/" class="flex flex-col items-center py-2 text-gray-600 hover:text-blue-600">
+                <i data-lucide="home" class="w-6 h-6 mb-1"></i>
+                <span class="text-xs">Главная</span>
+        </a>
+            <a href="/employees/" class="flex flex-col items-center py-2 text-gray-600 hover:text-blue-600">
+                <i data-lucide="users" class="w-6 h-6 mb-1"></i>
+                <span class="text-xs">Сотрудники</span>
+        </a>
+            <a href="/defects/" class="flex flex-col items-center py-2 text-red-600">
+                <i data-lucide="alert-triangle" class="w-6 h-6 mb-1"></i>
+                <span class="text-xs">Браки</span>
+        </a>
+            <a href="/inventory/" class="flex flex-col items-center py-2 text-gray-600 hover:text-blue-600">
+                <i data-lucide="package" class="w-6 h-6 mb-1"></i>
+                <span class="text-xs">Склад</span>
+        </a>
+        </div>
+    </nav>
+
+    <script>
+    function defectsMobileData() {
+        return {
+            defects: [],
+            searchTerm: '',
+            statusFilter: '',
+            showFilters: false,
+            showConfirmationModal: false,
+            showRepairabilityModal: false,
+            showWorkshopModal: false,
+            showDefectTypeModal: false,
+            currentDefect: null,
+            canBeFixed: null,
+            selectedWorkshop: '',
+            selectedDefectType: '',
+            availableWorkshops: [],
+            
+            async fetchDefects() {
+                try {
+                    const resp = await fetch('/defects/api/defects/');
+                    const data = await resp.json();
+                    this.defects = data.results || data;
+                } catch (error) {
+                    console.error('Ошибка загрузки браков:', error);
+                }
+            },
+            
+            async fetchWorkshops() {
+                try {
+                    const resp = await fetch('/operations/workshops/api/workshops/');
+                    const data = await resp.json();
+                    this.availableWorkshops = data.results || data;
+                } catch (error) {
+                    console.error('Ошибка загрузки цехов:', error);
+                }
+            },
+            
+            filteredDefects() {
+                let filtered = this.defects;
+                
+                if (this.statusFilter) {
+                    filtered = filtered.filter(d => d.status === this.statusFilter);
+                }
+                
+                if (this.searchTerm) {
+                    const term = this.searchTerm.toLowerCase();
+                    filtered = filtered.filter(d =>
+                        (d.product && d.product.name ? d.product.name : '').toLowerCase().includes(term) ||
+                        (d.user && d.user.full_name ? d.user.full_name : '').toLowerCase().includes(term)
+                    );
+                }
+                
+                return filtered;
+            },
+            
+            formatDate(dateStr) {
+                if (!dateStr) return '';
+                const d = new Date(dateStr);
+                return d.toLocaleString('ru-RU');
+            },
+            
+            getStatusText(status) {
+                const statusMap = {
+                    'pending_master_review': 'Ожидает проверки',
+                    'master_confirmed': 'Подтвержден мастером',
+                    'can_be_fixed': 'Можно починить',
+                    'sent_to_workshop': 'Отправлен в цех',
+                    'fixed': 'Исправлен',
+                    'unrepairable': 'Не подлежит восстановлению'
+                };
+                return statusMap[status] || status;
+            },
+            
+            getStatusClass(status) {
+                const classMap = {
+                    'pending_master_review': 'bg-yellow-100 text-yellow-800',
+                    'master_confirmed': 'bg-blue-100 text-blue-800',
+                    'can_be_fixed': 'bg-green-100 text-green-800',
+                    'sent_to_workshop': 'bg-purple-100 text-purple-800',
+                    'fixed': 'bg-green-100 text-green-800',
+                    'unrepairable': 'bg-red-100 text-red-800'
+                };
+                return classMap[status] || 'bg-gray-100 text-gray-800';
+            },
+            
+            getDefectTypeText(type) {
+                const typeMap = {
+                    'technical': 'Технический',
+                    'manual': 'Ручной'
+                };
+                return typeMap[type] || type;
+            },
+            
+            isMaster() {
+                // Проверяем роль пользователя (нужно будет передать с сервера)
+                return true; // Временно для демонстрации
+            },
+            
+            isWorker() {
+                // Проверяем роль пользователя
+                return true; // Временно для демонстрации
+            },
+            
+            showMasterReviewModal(defect) {
+                this.currentDefect = defect;
+                this.showConfirmationModal = true;
+            },
+            
+            async confirmInspection() {
+                try {
+                    const response = await fetch(`/defects/api/defects/${this.currentDefect.id}/confirm_by_master/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken()
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        this.showConfirmationModal = false;
+                        this.showRepairabilityModal = true;
+                    } else {
+                        const error = await response.json();
+                        alert('Ошибка: ' + error.error);
+                    }
+                } catch (error) {
+                    console.error('Ошибка подтверждения:', error);
+                    alert('Ошибка при подтверждении');
+                }
+            },
+            
+            setRepairability(canBeFixed) {
+                this.canBeFixed = canBeFixed;
+                this.showRepairabilityModal = false;
+                
+                if (canBeFixed) {
+                    this.showWorkshopModal = true;
+                } else {
+                    this.showDefectTypeModal = true;
+                }
+            },
+            
+            async sendToWorkshop() {
+                if (!this.selectedWorkshop) return;
+                
+                try {
+                    const response = await fetch(`/defects/api/defects/${this.currentDefect.id}/review_defect/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken()
+                        },
+                        body: JSON.stringify({
+                            can_be_fixed: true,
+                            target_workshop_id: this.selectedWorkshop,
+                            notes: ''
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        this.showWorkshopModal = false;
+                        this.resetMasterReview();
+                        await this.fetchDefects();
+                        alert('Брак отправлен в цех для восстановления');
+                    } else {
+                        const error = await response.json();
+                        alert('Ошибка: ' + error.error);
+                    }
+                } catch (error) {
+                    console.error('Ошибка отправки в цех:', error);
+                    alert('Ошибка при отправке в цех');
+                }
+            },
+            
+            async setDefectType() {
+                if (!this.selectedDefectType) return;
+                
+                try {
+                    const response = await fetch(`/defects/api/defects/${this.currentDefect.id}/review_defect/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken()
+                        },
+                        body: JSON.stringify({
+                            can_be_fixed: false,
+                            defect_type: this.selectedDefectType,
+                            notes: ''
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        this.showDefectTypeModal = false;
+                        this.resetMasterReview();
+                        await this.fetchDefects();
+                        alert('Тип брака установлен');
+                    } else {
+                        const error = await response.json();
+                        alert('Ошибка: ' + error.error);
+                    }
+                } catch (error) {
+                    console.error('Ошибка установки типа:', error);
+                    alert('Ошибка при установке типа брака');
+                }
+            },
+            
+            async markAsFixed(defect) {
+                if (!confirm('Подтвердите, что брак исправлен')) return;
+                
+                try {
+                    const response = await fetch(`/defects/api/defects/${defect.id}/mark_as_fixed/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCSRFToken()
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        await this.fetchDefects();
+                        alert('Брак отмечен как исправленный');
+                    } else {
+                        const error = await response.json();
+                        alert('Ошибка: ' + error.error);
+                    }
+                } catch (error) {
+                    console.error('Ошибка отметки исправления:', error);
+                    alert('Ошибка при отметке исправления');
+                }
+            },
+            
+            resetMasterReview() {
+                this.currentDefect = null;
+                this.canBeFixed = null;
+                this.selectedWorkshop = '';
+                this.selectedDefectType = '';
+            },
+            
+            getCSRFToken() {
+                return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+            },
+            
+            stats() {
+                const totalDefects = this.defects.length;
+                const pendingReview = this.defects.filter(d => d.status === 'pending_master_review').length;
+                const inRepair = this.defects.filter(d => d.status === 'sent_to_workshop').length;
+                const fixed = this.defects.filter(d => d.status === 'fixed').length;
+                
+                return { totalDefects, pendingReview, inRepair, fixed };
+            },
+            
+            async init() {
+                await this.fetchDefects();
+                await this.fetchWorkshops();
+                this.$nextTick(() => lucide.createIcons());
+            }
+        }
+    }
+    
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('defectsMobileData', defectsMobileData);
+    });
+    </script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html> 

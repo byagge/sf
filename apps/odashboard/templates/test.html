@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Быстрый QR-сканер</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #121212;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    #instructions {
+      color: #ccc;
+      margin-bottom: 20px;
+      font-size: 0.9em;
+    }
+
+    #qr-reader {
+      width: 320px;
+      max-width: 90%;
+      border: 2px solid #00ffcc;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    #result {
+      margin-top: 20px;
+      font-size: 1.2em;
+      padding: 10px;
+      background: #1e1e1e;
+      border-radius: 5px;
+      word-break: break-word;
+    }
+
+    button {
+      margin-top: 15px;
+      background-color: #2979ff;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #1c54b2;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>QR-сканер</h1>
+  <div id="instructions">Наведи камеру на QR-код. Результат появится ниже.</div>
+
+  <div id="qr-reader"></div>
+  <div id="result">Ожидаю сканирования...</div>
+  <button onclick="stopScanner()">Остановить камеру</button>
+
+  <script>
+    const qrResult = document.getElementById("result");
+    const scanner = new Html5Qrcode("qr-reader");
+
+    function startScanner() {
+      scanner.start(
+        { facingMode: "environment" }, // задняя камера
+        {
+          fps: 15, // быстрое обновление
+          qrbox: 250 // рамка
+        },
+        decodedText => {
+          qrResult.innerHTML = "🔍 Результат: <br><b>" + decodedText + "</b>";
+        },
+        errorMessage => {
+          // можно скрыть или показать ошибку, если нужно
+        }
+      ).catch(err => {
+        qrResult.textContent = "Ошибка запуска сканера: " + err;
+      });
+    }
+
+    function stopScanner() {
+      scanner.stop().then(() => {
+        qrResult.textContent = "Сканер остановлен.";
+      }).catch(err => {
+        qrResult.textContent = "Ошибка остановки: " + err;
+      });
+    }
+
+    // Стартуем автоматически
+    startScanner();
+  </script>
+
+</body>
+</html>

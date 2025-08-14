@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ru" x-data="masterPlansPage()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Smart Factory">
+    <title>Планы по цехам (Мастер)</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
+        .nav-active { color: #2563eb; }
+        .nav-bar { box-shadow: 0 -2px 16px 0 rgba(37,99,235,0.08); }
+        .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
+        .modal-bg { background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); animation: fadeInBg 0.2s; }
+        .skeleton { background: linear-gradient(90deg, #e0e7ef 25%, #f3f4f6 50%, #e0e7ef 75%); background-size: 200% 100%; animation: skeleton 1.2s infinite linear; }
+        @keyframes skeleton { 0% {background-position: 200% 0;} 100% {background-position: -200% 0;} }
+        @media (max-width: 640px) {
+            .responsive-btn-row { flex-direction: column; gap: 0.5rem; }
+            .modal-content { width: 95vw; max-width: 95vw; border-radius: 1.25rem; }
+        }
+        @media (min-width: 641px) {
+            .responsive-btn-row { flex-direction: row; gap: 0.5rem; }
+            .modal-content { width: 100%; max-width: 24rem; border-radius: 0.75rem; }
+        }
+        .modal-content { animation: scaleIn 0.2s; }
+        @keyframes fadeInBg {
+            from { background: rgba(0,0,0,0); }
+            to   { background: rgba(0,0,0,0.35); }
+        }
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;" x-data="masterPlansPage()" x-init="init()">
+    <!-- Offline Banner -->
+    <div x-show="!isOnline" x-transition class="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-2 font-semibold shadow-lg" style="letter-spacing:0.02em;">Нет соединения с интернетом. Данные могут быть неактуальны.</div>
+    <!-- Toast Notification -->
+    <div x-show="toast.show"
+         x-transition:enter="transition ease-out duration-400"
+         x-transition:enter-start="opacity-0 scale-95 translate-y-6"
+         x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-300"
+         x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+         x-transition:leave-end="opacity-0 scale-95 translate-y-6"
+         class="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-gray-200 shadow-lg rounded-xl px-6 py-4 flex items-center space-x-3 text-base font-semibold text-gray-800"
+         style="min-width: 220px; max-width: 90vw;" x-cloak>
+        <template x-if="toast.type === 'success'">
+            <i data-lucide="check-circle" class="w-6 h-6 text-green-500"></i>
+        </template>
+        <template x-if="toast.type === 'error'">
+            <i data-lucide="alert-circle" class="w-6 h-6 text-red-500"></i>
+        </template>
+        <span x-text="toast.message"></span>
+    </div>
+    <!-- AppBar -->
+    <header class="fixed top-0 left-0 right-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200 flex items-center justify-between px-4 h-16">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                <span class="text-white font-bold text-2xl">O</span>
+            </div>
+            <span class="text-lg font-semibold text-gray-900">Планы по цехам</span>
+        </div>
+    </header>
+{% if request.session.impersonator_id %}
+<div class="bg-yellow-200 text-yellow-900 text-xs text-center py-1">
+    Режим имперсонации. <a href="{% url 'release_impersonation' %}" class="underline font-semibold">Вернуться</a>
+</div>
+{% endif %}
+    <!-- Main Content -->
+    <main class="flex-1 pt-20 pb-20 px-2 max-w-2xl mx-auto w-full">
+        <!-- Tabs for workshops -->
+        <div class="flex space-x-2 mb-4 overflow-x-auto">
+            <template x-for="(workshop, idx) in workshops" :key="workshop.id">
+                <button @click="tabChanged(idx)" :class="selectedWorkshopIdx === idx ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'" class="px-4 py-2 rounded-lg font-semibold border border-blue-600 min-w-max">
+                    <span x-text="workshop.name"></span>
+                </button>
+            </template>
+        </div>
+        <!-- Stages for selected workshop -->
+        <template x-if="loading">
+            <div class="space-y-4 animate-pulse">
+                <div class="h-20 rounded-xl skeleton"></div>
+                <div class="h-20 rounded-xl skeleton"></div>
+            </div>
+        </template>
+        <template x-if="!loading && stages.length === 0">
+            <div class="text-center py-12">
+                <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="check-square" class="w-10 h-10 text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Нет активных этапов</h3>
+                <p class="text-gray-600">В этом цеху пока нет задач</p>
+            </div>
+        </template>
+        <template x-if="!loading && stages.length > 0">
+            <div class="space-y-6">
+                <template x-for="stage in stages" :key="stage.id">
+                    <div class="card bg-white rounded-xl p-4 flex flex-col space-y-2" :data-stage-id="stage.id">
+                        <div class="flex justify-between items-center mb-2">
+                            <div>
+                                <div class="font-bold text-gray-900 text-lg" x-text="stage.order_name"></div>
+                                <div class="text-xs text-gray-500">Операция: <span x-text="stage.operation"></span></div>
+                                <div class="text-xs text-gray-500">План: <span x-text="stage.plan_quantity"></span></div>
+                            </div>
+                            <div class="flex responsive-btn-row flex-wrap gap-2 mt-2">
+                                <template x-if="canAssign(stage)">
+                                    <div class="relative group">
+                                        <button @click="openAssignModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 bg-blue-600 text-white flex items-center space-x-2 font-semibold text-base">
+                                            <i data-lucide="user-plus" class="w-4 h-4"></i>
+                                            <span>Распределить</span>
+                                        </button>
+                                        <div x-show="!('ontouchstart' in window) && $root.tooltip === 'assign-' + stage.id" @mouseenter="$root.tooltip = 'assign-' + stage.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'assign-' + stage.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                            Назначить задачу сотруднику
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="canTransfer(stage)">
+                                    <div class="relative group">
+                                        <button @click="openTransferModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 text-white flex items-center space-x-2 font-semibold text-base">
+                                            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                            <span>Перевести дальше</span>
+                                        </button>
+                                        <div x-show="!('ontouchstart' in window) && $root.tooltip === 'transfer-' + stage.id" @mouseenter="$root.tooltip = 'transfer-' + stage.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'transfer-' + stage.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                            Передать выполненное на следующий этап
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="canTransfer(stage)">
+                                    <div class="relative group">
+                                        <button @click="openNoTransferModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white flex items-center space-x-2 font-semibold text-base">
+                                            <i data-lucide="slash" class="w-4 h-4"></i>
+                                            <span>Не переводить</span>
+                                        </button>
+                                        <div x-show="!('ontouchstart' in window) && $root.tooltip === 'no-transfer-' + stage.id" @mouseenter="$root.tooltip = 'no-transfer-' + stage.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'no-transfer-' + stage.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                            Зафиксировать этап как "не переводить"
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="canPostpone(stage)">
+                                    <div class="relative group">
+                                        <button @click="openPostponeModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 bg-yellow-500 text-white flex items-center space-x-2 font-semibold text-base">
+                                            <i data-lucide="clock" class="w-4 h-4"></i>
+                                            <span>Оставить</span>
+                                        </button>
+                                        <div x-show="!('ontouchstart' in window) && $root.tooltip === 'postpone-' + stage.id" @mouseenter="$root.tooltip = 'postpone-' + stage.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'postpone-' + stage.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                            Перенести дедлайн на следующий день
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <div class="text-xs text-gray-700 font-semibold mb-1">Назначения:</div>
+                            <template x-if="stage.assigned.length === 0">
+                                <div class="text-xs text-gray-400">Пока не назначено</div>
+                            </template>
+                            <template x-for="assign in stage.assigned" :key="assign.id">
+                                <div class="flex items-center justify-between py-1">
+                                    <div>
+                                        <div class="text-xs text-gray-500">Кому: <span class="font-medium text-gray-900" x-text="assign.employee_name"></span></div>
+                                        <div class="text-xs text-gray-500">Назначено: <span x-text="assign.quantity"></span></div>
+                                        <template x-if="assign.completed_quantity !== undefined">
+                                            <div class="text-xs text-green-600">Сделано: <span x-text="assign.completed_quantity"></span> из <span x-text="assign.quantity"></span></div>
+                                        </template>
+                                        <template x-if="assign.defective_quantity && assign.defective_quantity > 0">
+                                            <div class="text-xs text-red-600">Брак: <span x-text="assign.defective_quantity"></span></div>
+                                        </template>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button @click="openEditAssignModal(stage, assign)" class="text-blue-600 hover:underline text-xs relative group">
+                                            Редактировать
+                                            <div x-show="!('ontouchstart' in window) && $root.tooltip === 'edit-' + assign.id" @mouseenter="$root.tooltip = 'edit-' + assign.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'edit-' + assign.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                                Изменить количество
+                                            </div>
+                                        </button>
+                                        <button @click="deleteAssign(stage, assign)" class="text-red-500 hover:underline text-xs relative group">
+                                            Удалить
+                                            <div x-show="!('ontouchstart' in window) && $root.tooltip === 'delete-' + assign.id" @mouseenter="$root.tooltip = 'delete-' + assign.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'delete-' + assign.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                                Удалить назначение
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </main>
+    <!-- Assign Modal -->
+    <template x-if="showAssignModal">
+        <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showAssignModal = false">
+            <div class="modal-content bg-white rounded-t-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">Назначить сотрудника</h2>
+                    <button @click="showAssignModal = false" class="text-gray-400 hover:text-gray-600">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <form @submit.prevent="submitAssign" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Сотрудник <span class="text-red-500">*</span></label>
+                        <template x-if="filteredEmployees.length > 0">
+                            <select x-model.number="assignForm.employee_id" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <option value="" disabled>Выберите сотрудника</option>
+                                <template x-for="emp in filteredEmployees" :key="emp.id">
+                                    <option :value="emp.id" x-text="emp.name"></option>
+                                </template>
+                            </select>
+                        </template>
+                        <template x-if="filteredEmployees.length === 0">
+                            <div class="text-gray-400 text-sm py-2">Нет доступных сотрудников</div>
+                        </template>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Количество <span class="text-red-500">*</span></label>
+                        <div class="flex items-center space-x-2">
+                            <button type="button" @click="assignForm.quantity = Math.max(0, assignForm.quantity - 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">-</button>
+                            <input type="number" x-model.number="assignForm.quantity" class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold" :max="maxAssignableQuantity" min="0" required @input="assignForm.quantity = Math.max(0, Math.min(assignForm.quantity, maxAssignableQuantity))">
+                            <button type="button" @click="assignForm.quantity = Math.min(maxAssignableQuantity, assignForm.quantity + 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">+</button>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Доступно для назначения: <span x-text="maxAssignableQuantity"></span></div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" @click="showAssignModal = false" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
+                        <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg" :disabled="assignForm.quantity > maxAssignableQuantity || assignForm.quantity < 1">Назначить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
+    <!-- Edit Assign Modal -->
+    <template x-if="showEditAssignModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="modal-content bg-white rounded-xl p-6 w-full max-w-sm mx-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Редактировать назначение</h3>
+                    <p class="text-gray-600 mb-2" x-text="editAssignForm.employee_name"></p>
+                </div>
+                <form @submit.prevent="submitEditAssign" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Количество <span class="text-red-500">*</span></label>
+                        <div class="flex items-center space-x-2">
+                            <button type="button" @click="editAssignForm.quantity = Math.max(1, editAssignForm.quantity - 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">-</button>
+                            <input type="number" x-model.number="editAssignForm.quantity" class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold" :max="maxEditableQuantity" min="1" required @input="editAssignForm.quantity = Math.max(1, Math.min(editAssignForm.quantity, maxEditableQuantity))">
+                            <button type="button" @click="editAssignForm.quantity = Math.min(maxEditableQuantity, editAssignForm.quantity + 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">+</button>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Доступно для назначения: <span x-text="maxEditableQuantity"></span></div>
+                    </div>
+                    <div class="flex space-x-3 mt-4">
+                        <button type="button" @click="showEditAssignModal = false" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
+                        <button type="submit" class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg" :disabled="editAssignForm.quantity > maxEditableQuantity || editAssignForm.quantity < 1">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
+    <!-- Модалка подтверждения перевода дальше -->
+    <template x-if="showTransferModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="modal-content bg-white p-6 mx-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Перевести этап дальше?</h3>
+                    <p class="text-gray-600 mb-2">Вся сделанная работа будет передана на следующий этап. Продолжить?</p>
+                </div>
+                <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
+                    <button type="button" @click="cancelTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base">Отмена</button>
+                    <button type="button" @click="confirmTransferFirst()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 text-white font-semibold text-base">Перевести</button>
+                </div>
+            </div>
+        </div>
+    </template>
+    <!-- Второе подтверждение перевода дальше -->
+    <template x-if="showTransferConfirmModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="modal-content bg-white p-6 mx-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Вы уверены?</h3>
+                    <p class="text-gray-600 mb-2">Это действие нельзя отменить. Перевести этап дальше?</p>
+                </div>
+                <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
+                    <button type="button" @click="cancelTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base" :disabled="loadingAction === 'transfer'">Нет, отменить</button>
+                    <button type="button" @click="confirmTransferFinal()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 text-white font-semibold text-base flex items-center justify-center" :disabled="loadingAction === 'transfer'">
+                        <template x-if="loadingAction === 'transfer'">
+                            <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
+                        </template>
+                        <span x-text="loadingAction === 'transfer' ? 'Выполняется...' : 'Да, уверен'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+    <!-- Модалка подтверждения оставить -->
+    <template x-if="showPostponeModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="modal-content bg-white p-6 mx-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Оставить этап?</h3>
+                    <p class="text-gray-600 mb-2">Вся неготовая работа останется в этом цеху. Дедлайн будет перенесён на следующий рабочий день.</p>
+                </div>
+                <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
+                    <button type="button" @click="cancelPostpone()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base">Отмена</button>
+                    <button type="button" @click="confirmPostponeFirst()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 bg-yellow-500 text-white font-semibold text-base">Оставить</button>
+                </div>
+            </div>
+        </div>
+    </template>
+    <!-- Второе подтверждение оставить -->
+    <template x-if="showPostponeConfirmModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="modal-content bg-white p-6 mx-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Вы уверены?</h3>
+                    <p class="text-gray-600 mb-2">Это действие нельзя отменить. Оставить этап на следующий день?</p>
+                </div>
+                <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
+                    <button type="button" @click="cancelPostpone()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base" :disabled="loadingAction === 'postpone'">Нет, отменить</button>
+                    <button type="button" @click="confirmPostponeFinal()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 bg-yellow-500 text-white font-semibold text-base flex items-center justify-center" :disabled="loadingAction === 'postpone'">
+                        <template x-if="loadingAction === 'postpone'">
+                            <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
+                        </template>
+                        <span x-text="loadingAction === 'postpone' ? 'Выполняется...' : 'Да, уверен'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+    <!-- Модалка подтверждения не переводить -->
+    <template x-if="showNoTransferModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="modal-content bg-white p-6 mx-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Не переводить этап?</h3>
+                    <p class="text-gray-600 mb-2">Этап останется на текущем месте. Продолжить?</p>
+                </div>
+                <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
+                    <button type="button" @click="cancelNoTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base">Отмена</button>
+                    <button type="button" @click="confirmNoTransferFirst()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white font-semibold text-base">Не переводить</button>
+                </div>
+            </div>
+        </div>
+    </template>
+    <!-- Второе подтверждение не переводить -->
+    <template x-if="showNoTransferConfirmModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="modal-content bg-white p-6 mx-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Вы уверены?</h3>
+                    <p class="text-gray-600 mb-2">Это действие нельзя отменить. Не переводить этап?</p>
+                </div>
+                <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
+                    <button type="button" @click="cancelNoTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base" :disabled="loadingAction === 'no-transfer'">Нет, отменить</button>
+                    <button type="button" @click="confirmNoTransferFinal()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white font-semibold text-base flex items-center justify-center" :disabled="loadingAction === 'no-transfer'">
+                        <template x-if="loadingAction === 'no-transfer'">
+                            <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
+                        </template>
+                        <span x-text="loadingAction === 'no-transfer' ? 'Выполняется...' : 'Да, уверен'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+    <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40 max-w-md mx-auto w-full">
+        <a href="/dashboard/" class="flex flex-col items-center nav-active">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span class="text-xs">Главная</span>
+        </a>
+        <a href="/employees/" class="flex flex-col items-center">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span class="text-xs">Сотрудники</span>
+        </a>
+        <a href="/attendance/scan/" class="flex flex-col items-center justify-center w-12 h-12 bg-blue-600 rounded-full -mt-4 shadow-lg">
+            <i data-lucide="qr-code" class="w-6 h-6 text-white"></i>
+        </a>
+        <a href="/orders/plans/master/" class="flex flex-col items-center">
+            <i data-lucide="archive" class="w-5 h-5"></i>
+            <span class="text-xs">Планы</span>
+        </a>
+        <a href="/settings/" class="flex flex-col items-center">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            <span class="text-xs">Настройки</span>
+        </a>
+    </nav>
+    <!-- PWA Install Button -->
+    <div x-data="{ showInstall: false, deferredPrompt: null }" x-init="
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredPrompt = e;
+            this.showInstall = true;
+        });
+    " class="fixed bottom-32 left-1/2 transform -translate-x-1/2 z-50">
+        <button x-show="showInstall" @click="deferredPrompt.prompt(); showInstall = false;" class="px-6 py-3 bg-blue-600 text-white rounded-xl shadow-lg flex items-center space-x-2 text-base font-semibold">
+            <i data-lucide='download' class='w-5 h-5'></i>
+            <span>Установить приложение</span>
+        </button>
+    </div>
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/static/sw.js');
+        });
+    }
+    function masterPlansPage() {
+        return {
+            loading: true,
+            workshops: [],
+            selectedWorkshopIdx: 0,
+            stages: [],
+            employees: [],
+            showAssignModal: false,
+            assignForm: { stage_id: null, employee_id: '', quantity: 1 },
+            showEditAssignModal: false,
+            editAssignForm: { id: null, stage_id: null, employee_id: '', employee_name: '', quantity: 1 },
+            showTransferModal: false,
+            showTransferConfirmModal: false,
+            showPostponeModal: false,
+            showPostponeConfirmModal: false,
+            showNoTransferModal: false,
+            showNoTransferConfirmModal: false,
+            transferStageId: null,
+            postponeStageId: null,
+            noTransferStageId: null,
+            toast: { show: false, message: '', type: 'success', timeout: null },
+            showToast(msg, type = 'success') {
+                this.toast.message = msg;
+                this.toast.type = type;
+                this.toast.show = true;
+                lucide.createIcons();
+                if (this.toast.timeout) clearTimeout(this.toast.timeout);
+                this.toast.timeout = setTimeout(() => { this.toast.show = false; }, 2500);
+            },
+            hideToast() {
+                this.toast.show = false;
+                if (this.toast.timeout) clearTimeout(this.toast.timeout);
+            },
+            loadingAction: null,
+            lastActionStageId: null,
+            tooltip: null,
+            isOnline: navigator.onLine,
+            init() {
+                window.addEventListener('online', () => { this.isOnline = true; });
+                window.addEventListener('offline', () => { this.isOnline = false; });
+                this.loadWorkshops();
+                lucide.createIcons();
+            },
+            async loadWorkshops() {
+                this.loading = true;
+                const resp = await fetch('/api/workshops/api/my-workshops/');
+                this.workshops = await resp.json();
+                console.log('workshops:', this.workshops); // debug
+                if (this.workshops.length > 0) {
+                    this.selectedWorkshopIdx = 0; // явно установить индекс
+                    await this.loadStages();
+                }
+                this.loading = false;
+            },
+            async loadStages() {
+                this.loading = true;
+                const workshop = this.workshops[this.selectedWorkshopIdx];
+                if (!workshop) return;
+                const resp = await fetch(`/orders/api/stages/?workshop=${workshop.id}&status=in_progress`);
+                const data = await resp.json();
+                this.stages = Array.isArray(data) ? data : (data.results || []);
+                console.log('stages:', this.stages); // debug
+                this.loading = false;
+                lucide.createIcons(); // обновить иконки после загрузки этапов
+                // Автоскролл к этапу после действия
+                this.$nextTick(() => {
+                    if (this.lastActionStageId) {
+                        const el = document.querySelector(`[data-stage-id='${this.lastActionStageId}']`);
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        this.lastActionStageId = null;
+                    }
+                });
+            },
+            async loadEmployees() {
+                const workshop = this.workshops[this.selectedWorkshopIdx];
+                if (!workshop) return;
+                const resp = await fetch(`/api/workshops/api/employees/?workshop=${workshop.id}`);
+                this.employees = await resp.json();
+            },
+            get filteredEmployees() {
+                const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
+                if (!stage) return this.employees;
+                const assignedIds = (stage.assigned || []).map(a => a.employee_id);
+                return this.employees.filter(emp => !assignedIds.includes(emp.id));
+            },
+            get maxAssignableQuantity() {
+                const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
+                if (!stage) return 1;
+                const assigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
+                return Math.max(0, stage.plan_quantity - assigned);
+            },
+            get maxEditableQuantity() {
+                // Найти stage по editAssignForm.stage_id
+                const stage = this.stages.find(s => s.id === this.editAssignForm.stage_id);
+                if (!stage) return 1;
+                // Сумма назначений другим сотрудникам
+                const otherAssigned = (stage.assigned || []).filter(a => a.id !== this.editAssignForm.id).reduce((sum, a) => sum + a.quantity, 0);
+                return Math.max(1, stage.plan_quantity - otherAssigned);
+            },
+            get nowHour() {
+                // Получить текущий час (локальное время)
+                return new Date().getHours();
+            },
+            canAssign(stage) {
+                // Можно ли показывать кнопку "Распределить"
+                if (stage.done_count >= stage.plan_quantity) return false;
+                if (this.nowHour < 15) return true;
+                return false;
+            },
+            canTransfer(stage) {
+                // Можно ли показывать кнопку "Перевести дальше"
+                if (stage.done_count >= stage.plan_quantity) return true;
+                if (this.nowHour >= 17) return true;
+                return false;
+            },
+            canPostpone(stage) {
+                // Можно ли показывать кнопку "Оставить"
+                return this.nowHour >= 17 && stage.done_count < stage.plan_quantity;
+            },
+            async openAssignModal(stage) {
+                this.assignForm = { stage_id: stage.id, employee_id: '', quantity: 1 };
+                await this.loadEmployees();
+                this.showAssignModal = true;
+                lucide.createIcons(); // обновить иконки после открытия модалки
+            },
+            async submitAssign() {
+                const payload = { stage: this.assignForm.stage_id, employee: this.assignForm.employee_id, quantity: this.assignForm.quantity };
+                const resp = await fetch('/employee_tasks/assign/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                    body: JSON.stringify(payload)
+                });
+                if (resp.ok) {
+                    await this.loadStages();
+                    this.showAssignModal = false;
+                    lucide.createIcons(); // обновить иконки после закрытия модалки
+                }
+            },
+            openEditAssignModal(stage, assign) {
+                this.editAssignForm = { id: assign.id, stage_id: stage.id, employee_id: assign.employee_id, employee_name: assign.employee_name, quantity: assign.quantity };
+                this.showEditAssignModal = true;
+                lucide.createIcons(); // обновить иконки после открытия модалки
+            },
+            async submitEditAssign() {
+                const payload = { quantity: this.editAssignForm.quantity };
+                const resp = await fetch(`/employee_tasks/assign/${this.editAssignForm.id}/`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                    body: JSON.stringify(payload)
+                });
+                if (resp.ok) {
+                    await this.loadStages();
+                    this.showEditAssignModal = false;
+                    lucide.createIcons(); // обновить иконки после закрытия модалки
+                }
+            },
+            async deleteAssign(stage, assign) {
+                if (!confirm('Удалить назначение?')) return;
+                const resp = await fetch(`/employee_tasks/assign/${assign.id}/`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': this.getCsrfToken() }
+                });
+                if (resp.ok) {
+                    await this.loadStages();
+                    lucide.createIcons(); // обновить иконки после удаления
+                }
+            },
+            async tabChanged(idx) {
+                this.selectedWorkshopIdx = idx;
+                await this.loadStages();
+                lucide.createIcons(); // обновить иконки после смены таба
+            },
+            openTransferModal(stage) {
+                this.transferStageId = stage.id;
+                this.showTransferModal = true;
+            },
+            confirmTransferFirst() {
+                this.showTransferModal = false;
+                this.showTransferConfirmModal = true;
+            },
+            async confirmTransferFinal() {
+                this.showTransferConfirmModal = false;
+                this.loadingAction = 'transfer';
+                this.lastActionStageId = this.transferStageId;
+                try {
+                    const resp = await fetch(`/orders/api/stages/${this.transferStageId}/transfer/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': this.getCsrfToken() }
+                    });
+                    if (!resp.ok) {
+                        const data = await resp.json();
+                        this.showToast(data.error || 'Ошибка при переводе этапа!', 'error');
+                    } else {
+                        this.showToast('Этап успешно переведён!', 'success');
+                    }
+                } catch (e) {
+                    this.showToast('Ошибка сети при переводе этапа!', 'error');
+                }
+                await this.loadStages();
+                this.loadingAction = null;
+            },
+            cancelTransfer() {
+                this.showTransferModal = false;
+                this.showTransferConfirmModal = false;
+            },
+            openPostponeModal(stage) {
+                this.postponeStageId = stage.id;
+                this.showPostponeModal = true;
+            },
+            confirmPostponeFirst() {
+                this.showPostponeModal = false;
+                this.showPostponeConfirmModal = true;
+            },
+            async confirmPostponeFinal() {
+                this.showPostponeConfirmModal = false;
+                this.loadingAction = 'postpone';
+                this.lastActionStageId = this.postponeStageId;
+                try {
+                    const resp = await fetch(`/orders/api/stages/${this.postponeStageId}/postpone/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': this.getCsrfToken() }
+                    });
+                    if (!resp.ok) {
+                        const data = await resp.json();
+                        this.showToast(data.error || 'Ошибка при переносе дедлайна!', 'error');
+                    } else {
+                        this.showToast('Дедлайн перенесён!', 'success');
+                    }
+                } catch (e) {
+                    this.showToast('Ошибка сети при переносе дедлайна!', 'error');
+                }
+                await this.loadStages();
+                this.loadingAction = null;
+            },
+            cancelPostpone() {
+                this.showPostponeModal = false;
+                this.showPostponeConfirmModal = false;
+            },
+            openNoTransferModal(stage) {
+                this.noTransferStageId = stage.id;
+                this.showNoTransferModal = true;
+            },
+            confirmNoTransferFirst() {
+                this.showNoTransferModal = false;
+                this.showNoTransferConfirmModal = true;
+            },
+            async confirmNoTransferFinal() {
+                this.showNoTransferConfirmModal = false;
+                this.loadingAction = 'no-transfer';
+                this.lastActionStageId = this.noTransferStageId;
+                try {
+                    const resp = await fetch(`/orders/api/stages/${this.noTransferStageId}/no-transfer/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': this.getCsrfToken() }
+                    });
+                    if (!resp.ok) {
+                        const data = await resp.json();
+                        this.showToast(data.error || 'Ошибка при действии "не переводить"!', 'error');
+                    } else {
+                        this.showToast('Этап отмечен как "не переводить"', 'success');
+                    }
+                } catch (e) {
+                    this.showToast('Ошибка сети при действии "не переводить"!', 'error');
+                }
+                await this.loadStages();
+                this.loadingAction = null;
+            },
+            cancelNoTransfer() {
+                this.showNoTransferModal = false;
+                this.showNoTransferConfirmModal = false;
+            },
+            getCsrfToken() {
+                const name = 'csrftoken';
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    cookie = cookie.trim();
+                    if (cookie.startsWith(name + '=')) {
+                        return decodeURIComponent(cookie.substring(name.length + 1));
+                    }
+                }
+                return '';
+            }
+        }
+    }
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('masterPlansPage', masterPlansPage);
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+    </script>
+</body>
+</html> 

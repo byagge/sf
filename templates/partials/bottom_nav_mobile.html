@@ -1,0 +1,90 @@
+<!-- Shared mobile bottom navigation -->
+<div x-data="{showMoreMenu:false}" x-init="$nextTick(() => { if(window.lucide) lucide.createIcons(); })" class="relative">
+    <nav class="mobile-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40">
+        <a href="/dashboard/" class="flex flex-col items-center text-blue-600">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span class="text-xs">Главная</span>
+        </a>
+        <a href="/clients/" class="flex flex-col items-center text-gray-500">
+            <i data-lucide="user" class="w-5 h-5"></i>
+            <span class="text-xs">Клиенты</span>
+        </a>
+        <a href="/orders/?create=1/" class="flex flex-col items-center justify-center w-12 h-12 bg-blue-600 rounded-full -mt-4 shadow-lg">
+            <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+        </a>
+        <a href="/inventory/" class="flex flex-col items-center text-gray-500">
+            <i data-lucide="archive" class="w-5 h-5"></i>
+            <span class="text-xs">Склад</span>
+        </a>
+        <button @click="showMoreMenu = true; $nextTick(() => lucide.createIcons())" class="flex flex-col items-center text-gray-500 focus:outline-none">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+            <span class="text-xs">Другое</span>
+        </button>
+    </nav>
+
+<!-- More Menu Modal (universal) -->
+    <template x-if="showMoreMenu">
+    <div x-transition.opacity class="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-40" @click.self="showMoreMenu = false; $nextTick(() => lucide.createIcons())">
+        <div class="w-full max-w-md bg-white rounded-t-2xl p-6 pb-8 shadow-xl animate-fade-in relative">
+            <button @click="showMoreMenu = false; $nextTick(() => lucide.createIcons())" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Меню</h3>
+            <div class="grid grid-cols-3 gap-4 text-sm">
+                <a href="/services/" class="flex flex-col items-center text-gray-700">
+                    <i data-lucide="scissors" class="w-6 h-6"></i>
+                    <span>Услуги</span>
+                </a>
+                <a href="/products/" class="flex flex-col items-center text-gray-700">
+                    <i data-lucide="box" class="w-6 h-6"></i>
+                    <span>Продукты</span>
+                </a>
+                <a href="/finished_goods/" class="flex flex-col items-center text-gray-700">
+                    <i data-lucide="package" class="w-6 h-6"></i>
+                    <span>Готовое</span>
+                </a>
+                <a href="/defects/" class="flex flex-col items-center text-gray-700">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                    <span>Браки</span>
+                </a>
+                <a href="/employees/" class="flex flex-col items-center text-gray-700">
+                    <i data-lucide="users" class="w-6 h-6"></i>
+                    <span>Сотрудники</span>
+                </a>
+                <a href="/settings/" class="flex flex-col items-center text-gray-700">
+                    <i data-lucide="settings" class="w-6 h-6"></i>
+                    <span>Настройки</span>
+                </a>
+            </div>
+    </template>
+</div>
+
+
+<!-- Ensure Alpine.js and Lucide are loaded (fallback) -->
+<script>
+(function() {
+    function loadScript(src) {
+        return new Promise(function(resolve) {
+            const s = document.createElement('script');
+            s.src = src;
+            s.defer = true;
+            s.onload = resolve;
+            document.head.appendChild(s);
+        });
+    }
+    async function ensureLibs() {
+        if (!window.Alpine) {
+            await loadScript('https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js');
+        }
+        if (!window.lucide) {
+            await loadScript('https://unpkg.com/lucide@latest/dist/umd/lucide.min.js');
+        }
+        document.addEventListener('alpine:init', () => {
+            if (window.lucide) window.lucide.createIcons();
+        });
+        if (window.lucide) window.lucide.createIcons();
+        if (window.Alpine && !window.Alpine.initialized) window.Alpine.start();
+    }
+    ensureLibs();
+})();
+</script>

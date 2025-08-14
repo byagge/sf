@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Готовая продукция — Склад</title>
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        .menu-card { transition: all 0.3s ease; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%); backdrop-filter: blur(10px); }
+        .menu-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #e0e7ef; border-radius: 4px; }
+        aside::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 py-4 fixed top-0 left-0 right-0 z-30">
+        <div class="flex items-center justify-between px-4 sm:px-6">
+            <div class="flex items-center space-x-2">
+                <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-xl">S</span>
+                </div>
+                <span class="text-xl font-semibold text-gray-900">Smart Factory</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <a href="/notifications/" class="text-gray-600 hover:text-gray-900 relative">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                </a>
+                <a href="/settings/" class="text-gray-600 hover:text-gray-900">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </a>
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <span class="text-white text-sm">С</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r border-gray-200 p-4 space-y-6 fixed left-0 top-20 bottom-0 overflow-y-auto scrollbar-none z-20" style="scrollbar-width: none; -ms-overflow-style: none;">
+        <div>
+            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Навигация</h3>
+            <nav class="space-y-1">
+                <a href="/dashboard/" class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-600">
+                    <i data-lucide="home" class="w-5 h-5"></i>
+                    <span>Главная</span>
+                </a>
+                <a href="/employees/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                    <span>Сотрудники</span>
+                </a>
+                <a href="/inventory/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                    <i data-lucide="archive" class="w-5 h-5"></i>
+                    <span>Склад</span>
+                </a>
+                <a href="/services/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                    <i data-lucide="scissors" class="w-5 h-5"></i>
+                    <span>Услуги</span>
+                </a>
+                <a href="/clients/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                    <i data-lucide="user-plus" class="w-5 h-5"></i>
+                    <span>Клиенты</span>
+                </a>
+                <a href="/finished_goods/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                    <i data-lucide="package-check" class="w-5 h-5"></i>
+                    <span>Готовые товары на складе</span>
+                </a>
+                <a href="/workshops/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                    <i data-lucide="factory" class="w-5 h-5"></i>
+                    <span>Цехи</span>
+                </a>
+            </nav>
+        </div>
+    </aside>
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto ml-64 p-6 pt-28" x-data="finishedGoodsData()" x-init="init()">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 flex flex-col lg:flex-row lg:items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">Склад: готовая продукция</h1>
+                <p class="text-gray-600">Просмотр и анализ готовой продукции на складе</p>
+            </div>
+            <div class="flex items-center space-x-4 mt-4 lg:mt-0">
+                <button @click="viewMode = 'table'" :class="{'bg-blue-600 text-white': viewMode === 'table', 'bg-gray-200 text-gray-700': viewMode !== 'table'}" class="p-2 rounded-md">
+                    <i data-lucide="grid"></i>
+                </button>
+                <button @click="viewMode = 'cards'" :class="{'bg-blue-600 text-white': viewMode === 'cards', 'bg-gray-200 text-gray-700': viewMode !== 'cards'}" class="p-2 rounded-md">
+                    <i data-lucide="list"></i>
+                </button>
+            </div>
+        </div>
+        <!-- Элементы управления -->
+        <div class="flex flex-col lg:flex-row gap-4 items-center justify-between mb-6">
+            <div class="flex items-center space-x-4 w-full lg:w-auto">
+                <div class="relative flex-1 lg:flex-none">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"></i>
+                    <input type="text" placeholder="Поиск по продукции, заказу, получателю..." x-model="searchTerm" class="pl-10 pr-4 py-2 w-full lg:w-64 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+        <!-- Табличный вид -->
+        <div x-show="viewMode === 'table'" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <template x-for="column in ['product', 'quantity', 'order', 'status_display', 'received_at', 'issued_at', 'recipient', 'comment']">
+                                <th class="px-4 py-3 text-left font-medium text-gray-900 cursor-pointer hover:bg-gray-100" @click="handleSort(column)">
+                                    <div class="flex items-center space-x-2">
+                                        <span x-text="columnLabels[column]"></span>
+                                        <template x-if="sortField === column">
+                                            <i :data-lucide="sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'" style="width: 16px; height: 16px;"></i>
+                                        </template>
+                                    </div>
+                                </th>
+                            </template>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <template x-for="good in filteredGoods()" :key="good.id">
+                            <tr @click="openDetailModal(good.id)" class="cursor-pointer hover:bg-blue-50">
+                                <td class="px-4 py-3" x-text="good.product"></td>
+                                <td class="px-4 py-3" x-text="good.quantity"></td>
+                                <td class="px-4 py-3" x-text="good.order"></td>
+                                <td class="px-4 py-3">
+                                    <span :class="good.status === 'issued' ? 'text-green-600 font-semibold' : 'text-blue-600 font-semibold'" x-text="good.status_display"></span>
+                                </td>
+                                <td class="px-4 py-3" x-text="good.received_at ? new Date(good.received_at).toLocaleString('ru-RU') : ''"></td>
+                                <td class="px-4 py-3" x-text="good.issued_at ? new Date(good.issued_at).toLocaleString('ru-RU') : ''"></td>
+                                <td class="px-4 py-3" x-text="good.recipient"></td>
+                                <td class="px-4 py-3" x-text="good.comment"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <div x-show="filteredGoods().length === 0" class="text-center py-12">
+                <i data-lucide="package" class="mx-auto text-gray-400 mb-4" style="width: 48px; height: 48px;"></i>
+                <p class="text-gray-500 text-lg">Готовая продукция не найдена</p>
+                <p class="text-gray-400">Попробуйте изменить параметры поиска</p>
+            </div>
+        </div>
+        <!-- Карточный вид -->
+        <div x-show="viewMode === 'cards'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="good in filteredGoods()" :key="good.id">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h3 class="font-semibold text-gray-900" x-text="good.product"></h3>
+                            <p class="text-sm text-gray-600" x-text="good.order"></p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <span class="inline-block px-2 py-1 rounded text-xs font-semibold" :class="good.status === 'issued' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'" x-text="good.status_display"></span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-gray-600">Кол-во:</span>
+                            <p class="font-medium" x-text="good.quantity"></p>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Поступление:</span>
+                            <p class="font-medium" x-text="good.received_at ? new Date(good.received_at).toLocaleString('ru-RU') : ''"></p>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Выдача:</span>
+                            <p class="font-medium" x-text="good.issued_at ? new Date(good.issued_at).toLocaleString('ru-RU') : ''"></p>
+                        </div>
+                        <div>
+                            <span class="text-gray-600">Получатель:</span>
+                            <p class="font-medium" x-text="good.recipient"></p>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-gray-200">
+                        <span class="text-sm text-gray-600">Комментарий:</span>
+                        <span class="font-medium" x-text="good.comment"></span>
+                    </div>
+                </div>
+            </template>
+            <div x-show="filteredGoods().length === 0" class="col-span-full text-center py-12">
+                <i data-lucide="package" class="mx-auto text-gray-400 mb-4" style="width: 48px; height: 48px;"></i>
+                <p class="text-gray-500 text-lg">Готовая продукция не найдена</p>
+                <p class="text-gray-400">Попробуйте изменить параметры поиска</p>
+            </div>
+        </div>
+        <template x-if="showDetailModal">
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-screen-lg mx-auto overflow-y-auto overflow-x-auto my-4 relative" style="max-width:calc(100vw - 32px); max-height:calc(100vh - 32px); box-sizing:border-box;">
+                    <button @click="closeDetailModal()" class="absolute top-2 right-2 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors z-10">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                    <div class="px-2 sm:px-6 py-4" style="box-sizing:border-box;">
+                        <h2 class="text-2xl font-bold mb-4 text-blue-700">Подробная информация</h2>
+                        <template x-if="detailLoading">
+                            <div class="text-center py-8 text-gray-400">Загрузка...</div>
+                        </template>
+                        <template x-if="!detailLoading && detailGood">
+                            <div class="space-y-6">
+                            <div>
+                                    <h3 class="font-semibold text-lg text-gray-900 mb-2">Основные данные</h3>
+                                    <div class="grid grid-cols-2 gap-4 text-sm">
+                                        <div><span class="text-gray-600">ID:</span> <span x-text="detailGood.id"></span></div>
+                                        <div><span class="text-gray-600">Количество:</span> <span x-text="detailGood.quantity"></span></div>
+                                        <div><span class="text-gray-600">Статус:</span> <span x-text="detailGood.status_display"></span></div>
+                                        <div><span class="text-gray-600">Поступление:</span> <span x-text="detailGood.received_at ? new Date(detailGood.received_at).toLocaleString('ru-RU') : ''"></span></div>
+                                        <div><span class="text-gray-600">Выдача:</span> <span x-text="detailGood.issued_at ? new Date(detailGood.issued_at).toLocaleString('ru-RU') : ''"></span></div>
+                                        <div><span class="text-gray-600">Получатель:</span> <span x-text="detailGood.recipient"></span></div>
+                                        <div class="col-span-2"><span class="text-gray-600">Комментарий:</span> <span x-text="detailGood.comment"></span></div>
+                            </div>
+                        </div>
+                                <div>
+                                    <h3 class="font-semibold text-lg text-gray-900 mb-2 mt-4">Продукт</h3>
+                                    <template x-if="detailGood.product">
+                        <div class="space-y-2">
+                                            <div><span class="text-gray-600">ID:</span> <span x-text="detailGood.product.id"></span></div>
+                                            <div><span class="text-gray-600">Наименование:</span> <span x-text="detailGood.product.name"></span></div>
+                                            <div><span class="text-gray-600">Тип:</span> <span x-text="detailGood.product.type"></span></div>
+                                            <div><span class="text-gray-600">Описание:</span> <span x-text="detailGood.product.description"></span></div>
+                                            <div><span class="text-gray-600">Цена:</span> <span x-text="detailGood.product.price"></span></div>
+                                            <div><span class="text-gray-600">Дата создания:</span> <span x-text="detailGood.product.created_at ? new Date(detailGood.product.created_at).toLocaleString('ru-RU') : ''"></span></div>
+                                            <div><span class="text-gray-600">Дата обновления:</span> <span x-text="detailGood.product.updated_at ? new Date(detailGood.product.updated_at).toLocaleString('ru-RU') : ''"></span></div>
+                                            <template x-if="detailGood.product.services && detailGood.product.services.length">
+                                                <div>
+                                                    <span class="text-gray-600">Услуги:</span>
+                                                    <ul class="list-disc ml-6">
+                                                        <template x-for="service in detailGood.product.services" :key="service.id">
+                                                            <li x-text="service.name"></li>
+                                                        </template>
+                                                    </ul>
+                        </div>
+                                            </template>
+                                            <template x-if="detailGood.product.materials && detailGood.product.materials.length">
+                                                <div>
+                                                    <span class="text-gray-600">Материалы:</span>
+                                                    <ul class="list-disc ml-6">
+                                                        <template x-for="mat in detailGood.product.materials" :key="mat.id">
+                                                            <li><span x-text="mat.name"></span> — <span x-text="mat.amount"></span> <span x-text="mat.unit"></span> (<span x-text="mat.price"></span> ⃀)</li>
+                                                        </template>
+                                                    </ul>
+                            </div>
+                                            </template>
+                            </div>
+                                    </template>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-lg text-gray-900 mb-2 mt-4">Заказ</h3>
+                                    <template x-if="detailGood.order">
+                    <div class="space-y-2">
+                                            <div><span class="text-gray-600">ID:</span> <span x-text="detailGood.order.id"></span></div>
+                                            <div><span class="text-gray-600">Название заявки:</span> <span x-text="detailGood.order.name"></span></div>
+                                            <div><span class="text-gray-600">Количество:</span> <span x-text="detailGood.order.quantity"></span></div>
+                                            <div><span class="text-gray-600">Статус:</span> <span x-text="detailGood.order.status"></span></div>
+                                            <div><span class="text-gray-600">Комментарий:</span> <span x-text="detailGood.order.comment"></span></div>
+                                            <div><span class="text-gray-600">Дата создания:</span> <span x-text="detailGood.order.created_at ? new Date(detailGood.order.created_at).toLocaleString('ru-RU') : ''"></span></div>
+                                            <template x-if="detailGood.order.client">
+                                                <div class="bg-gray-50 rounded-lg p-4 mt-2">
+                                                    <h4 class="font-semibold text-blue-700 mb-2">Клиент</h4>
+                                                    <div class="grid grid-cols-2 gap-2 text-sm">
+                                                        <div><span class="text-gray-600">ID:</span> <span x-text="detailGood.order.client.id"></span></div>
+                                                        <div><span class="text-gray-600">Имя:</span> <span x-text="detailGood.order.client.name"></span></div>
+                                                        <template x-if="detailGood.order.client.company">
+                                                            <div class="col-span-2"><span class="text-gray-600">Компания:</span> <span x-text="detailGood.order.client.company"></span></div>
+                                                        </template>
+                                                        <template x-if="detailGood.order.client.phone">
+                                                            <div><span class="text-gray-600">Телефон:</span> <span x-text="detailGood.order.client.phone"></span></div>
+                                                        </template>
+                                                        <template x-if="detailGood.order.client.email">
+                                                            <div><span class="text-gray-600">Email:</span> <span x-text="detailGood.order.client.email"></span></div>
+                                                        </template>
+                                                        <template x-if="detailGood.order.client.address">
+                                                            <div class="col-span-2"><span class="text-gray-600">Адрес:</span> <span x-text="detailGood.order.client.address"></span></div>
+                                                        </template>
+                                                        <template x-if="detailGood.order.client.created_at">
+                                                            <div><span class="text-gray-600">Создан:</span> <span x-text="new Date(detailGood.order.client.created_at).toLocaleString('ru-RU')"></span></div>
+                                                        </template>
+                                                        <template x-if="detailGood.order.client.updated_at">
+                                                            <div><span class="text-gray-600">Обновлён:</span> <span x-text="new Date(detailGood.order.client.updated_at).toLocaleString('ru-RU')"></span></div>
+                                                        </template>
+                                                        <template x-for="(value, key) in detailGood.order.client" :key="key">
+                                                            <template x-if="!['id','name','company','phone','email','address','created_at','updated_at'].includes(key)">
+                                                                <div class="col-span-2"><span class="text-gray-600" x-text="key+':'"></span> <span x-text="value"></span></div>
+                                                            </template>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                            <template x-if="detailGood.order.workshop">
+                                                <div><span class="text-gray-600">Цех:</span> <span x-text="detailGood.order.workshop.name"></span></div>
+                                            </template>
+                                            <template x-if="detailGood.order.product">
+                                                <div><span class="text-gray-600">Продукт заказа:</span> <span x-text="detailGood.order.product.name"></span></div>
+                                            </template>
+                                            <template x-if="detailGood.order.stages && detailGood.order.stages.length">
+                            <div>
+                                                    <span class="text-gray-600">Этапы заказа:</span>
+                                                    <ul class="list-disc ml-6">
+                                                        <template x-for="stage in detailGood.order.stages" :key="stage.id">
+                                                            <li>
+                                                                <span x-text="stage.workshop ? stage.workshop.name : ''"></span>
+                                                                — <span x-text="stage.in_progress"></span> в работе, <span x-text="stage.completed"></span> передано, <span x-text="stage.defective"></span> брак
+                                                                <span class="text-gray-400 ml-2" x-text="stage.date ? new Date(stage.date).toLocaleString('ru-RU') : ''"></span>
+                                                                <template x-if="stage.comment"><span class="ml-2 text-gray-500">(<span x-text="stage.comment"></span>)</span></template>
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                            </div>
+                                            </template>
+                                            <template x-if="detailGood.order.defects && detailGood.order.defects.length">
+                            <div>
+                                                    <span class="text-gray-600">Браки по заказу:</span>
+                                                    <ul class="list-disc ml-6">
+                                                        <template x-for="def in detailGood.order.defects" :key="def.id">
+                                                            <li>
+                                                                <span x-text="def.workshop ? def.workshop.name : ''"></span> — <span x-text="def.quantity"></span> шт.
+                                                                <span class="text-gray-400 ml-2" x-text="def.date ? new Date(def.date).toLocaleString('ru-RU') : ''"></span>
+                                                                <template x-if="def.comment"><span class="ml-2 text-gray-500">(<span x-text="def.comment"></span>)</span></template>
+                                                            </li>
+                                                        </template>
+                                                    </ul>
+                            </div>
+                                            </template>
+                            </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </main>
+    <script>
+        function finishedGoodsData() {
+            return {
+                goods: [],
+                searchTerm: '',
+                sortField: 'received_at',
+                sortDirection: 'desc',
+                viewMode: 'table',
+                columnLabels: {
+                    product: 'Продукт',
+                    quantity: 'Кол-во',
+                    order: 'Заказ',
+                    status_display: 'Статус',
+                    received_at: 'Поступление',
+                    issued_at: 'Выдача',
+                    recipient: 'Получатель',
+                    comment: 'Комментарий'
+                },
+                showDetailModal: false,
+                detailGood: null,
+                detailLoading: false,
+                async fetchGoods() {
+                    const resp = await fetch('/finished_goods/api/finished_goods/');
+                    const data = await resp.json();
+                    this.goods = data.results;
+                },
+                filteredGoods() {
+                    let filtered = this.goods.filter(good => {
+                        return (
+                            good.product.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+                            (good.order && good.order.toLowerCase().includes(this.searchTerm.toLowerCase())) ||
+                            (good.recipient && good.recipient.toLowerCase().includes(this.searchTerm.toLowerCase())) ||
+                            (good.comment && good.comment.toLowerCase().includes(this.searchTerm.toLowerCase()))
+                        );
+                    });
+                    return filtered.sort((a, b) => {
+                        const aValue = a[this.sortField] || '';
+                        const bValue = b[this.sortField] || '';
+                        if (typeof aValue === 'string' && typeof bValue === 'string') {
+                            return this.sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+                        }
+                        if (typeof aValue === 'number' && typeof bValue === 'number') {
+                            return this.sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+                        }
+                        return 0;
+                    });
+                },
+                handleSort(field) {
+                    if (this.sortField === field) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortField = field;
+                        this.sortDirection = 'asc';
+                    }
+                },
+                async init() {
+                    await this.fetchGoods();
+                    this.$nextTick(() => lucide.createIcons());
+                },
+                async openDetailModal(id) {
+                    this.showDetailModal = true;
+                    this.detailLoading = true;
+                    this.detailGood = null;
+                    try {
+                        const resp = await fetch(`/finished_goods/api/finished_goods/${id}/`);
+                        this.detailGood = await resp.json();
+                    } catch (e) {
+                        this.detailGood = null;
+                    }
+                    this.detailLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                },
+                closeDetailModal() {
+                    this.showDetailModal = false;
+                    this.detailGood = null;
+                    this.detailLoading = false;
+                    this.$nextTick(() => lucide.createIcons());
+                }
+            }
+        }
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('finishedGoodsData', finishedGoodsData);
+        });
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
+    </script>
+    <style>
+        @media (max-width: 640px) {
+            .modal-content-lg {
+                max-width: 98vw !important;
+                max-height: 98vh !important;
+                padding-left: 4px !important;
+                padding-right: 4px !important;
+            }
+        }
+    </style>
+</body>
+</html>

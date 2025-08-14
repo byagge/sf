@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Цеха — Smart Factory</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        body { background: linear-gradient(135deg, #f3f4f6 0%, #e0e7ff 100%); }
+        .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;">
+    <!-- AppBar -->
+    <header class="fixed top-0 left-0 right-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200 flex items-center justify-between px-4 h-16 transition">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
+                <span class="text-white font-bold text-2xl">S</span>
+            </div>
+            <span class="text-lg font-semibold text-gray-900">Цеха</span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <!-- <a href="/notifications/" class="relative text-gray-600 hover:text-indigo-600">
+                <i data-lucide="bell" class="w-6 h-6"></i>
+            </a> -->
+        </div>
+    </header>
+    <!-- Main Content -->
+    <main class="flex-1 pt-20 pb-20 px-2 max-w-md mx-auto w-full transition">
+        <div class="mt-2 mb-4">
+            <h1 class="text-2xl font-bold text-gray-900 mb-1">Цеха</h1>
+            <p class="text-gray-500 text-sm">Список всех производственных цехов и их описание</p>
+        </div>
+        <div class="grid grid-cols-1 gap-3 mb-4">
+            {% for workshop in workshops %}
+            <div class="card bg-white rounded-2xl p-4 flex flex-col transition">
+                <div class="flex items-center space-x-3 mb-2">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="factory" class="w-5 h-5 text-blue-600"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">{{ workshop.name }}</h3>
+                        <p class="text-gray-600 text-xs">{{ workshop.description }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center text-xs text-gray-500">
+                    <i data-lucide="user" class="w-4 h-4 mr-1"></i>
+                    <span>Мастер: {{ workshop.manager }}</span>
+                </div>
+                <div class="flex items-center text-xs text-gray-400 mt-1">
+                    <span>Создан: {{ workshop.created_at|date:'d.m.Y' }}</span>
+                    <span class="ml-4">Обновлён: {{ workshop.updated_at|date:'d.m.Y' }}</span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center text-gray-400 py-12">
+                Нет цехов для отображения
+            </div>
+            {% endfor %}
+        </div>
+        <!-- <a href="" onclick="alert('Добавить цех можно только в режиме администратора'); return false;" class="fixed bottom-24 right-4 z-50 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg transition flex items-center space-x-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Добавить цех</span>
+        </a> -->
+    </main>
+    {% include 'partials/bottom_nav_mobile.html' %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
+</html> 

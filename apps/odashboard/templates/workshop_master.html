@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru" style="margin:0; padding:0;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель мастера — Цех</title>
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        html, body, header { margin: 0 !important; padding: 0 !important; }
+        .menu-card {
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            backdrop-filter: blur(10px);
+        }
+        .menu-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%);
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3B82F6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" style="font-family: system-ui, -apple-system, sans-serif; margin:0; padding:0;">
+    <div x-data="workshopDashboard()">
+        <!-- Header -->
+        <header style="position:fixed; top:0; left:0; right:0; z-index:30; background:#fff; border-bottom:1px solid #e5e7eb; margin:0; padding-bottom:60px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; height:56px; padding:0 24px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="width:40px; height:40px; background:#2563eb; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                <span style="color:#fff; font-weight:bold; font-size:20px;">Ц</span>
+              </div>
+              <span style="font-size:20px; font-weight:600; color:#111827;">Цех: <span x-text="overview.workshop_name || '-'"/></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px;">
+              <a href="/settings/" style="color:#4b5563;">
+                <i data-lucide="settings" style="width:20px; height:20px;"></i>
+              </a>
+              <div style="width:32px; height:32px; background:#2563eb; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                <span style="color:#fff; font-size:14px;" x-text="(overview.user_name || 'М').charAt(0).toUpperCase()"></span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="w-64 bg-white border-r border-gray-200 p-4 space-y-6 fixed left-0 top-20 bottom-0 overflow-y-auto scrollbar-none z-20" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <!-- Навигация -->
+            <div>
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Навигация</h3>
+                <nav class="space-y-1">
+                    <a href="/dashboard/" class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-600">
+                        <i data-lucide="home" class="w-5 h-5"></i>
+                        <span>Главная</span>
+                    </a>
+                    <a href="/employees/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                        <span>Сотрудники цеха</span>
+                    </a>
+                    <!-- <a href="/orders/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                        <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+                        <span>Заказы</span>
+                    </a>
+                    <a href="/inventory/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
+                        <i data-lucide="archive" class="w-5 h-5"></i>
+                        <span>Склад цеха</span>
+                    </a> -->
+                </nav>
+            </div>
+
+            <!-- Статистика -->
+            <div>
+                <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Статистика цеха</h3>
+                <div class="space-y-3">
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm text-gray-600">Сотрудников</span>
+                            <span class="text-sm font-medium text-gray-900" x-text="overview.total_employees || '0'"></span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm text-gray-600">Произведено товаров</span>
+                            <span class="text-sm font-medium text-gray-900" x-text="overview.products_made || '0'"></span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm text-gray-600">Брак</span>
+                            <span class="text-sm font-medium text-gray-900" x-text="overview.defective_products || '0'"></span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm text-gray-600">Активных заказов</span>
+                            <span class="text-sm font-medium text-gray-900" x-text="overview.active_orders || '0'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto ml-64 p-6 pt-16">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">Панель мастера</h1>
+                    <p class="text-gray-600">Статистика и график по вашему цеху</p>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl p-6 border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Сотрудники</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="overview.total_employees || '0'"></p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i data-lucide="users" class="w-6 h-6 text-blue-600"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-6 border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Произведено товаров</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="overview.products_made || '0'"></p>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                            <i data-lucide="package" class="w-6 h-6 text-green-600"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-6 border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Брак</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="overview.defective_products || '0'"></p>
+                        </div>
+                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                            <i data-lucide="alert-triangle" class="w-6 h-6 text-red-600"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-6 border border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">Активных заказов</p>
+                            <p class="text-2xl font-semibold text-gray-900" x-text="overview.active_orders || '0'"></p>
+                        </div>
+                        <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <i data-lucide="clipboard-list" class="w-6 h-6 text-yellow-600"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Charts -->
+            <div class="bg-white rounded-xl p-6 border border-gray-200 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900">График производства и брака</h3>
+                    <div class="flex space-x-2">
+                        <button 
+                            @click="updateChart()" 
+                            class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 text-sm"
+                        >
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            <span>Обновить</span>
+                        </button>
+                        <select class="border border-gray-300 rounded-lg px-3 py-1 text-sm" x-model="period" @change="updateChart()">
+                            <option value="week">За неделю</option>
+                            <option value="month">За месяц</option>
+                            <option value="year">За год</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div x-show="loading" class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+                        <div class="flex items-center space-x-2">
+                            <div class="spinner"></div>
+                            <span class="text-gray-600">Загрузка данных...</span>
+                        </div>
+                    </div>
+                    <canvas id="workshopChart"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Initialize Lucide Icons -->
+    <script>
+        function workshopDashboard() {
+            return {
+                overview: {},
+                period: 'week',
+                loading: false,
+                chartRequestId: 0,
+                workshopChart: null,
+                async init() {
+                    await this.loadWorkshopData();
+                    await this.initChart();
+                    lucide.createIcons();
+                },
+                async loadWorkshopData() {
+                    try {
+                        this.loading = true;
+                        const overviewResponse = await fetch('/workshop-dashboard/overview/', {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        if (overviewResponse.ok) {
+                            this.overview = await overviewResponse.json();
+                        } else {
+                            this.overview = {
+                                total_employees: 0,
+                                products_made: 0,
+                                defective_products: 0,
+                                active_orders: 0,
+                                workshop_name: '-'
+                            };
+                        }
+                    } catch (error) {
+                        this.overview = {
+                            total_employees: 0,
+                            products_made: 0,
+                            defective_products: 0,
+                            active_orders: 0,
+                            workshop_name: '-'
+                        };
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async initChart() {
+                    this.loading = true;
+                    this.chartRequestId++;
+                    const currentRequestId = this.chartRequestId;
+                    let chartData = {
+                        labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+                        products: [0, 0, 0, 0, 0, 0, 0],
+                        defective: [0, 0, 0, 0, 0, 0, 0]
+                    };
+                    try {
+                        const chartResponse = await fetch(`/workshop-dashboard/production-chart/?period=${this.period}`, {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        if (currentRequestId !== this.chartRequestId) return;
+                        if (chartResponse.ok) {
+                            const responseData = await chartResponse.json();
+                            if (responseData.labels && responseData.products) {
+                                chartData = {
+                                    labels: responseData.labels,
+                                    products: responseData.products,
+                                    defective: responseData.defective
+                                };
+                            }
+                        }
+                    } catch (error) {
+                        if (currentRequestId !== this.chartRequestId) return;
+                    } finally {
+                        if (currentRequestId === this.chartRequestId) {
+                            if (this.workshopChart) {
+                                this.workshopChart.destroy();
+                            }
+                            const ctx = document.getElementById('workshopChart');
+                            if (ctx) {
+                                this.workshopChart = new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: chartData.labels,
+                                        datasets: [
+                                            {
+                                                label: 'Произведено товаров',
+                                                data: chartData.products,
+                                                borderColor: '#3B82F6',
+                                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                                borderWidth: 2,
+                                                tension: 0.4,
+                                                fill: false,
+                                                yAxisID: 'y',
+                                                pointBackgroundColor: '#3B82F6',
+                                                pointBorderColor: '#ffffff',
+                                                pointBorderWidth: 2,
+                                                pointRadius: 4,
+                                                pointHoverRadius: 6
+                                            },
+                                            {
+                                                label: 'Брак',
+                                                data: chartData.defective,
+                                                borderColor: '#DC2626',
+                                                backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                                                borderWidth: 2,
+                                                tension: 0.4,
+                                                fill: false,
+                                                yAxisID: 'y1',
+                                                pointBackgroundColor: '#DC2626',
+                                                pointBorderColor: '#ffffff',
+                                                pointBorderWidth: 2,
+                                                pointRadius: 4,
+                                                pointHoverRadius: 6
+                                            }
+                                        ]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        interaction: {
+                                            mode: 'index',
+                                            intersect: false,
+                                        },
+                                        plugins: {
+                                            legend: {
+                                                display: true,
+                                                position: 'top',
+                                                labels: {
+                                                    usePointStyle: true,
+                                                    padding: 20
+                                                }
+                                            },
+                                            tooltip: {
+                                                callbacks: {
+                                                    label: function(context) {
+                                                        if (context.dataset.label === 'Произведено товаров') {
+                                                            return 'Произведено: ' + context.parsed.y + ' шт.';
+                                                        } else {
+                                                            return 'Брак: ' + context.parsed.y + ' шт.';
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        scales: {
+                                            x: {
+                                                grid: {
+                                                    display: false
+                                                }
+                                            },
+                                            y: {
+                                                type: 'linear',
+                                                display: true,
+                                                position: 'left',
+                                                title: {
+                                                    display: true,
+                                                    text: 'Произведено (шт.)'
+                                                },
+                                                grid: {
+                                                    display: true,
+                                                    drawBorder: false,
+                                                    color: 'rgba(0, 0, 0, 0.1)'
+                                                },
+                                                ticks: {
+                                                    callback: function(value) {
+                                                        return value + ' шт.';
+                                                    }
+                                                }
+                                            },
+                                            y1: {
+                                                type: 'linear',
+                                                display: true,
+                                                position: 'right',
+                                                title: {
+                                                    display: true,
+                                                    text: 'Брак (шт.)'
+                                                },
+                                                grid: {
+                                                    drawOnChartArea: false,
+                                                },
+                                                ticks: {
+                                                    callback: function(value) {
+                                                        return value + ' шт.';
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                            this.loading = false;
+                        }
+                    }
+                },
+                async updateChart() {
+                    try {
+                        this.loading = true;
+                        await this.initChart();
+                    } catch (error) {
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html> 

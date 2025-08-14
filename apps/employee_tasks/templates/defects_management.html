@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление браком</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <div x-data="defectsManagement()" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center space-x-4">
+                        <a @click="window.history.back()" class="text-gray-500 hover:text-gray-700">
+                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        </a>
+                        <h1 class="text-2xl font-bold text-gray-900">Управление браком</h1>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <button @click="refreshData()" class="p-2 text-gray-500 hover:text-gray-700">
+                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-yellow-100 rounded-lg">
+                            <i data-lucide="alert-triangle" class="w-6 h-6 text-yellow-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Ожидают проверки</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.pending_review || 0"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-blue-100 rounded-lg">
+                            <i data-lucide="check-circle" class="w-6 h-6 text-blue-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Разрешены к переработке</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.approved_for_rework || 0"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-green-100 rounded-lg">
+                            <i data-lucide="wrench" class="w-6 h-6 text-green-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">В переработке</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.in_rework || 0"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex items-center">
+                        <div class="p-2 bg-red-100 rounded-lg">
+                            <i data-lucide="x-circle" class="w-6 h-6 text-red-600"></i>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm font-medium text-gray-600">Отклонены</p>
+                            <p class="text-2xl font-bold text-gray-900" x-text="stats.rejected || 0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-lg shadow mb-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">Фильтры</h3>
+                </div>
+                <div class="px-6 py-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Статус</label>
+                            <select x-model="filters.status" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                <option value="">Все статусы</option>
+                                <option value="pending_review">Ожидает проверки</option>
+                                <option value="approved_for_rework">Разрешена переработка</option>
+                                <option value="in_rework">В переработке</option>
+                                <option value="reworked">Переработан</option>
+                                <option value="rejected">Отклонен</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Цех</label>
+                            <select x-model="filters.workshop" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                                <option value="">Все цеха</option>
+                                <template x-for="workshop in workshops" :key="workshop.id">
+                                    <option :value="workshop.id" x-text="workshop.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Заказ</label>
+                            <input type="text" x-model="filters.order" placeholder="ID заказа" class="w-full border border-gray-300 rounded-md px-3 py-2">
+                        </div>
+                        
+                        <div class="flex items-end">
+                            <button @click="applyFilters()" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                                Применить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Defects Table -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h3 class="text-lg font-medium text-gray-900">Список браков</h3>
+                    <button @click="replenishAllAggregated()" class="inline-flex items-center px-3 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i>
+                        Пополнить браки (все агрегированные)
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Заказ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Цех</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Количество</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <template x-if="loading">
+                                <tr>
+                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto"></i>
+                                        Загрузка...
+                                    </td>
+                                </tr>
+                            </template>
+                            
+                            <template x-if="!loading && defects.length === 0">
+                                <tr>
+                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                        Браки не найдены
+                                    </td>
+                                </tr>
+                            </template>
+                            
+                            <template x-for="defect in defects" :key="defect.id ? `d-${defect.id}` : `o-${defect.order.id}`">
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900" x-text="defect.order.name"></div>
+                                        <div class="text-sm text-gray-500" x-text="`ID: ${defect.order.id}`"></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900" x-text="defect.workshop ? defect.workshop.name : '—' "></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900" x-text="defect.quantity"></div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full" 
+                                              :class="getStatusClass(defect.status)">
+                                            <span x-text="defect.status_display"></span>
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" x-text="formatDate(defect.date)"></td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div class="flex flex-wrap gap-3">
+                                            <template x-if="defect.status === 'pending_review'">
+                                                <button @click="openApproveModal(defect)" 
+                                                        class="text-blue-600 hover:text-blue-900">
+                                                    Разрешить
+                                                </button>
+                                            </template>
+
+                                            <template x-if="defect.status === 'pending_review'">
+                                                <button @click="replenish(defect)" class="text-indigo-600 hover:text-indigo-900">
+                                                    Пополнить браки
+                                                </button>
+                                            </template>
+
+                                            <template x-if="defect.status === 'approved_for_rework'">
+                                                <button @click="openStartReworkModal(defect)" 
+                                                        class="text-green-600 hover:text-green-900">
+                                                    Начать
+                                                </button>
+                                            </template>
+                                            
+                                            <template x-if="defect.status === 'in_rework'">
+                                                <button @click="openCompleteReworkModal(defect)" 
+                                                        class="text-purple-600 hover:text-purple-900">
+                                                    Завершить
+                                                </button>
+                                            </template>
+                                            
+                                            <button @click="openDetailsModal(defect)" 
+                                                    class="text-gray-600 hover:text-gray-900">
+                                                Детали
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- Approve Rework Modal -->
+        <div x-show="showApproveModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Разрешить переработку брака</h3>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Комментарий</label>
+                        <textarea x-model="approveData.comment" rows="3" 
+                                  class="w-full border border-gray-300 rounded-md px-3 py-2"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Срок переработки</label>
+                        <input type="date" x-model="approveData.deadline" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button @click="showApproveModal = false" 
+                                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                            Отмена
+                        </button>
+                        <button @click="approveDefectRework()" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            Разрешить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Rework Modal -->
+        <div x-show="showStartReworkModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Начать переработку брака</h3>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Сотрудник</label>
+                        <select x-model="startReworkData.employee_id" 
+                                class="w-full border border-gray-300 rounded-md px-3 py-2">
+                            <option value="">Выберите сотрудника</option>
+                            <template x-for="employee in employees" :key="employee.id">
+                                <option :value="employee.id" x-text="employee.get_full_name || employee.username"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button @click="showStartReworkModal = false" 
+                                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                            Отмена
+                        </button>
+                        <button @click="startDefectRework()" 
+                                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                            Начать
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Complete Rework Modal -->
+        <div x-show="showCompleteReworkModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Завершить переработку брака</h3>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Успешно переработано</label>
+                        <input type="number" x-model="completeReworkData.completed_quantity" min="0" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Снова брак</label>
+                        <input type="number" x-model="completeReworkData.defective_quantity" min="0" 
+                               class="w-full border border-gray-300 rounded-md px-3 py-2">
+                    </div>
+                    <div class="flex justify-end space-x-3">
+                        <button @click="showCompleteReworkModal = false" 
+                                class="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50">
+                            Отмена
+                        </button>
+                        <button @click="completeDefectRework()" 
+                                class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                            Завершить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Modal -->
+        <div x-show="showDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-2xl shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Детали брака</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Заказ:</label>
+                            <p class="text-sm text-gray-900" x-text="selectedDefect?.order?.name"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Цех:</label>
+                            <p class="text-sm text-gray-900" x-text="selectedDefect?.workshop?.name || '—'"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Количество:</label>
+                            <p class="text-sm text-gray-900" x-text="selectedDefect?.quantity"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Статус:</label>
+                            <p class="text-sm text-gray-900" x-text="selectedDefect?.status_display"></p>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">Комментарий:</label>
+                        <p class="text-sm text-gray-900" x-text="selectedDefect?.comment || 'Нет комментария'"></p>
+                    </div>
+                    <div class="mb-4" x-show="selectedDefect?.admin_comment">
+                        <label class="block text-sm font-medium text-gray-700">Комментарий админа:</label>
+                        <p class="text-sm text-gray-900" x-text="selectedDefect?.admin_comment"></p>
+                    </div>
+                    <div class="flex justify-end">
+                        <button @click="showDetailsModal = false" 
+                                class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700">
+                            Закрыть
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function defectsManagement() {
+            return {
+                loading: false,
+                defects: [],
+                stats: {},
+                workshops: [],
+                employees: [],
+                filters: { status: '', workshop: '', order: '' },
+                showApproveModal: false,
+                showStartReworkModal: false,
+                showCompleteReworkModal: false,
+                showDetailsModal: false,
+                selectedDefect: null,
+                approveData: { comment: '', deadline: '' },
+                startReworkData: { employee_id: '' },
+                completeReworkData: { completed_quantity: 0, defective_quantity: 0 },
+
+                init() {
+                    this.loadData();
+                    this.loadWorkshops();
+                    this.loadEmployees();
+                },
+
+                async loadData() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/employee_tasks/api/defects/?' + new URLSearchParams(this.filters));
+                        const data = await response.json();
+                        if (data.defects) {
+                            this.defects = data.defects;
+                            this.calculateStats();
+                        }
+                    } catch (error) {
+                        console.error('Ошибка загрузки браков:', error);
+                    } finally {
+                        this.loading = false;
+                        window.lucide && window.lucide.createIcons && window.lucide.createIcons();
+                    }
+                },
+
+                async loadWorkshops() {
+                    try {
+                        const response = await fetch('/workshops/api/workshops/');
+                        const data = await response.json();
+                        if (data.results) {
+                            this.workshops = data.results;
+                        }
+                    } catch (error) { console.error('Ошибка загрузки цехов:', error); }
+                },
+
+                async loadEmployees() {
+                    try {
+                        const response = await fetch('/users/api/users/');
+                        const data = await response.json();
+                        if (data.results) { this.employees = data.results; }
+                    } catch (error) { console.error('Ошибка загрузки сотрудников:', error); }
+                },
+
+                calculateStats() {
+                    this.stats = {
+                        pending_review: this.defects.filter(d => d.status === 'pending_review').length,
+                        approved_for_rework: this.defects.filter(d => d.status === 'approved_for_rework').length,
+                        in_rework: this.defects.filter(d => d.status === 'in_rework').length,
+                        reworked: this.defects.filter(d => d.status === 'reworked').length,
+                        rejected: this.defects.filter(d => d.status === 'rejected').length
+                    };
+                },
+
+                applyFilters() { this.loadData(); },
+                openApproveModal(defect) { this.selectedDefect = defect; this.approveData.comment=''; this.approveData.deadline=''; this.showApproveModal = true; },
+                openStartReworkModal(defect) { this.selectedDefect = defect; this.startReworkData.employee_id=''; this.showStartReworkModal = true; },
+                openCompleteReworkModal(defect) { this.selectedDefect = defect; this.completeReworkData.completed_quantity = parseInt(defect.quantity||0); this.completeReworkData.defective_quantity = 0; this.showCompleteReworkModal = true; },
+                openDetailsModal(defect) { this.selectedDefect = defect; this.showDetailsModal = true; },
+
+                async approveDefectRework() {
+                    try {
+                        if (!this.selectedDefect.id && this.selectedDefect.order?.id) {
+                            const payload = { comment: this.approveData.comment, deadline: this.approveData.deadline };
+                            const res = await fetch(`/employee_tasks/api/defects/approve-by-order/${this.selectedDefect.order.id}/`, {
+                                method: 'POST', headers: this.jsonHeaders(), body: JSON.stringify(payload)
+                            });
+                            const data = await res.json();
+                            if (!res.ok || !data.success) throw new Error(data.error || 'Ошибка');
+                        } else {
+                            const res = await fetch(`/employee_tasks/api/defects/${this.selectedDefect.id}/approve/`, {
+                                method: 'POST', headers: this.jsonHeaders(), body: JSON.stringify(this.approveData)
+                            });
+                            const data = await res.json();
+                            if (!res.ok || !data.success) throw new Error(data.error || 'Ошибка');
+                        }
+                        this.showApproveModal = false; this.loadData(); alert('Брак разрешен к переработке');
+                    } catch (e) { console.error(e); alert('Ошибка: ' + e.message); }
+                },
+
+                async replenish(defect) {
+                    try {
+                        if (!defect.id && defect.order?.id) {
+                            const res = await fetch(`/employee_tasks/api/defects/replenish-by-order/${defect.order.id}/`, { method: 'POST', headers: this.jsonHeaders() });
+                            const data = await res.json();
+                            if (!res.ok || !data.success) throw new Error(data.error || 'Ошибка');
+                        } else if (defect.id) {
+                            const res = await fetch(`/employee_tasks/api/defects/${defect.id}/replenish/`, { method: 'POST', headers: this.jsonHeaders() });
+                            const data = await res.json();
+                            if (!res.ok || !data.success) throw new Error(data.error || 'Ошибка');
+                        }
+                        this.loadData();
+                        alert('Браки пополнены и добавлены в план');
+                    } catch (e) { console.error(e); alert('Ошибка: ' + e.message); }
+                },
+
+                async replenishAllAggregated() {
+                    // Пополнить для всех агрегированных заказов (pending_review, id == null)
+                    const orders = Array.from(new Set(this.defects.filter(d => d.status === 'pending_review' && !d.id).map(d => d.order.id)));
+                    for (const orderId of orders) {
+                        try {
+                            const res = await fetch(`/employee_tasks/api/defects/replenish-by-order/${orderId}/`, { method: 'POST', headers: this.jsonHeaders() });
+                            // ignore individual errors to continue
+                        } catch (e) { console.error(e); }
+                    }
+                    this.loadData();
+                },
+
+                async startDefectRework() {
+                    try {
+                        const payload = { employee_id: parseInt(this.startReworkData.employee_id) };
+                        const res = await fetch(`/employee_tasks/api/defects/${this.selectedDefect.id}/start-rework/`, {
+                            method: 'POST', headers: this.jsonHeaders(), body: JSON.stringify(payload)
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.success) throw new Error(data.error || 'Ошибка');
+                        this.showStartReworkModal = false; this.loadData(); alert('Переработка начата');
+                    } catch (e) { console.error(e); alert('Ошибка: ' + e.message); }
+                },
+
+                async completeDefectRework() {
+                    try {
+                        const payload = { completed_quantity: parseInt(this.completeReworkData.completed_quantity), defective_quantity: parseInt(this.completeReworkData.defective_quantity) };
+                        const res = await fetch(`/employee_tasks/api/defects/${this.selectedDefect.id}/complete-rework/`, {
+                            method: 'POST', headers: this.jsonHeaders(), body: JSON.stringify(payload)
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.success) throw new Error(data.error || 'Ошибка');
+                        this.showCompleteReworkModal = false; this.loadData(); alert('Переработка завершена');
+                    } catch (e) { console.error(e); alert('Ошибка: ' + e.message); }
+                },
+
+                refreshData() { this.loadData(); },
+                getCsrfToken() { return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); },
+                jsonHeaders() { return { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() }; },
+                formatDate(dateString) { if (!dateString) return ''; const date = new Date(dateString); return date.toLocaleDateString('ru-RU'); },
+                getStatusClass(status) {
+                    const classes = { 'pending_review':'bg-yellow-100 text-yellow-800', 'approved_for_rework':'bg-blue-100 text-blue-800', 'in_rework':'bg-green-100 text-green-800', 'reworked':'bg-purple-100 text-purple-800', 'rejected':'bg-red-100 text-red-800' };
+                    return classes[status] || 'bg-gray-100 text-gray-800';
+                }
+            }
+        }
+    </script>
+</body>
+</html> 

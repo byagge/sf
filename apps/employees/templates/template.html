@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru" x-data="mobileEmployees()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <title>Zappis — Сотрудники</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
+        .nav-active { color: #2563eb; }
+        .nav-bar { box-shadow: 0 -2px 16px 0 rgba(37,99,235,0.08); }
+        .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
+        .modal-bg { background: rgba(0,0,0,0.35); }
+        .skeleton { background: linear-gradient(90deg, #e0e7ef 25%, #f3f4f6 50%, #e0e7ef 75%); background-size: 200% 100%; animation: skeleton 1.2s infinite linear; }
+        @keyframes skeleton { 0% {background-position: 200% 0;} 100% {background-position: -200% 0;} }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;">
+    <!-- AppBar -->
+    <header class="fixed top-0 left-0 right-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200 flex items-center justify-between px-4 h-16">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                <span class="text-white font-bold text-2xl">Z</span>
+            </div>
+            <span class="text-lg font-semibold text-gray-900">Zappis</span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button class="text-gray-600 hover:text-blue-600">
+                <i data-lucide="bell" class="w-6 h-6"></i>
+            </button>
+            <button class="text-gray-600 hover:text-blue-600">
+                <i data-lucide="settings" class="w-6 h-6"></i>
+            </button>
+            <div class="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center">
+                <span class="text-white text-lg font-bold">A</span>
+            </div>
+        </div>
+    </header>
+    <!-- Main Content -->
+    <main class="flex-1 pt-20 pb-20 px-2 max-w-md mx-auto w-full">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold text-gray-900">Сотрудники</h1>
+            <button @click="showAddEmployeeModal = true" class="px-3 py-2 bg-blue-600 text-white rounded-lg flex items-center space-x-2 text-sm">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Добавить</span>
+            </button>
+        </div>
+        <!-- Loading State -->
+        <template x-if="loading">
+            <div class="space-y-4 animate-pulse">
+                <div class="h-8 rounded-xl skeleton"></div>
+                <div class="h-20 rounded-2xl skeleton"></div>
+                <div class="h-20 rounded-2xl skeleton"></div>
+            </div>
+        </template>
+        <!-- Employees List -->
+        <template x-if="!loading">
+            <div>
+                <template x-if="employees.length === 0">
+                    <div class="text-center text-gray-400 py-12">Нет сотрудников</div>
+                </template>
+                <template x-for="employee in employees" :key="employee.id">
+                    <div class="card bg-white rounded-xl p-4 flex items-center mb-4 cursor-pointer" @click="goToProfile(employee.id)">
+                        <div class="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white text-lg font-bold mr-4">
+                            <span x-text="getInitials(employee.name)"></span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900" x-text="employee.name"></div>
+                            <div class="text-sm text-gray-500" x-text="employee.position_name || employee.position"></div>
+                            <div class="text-xs text-gray-400" x-text="employee.phone"></div>
+                        </div>
+                        <span :class="getStatusClass(employee.status)" class="ml-2 px-2 py-1 text-xs rounded-full" x-text="getStatusText(employee.status)"></span>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </main>
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 z-30 bg-white nav-bar border-t border-gray-200 flex justify-around items-center h-16 max-w-md mx-auto w-full">
+        <a href="/" class="flex flex-col items-center">
+            <i data-lucide="home" class="w-6 h-6"></i>
+            <span class="text-xs mt-1">Главная</span>
+        </a>
+        <a href="#" class="flex flex-col items-center">
+            <i data-lucide="calendar" class="w-6 h-6"></i>
+            <span class="text-xs mt-1">Записи</span>
+        </a>
+        <a href="#" class="flex flex-col items-center nav-active">
+            <i data-lucide="users" class="w-6 h-6"></i>
+            <span class="text-xs mt-1">Сотрудники</span>
+        </a>
+        <a href="#" class="flex flex-col items-center">
+            <i data-lucide="user-plus" class="w-6 h-6"></i>
+            <span class="text-xs mt-1">Клиенты</span>
+        </a>
+        <a href="#" class="flex flex-col items-center">
+            <i data-lucide="settings" class="w-6 h-6"></i>
+            <span class="text-xs mt-1">Профиль</span>
+        </a>
+    </nav>
+    <!-- Add Employee Modal -->
+    <template x-if="showAddEmployeeModal">
+        <div class="fixed inset-0 z-40 flex items-end justify-center modal-bg" @click.self="showAddEmployeeModal = false">
+            <div class="bg-white rounded-t-2xl w-full max-w-md p-6">
+                <h2 class="text-lg font-bold mb-4 text-gray-900">Добавить сотрудника</h2>
+                <form @submit.prevent="submitEmployee" class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Имя и фамилия <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="employeeForm.name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div x-show="employeeErrors.name" class="text-xs text-red-600 mt-1" x-text="employeeErrors.name"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Должность <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="employeeForm.position" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div x-show="employeeErrors.position" class="text-xs text-red-600 mt-1" x-text="employeeErrors.position"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Телефон <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="employeeForm.phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <div x-show="employeeErrors.phone" class="text-xs text-red-600 mt-1" x-text="employeeErrors.phone"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" x-model="employeeForm.email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Статус</label>
+                        <select x-model="employeeForm.status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="active">Активный</option>
+                            <option value="inactive">Неактивный</option>
+                            <option value="vacation">В отпуске</option>
+                            <option value="sick">На больничном</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-2">
+                        <button type="button" @click="showAddEmployeeModal = false" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Добавить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
+    <!-- Success Modal -->
+    <template x-if="showSuccessModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="bg-white rounded-xl p-6 w-full max-w-sm text-center">
+                <div class="flex flex-col items-center mb-4">
+                    <i data-lucide="check-circle" class="w-10 h-10 text-green-500 mb-2"></i>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Успешно!</h3>
+                    <p class="text-gray-700" x-text="successModalText"></p>
+                </div>
+                <button @click="showSuccessModal = false" class="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg">Ок</button>
+            </div>
+        </div>
+    </template>
+    <script>
+    function mobileEmployees() {
+        return {
+            showAddEmployeeModal: false,
+            showSuccessModal: false,
+            loading: true,
+            employees: [],
+            employeeForm: {
+                name: '',
+                position: '',
+                phone: '',
+                email: '',
+                status: 'active'
+            },
+            employeeErrors: {},
+            successModalText: '',
+            async init() {
+                await this.loadEmployees();
+                lucide.createIcons();
+            },
+            async loadEmployees() {
+                try {
+                    this.loading = true;
+                    const response = await fetch('/employees/api/employees/');
+                    if (!response.ok) throw new Error('Ошибка загрузки сотрудников');
+                    const data = await response.json();
+                    this.employees = Array.isArray(data) ? data : (data.results || data.employees || []);
+                    setTimeout(() => lucide.createIcons(), 0);
+                } catch (error) {
+                    this.employees = [];
+                } finally {
+                    this.loading = false;
+                }
+            },
+            async submitEmployee() {
+                this.employeeErrors = {};
+                if (!this.employeeForm.name) {
+                    this.employeeErrors.name = 'Пожалуйста, заполните это поле';
+                }
+                if (!this.employeeForm.position) {
+                    this.employeeErrors.position = 'Пожалуйста, укажите должность';
+                }
+                if (!this.employeeForm.phone) {
+                    this.employeeErrors.phone = 'Пожалуйста, укажите телефон';
+                }
+                if (Object.keys(this.employeeErrors).length > 0) {
+                    return;
+                }
+                try {
+                    const payload = { ...this.employeeForm };
+                    const response = await fetch('/employees/api/employees/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCsrfToken()
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error('Ошибка создания сотрудника');
+                    await this.loadEmployees();
+                    this.showAddEmployeeModal = false;
+                    this.resetEmployeeForm();
+                    this.successModalText = 'Сотрудник успешно добавлен!';
+                    this.showSuccessModal = true;
+                } catch (error) {
+                    this.employeeErrors.name = 'Ошибка создания сотрудника';
+                }
+            },
+            getInitials(name) {
+                if (!name) return '';
+                return name.split(' ').map(w => w[0]).join('').toUpperCase();
+            },
+            getStatusText(status) {
+                const map = { active: 'Активный', inactive: 'Неактивный', vacation: 'В отпуске', sick: 'На больничном' };
+                return map[status] || status;
+            },
+            getStatusClass(status) {
+                const map = {
+                    active: 'bg-green-100 text-green-800',
+                    inactive: 'bg-red-100 text-red-800',
+                    vacation: 'bg-yellow-100 text-yellow-800',
+                    sick: 'bg-orange-100 text-orange-800'
+                };
+                return map[status] || 'bg-gray-100 text-gray-800';
+            },
+            resetEmployeeForm() {
+                this.employeeForm = {
+                    name: '',
+                    position: '',
+                    phone: '',
+                    email: '',
+                    status: 'active'
+                };
+            },
+            getCsrfToken() {
+                const name = 'csrftoken';
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    cookie = cookie.trim();
+                    if (cookie.startsWith(name + '=')) {
+                        return decodeURIComponent(cookie.substring(name.length + 1));
+                    }
+                }
+                return '';
+            },
+            goToProfile(id) {
+                window.location.href = `edata_mobile.html?id=${id}`;
+            }
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function() { lucide.createIcons(); });
+    </script>
+</body>
+</html> 
