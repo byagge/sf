@@ -3,6 +3,7 @@ from .models import Workshop
 from rest_framework import viewsets
 from rest_framework import serializers
 from rest_framework.response import Response
+from rest_framework import permissions
 from apps.users.models import User
 from apps.employees.models import EmployeeStatistics, EmployeeTask
 from django.db.models import Count, Sum, Avg, Q
@@ -17,6 +18,17 @@ class WorkshopSerializer(serializers.ModelSerializer):
 class WorkshopViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Workshop.objects.filter(is_active=True)
     serializer_class = WorkshopSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        base_qs = Workshop.objects.filter(is_active=True)
+        # Для мастера показываем только его цех и те, которыми он управляет
+        if hasattr(user, 'role') and user.role == User.Role.MASTER:
+            return base_qs.filter(Q(id=user.workshop_id) | Q(manager=user))
+        # Для прочих ролей возвращаем все активные (как и было)
+        return base_qs
+
 
 def workshops_list(request):
     workshops = Workshop.objects.all().order_by('id')

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Defect, DefectRepairTask
+from .models import Defect
 from apps.products.models import Product
 from apps.users.models import User
 from apps.operations.workshops.models import Workshop
@@ -28,7 +28,7 @@ class DefectSerializer(serializers.ModelSerializer):
     user = UserShortSerializer(read_only=True)
     user_id = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), source='user', write_only=True)
     workshop = serializers.SerializerMethodField()
-    master_confirmed_by = UserShortSerializer(read_only=True)
+    confirmed_by = UserShortSerializer(read_only=True)
     target_workshop = WorkshopShortSerializer(read_only=True)
     target_workshop_id = serializers.PrimaryKeyRelatedField(
         queryset=Workshop.objects.all(), 
@@ -37,16 +37,22 @@ class DefectSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    defect_type_display = serializers.CharField(source='get_defect_type_display', read_only=True)
 
     class Meta:
         model = Defect
         fields = [
             'id', 'product', 'product_id', 'user', 'user_id', 'workshop', 
-            'created_at', 'status', 'defect_type', 'can_be_fixed', 
-            'target_workshop', 'target_workshop_id', 'master_confirmed_by',
-            'master_confirmed_at', 'notes'
+            'created_at', 'status', 'status_display', 'defect_type', 'defect_type_display',
+            'confirmed_by', 'confirmed_at', 'is_repairable', 'target_workshop', 
+            'target_workshop_id', 'transferred_at', 'master_comment', 'repair_comment',
+            'penalty_amount', 'penalty_applied'
         ]
-        read_only_fields = ['id', 'created_at', 'workshop', 'user', 'master_confirmed_by', 'master_confirmed_at']
+        read_only_fields = [
+            'id', 'created_at', 'workshop', 'user', 'status', 'confirmed_by', 
+            'confirmed_at', 'penalty_amount', 'penalty_applied'
+        ]
 
     def get_workshop(self, obj):
         workshop = obj.get_workshop()
@@ -54,57 +60,73 @@ class DefectSerializer(serializers.ModelSerializer):
             return WorkshopShortSerializer(workshop).data
         return None
 
-class DefectRepairTaskSerializer(serializers.ModelSerializer):
-    defect = DefectSerializer(read_only=True)
-    assigned_to = UserShortSerializer(read_only=True)
-    workshop = WorkshopShortSerializer(read_only=True)
-    
-    class Meta:
-        model = DefectRepairTask
-        fields = [
-            'id', 'defect', 'assigned_to', 'workshop', 'status', 'title',
-            'description', 'priority', 'created_at', 'started_at', 'completed_at',
-            'estimated_hours', 'actual_hours', 'notes'
-        ]
-        read_only_fields = ['id', 'created_at', 'started_at', 'completed_at']
-
-class DefectMasterReviewSerializer(serializers.Serializer):
-    """Сериализатор для подтверждения брака мастером"""
-    can_be_fixed = serializers.BooleanField(help_text='Можно ли починить брак')
+class DefectConfirmationSerializer(serializers.Serializer):
+    is_repairable = serializers.BooleanField(help_text='Можно ли починить брак')
     defect_type = serializers.ChoiceField(
         choices=Defect.DefectType.choices,
         required=False,
+        allow_null=True,
         help_text='Тип брака (только если нельзя починить)'
     )
     target_workshop_id = serializers.PrimaryKeyRelatedField(
         queryset=Workshop.objects.all(),
         required=False,
-        help_text='Цех для восстановления (только если можно починить)'
+        allow_null=True,
+        help_text='Цех для исправления (только если нельзя починить)'
     )
-    notes = serializers.CharField(required=False, help_text='Примечания')
-
-class DefectRepairTaskCreateSerializer(serializers.ModelSerializer):
-    """Сериализатор для создания задачи по восстановлению брака"""
-    defect_id = serializers.PrimaryKeyRelatedField(
-        queryset=Defect.objects.all(),
-        source='defect',
-        help_text='ID брака'
-    )
-    workshop_id = serializers.PrimaryKeyRelatedField(
-        queryset=Workshop.objects.all(),
-        source='workshop',
-        help_text='ID цеха'
-    )
-    assigned_to_id = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role='worker'),
-        source='assigned_to',
+    comment = serializers.CharField(
+        max_length=500,
         required=False,
-        help_text='ID сотрудника для назначения задачи'
+        allow_blank=True,
+        help_text='Комментарий мастера'
     )
-    
+
+    def validate(self, data):
+        is_repairable = data.get('is_repairable')
+        defect_type = data.get('defect_type')
+        target_workshop_id = data.get('target_workshop_id')
+        
+        if not is_repairable:
+            if not defect_type:
+                raise serializers.ValidationError(
+                    "Тип брака обязателен, если брак нельзя починить"
+                )
+            if not target_workshop_id:
+                raise serializers.ValidationError(
+                    "Цех для исправления обязателен, если брак нельзя починить"
+                )
+        
+        return data
+
+class DefectRepairSerializer(serializers.Serializer):
+    comment = serializers.CharField(
+        max_length=500,
+        required=False,
+        allow_blank=True,
+        help_text='Комментарий по починке'
+    )
+
+class DefectListSerializer(serializers.ModelSerializer):
+    """Сериализатор для списка браков с фильтрацией по мастеру"""
+    product = ProductShortSerializer(read_only=True)
+    user = UserShortSerializer(read_only=True)
+    workshop = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    defect_type_display = serializers.CharField(source='get_defect_type_display', read_only=True)
+    confirmed_by = UserShortSerializer(read_only=True)
+    target_workshop = WorkshopShortSerializer(read_only=True)
+
     class Meta:
-        model = DefectRepairTask
+        model = Defect
         fields = [
-            'defect_id', 'workshop_id', 'assigned_to_id', 'title', 'description',
-            'priority', 'estimated_hours', 'notes'
-        ] 
+            'id', 'product', 'user', 'workshop', 'created_at', 'status', 
+            'status_display', 'defect_type', 'defect_type_display', 'confirmed_by',
+            'confirmed_at', 'is_repairable', 'target_workshop', 'transferred_at',
+            'master_comment', 'penalty_amount', 'penalty_applied'
+        ]
+
+    def get_workshop(self, obj):
+        workshop = obj.get_workshop()
+        if workshop:
+            return WorkshopShortSerializer(workshop).data
+        return None 
