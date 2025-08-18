@@ -1,0 +1,208 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}Категории расходов - Финансовая система{% endblock %}
+
+{% block content %}
+<div x-data="{ showDeleteModal: false, categoryId: null, categoryName: '' }">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Категории расходов</h1>
+            <p class="text-gray-600">Управление категориями для классификации расходов</p>
+        </div>
+        <a href="{% url 'finance:expense_category_create' %}" class="btn btn-primary flex items-center space-x-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Новая категория</span>
+        </a>
+    </div>
+
+    <!-- Categories List -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                <i data-lucide="tag" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Список категорий
+            </h3>
+        </div>
+        
+        {% if categories %}
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Название</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Описание</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Родительская категория</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for category in categories %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {{ category.name }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900 max-w-xs truncate" title="{{ category.description }}">
+                                    {{ category.description|truncatechars:50|default:"-" }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if category.parent %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        {{ category.parent.name }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex space-x-2">
+                                    <a href="{% url 'finance:expense_category_edit' category.pk %}" class="text-blue-600 hover:text-blue-900" title="Редактировать">
+                                        <i data-lucide="edit" class="w-4 h-4"></i>
+                                    </a>
+                                    <button type="button" class="text-red-600 hover:text-red-900" 
+                                            @click="categoryId = {{ category.pk }}; categoryName = '{{ category.name|escapejs }}'; showDeleteModal = true" title="Удалить">
+                                        <i data-lucide="trash" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <div class="px-6 py-4 border-t border-gray-200">
+                <nav class="flex items-center justify-center space-x-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                            &laquo; Первая
+                        </a>
+                        <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Предыдущая
+                        </a>
+                    {% endif %}
+                    
+                    <span class="px-3 py-2 text-sm font-medium text-gray-700 bg-blue-50 border border-blue-200 rounded-lg">
+                        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+                    </span>
+                    
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Следующая
+                        </a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Последняя &raquo;
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-12">
+                <i data-lucide="info" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Категории не найдены</h3>
+                <p class="text-gray-500 mb-4">Создайте первую категорию, нажав кнопку "Новая категория"</p>
+                <a href="{% url 'finance:expense_category_create' %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto w-fit">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Создать категорию</span>
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Category Hierarchy -->
+    {% if categories %}
+    <div class="bg-white rounded-xl p-6 border border-gray-200 mt-6 shadow-sm">
+        <div class="mb-4">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                <i data-lucide="sitemap" class="w-5 h-5 mr-2"></i>
+                Иерархия категорий
+            </h3>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% for category in categories %}
+                {% if not category.parent %}
+                <div class="border border-blue-200 rounded-lg p-4">
+                    <div class="flex items-center mb-3">
+                        <i data-lucide="folder" class="w-5 h-5 text-blue-600 mr-2"></i>
+                        <h6 class="font-medium text-blue-900">{{ category.name }}</h6>
+                    </div>
+                    {% if category.description %}
+                        <p class="text-sm text-gray-600 mb-3">{{ category.description }}</p>
+                    {% endif %}
+                    
+                    <!-- Подкатегории -->
+                    {% for subcategory in categories %}
+                        {% if subcategory.parent == category %}
+                        <div class="flex items-center mb-2 ml-4">
+                            <i data-lucide="arrow-right" class="w-4 h-4 text-gray-400 mr-2"></i>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {{ subcategory.name }}
+                            </span>
+                            {% if subcategory.description %}
+                                <small class="text-gray-500 ml-2">{{ subcategory.description|truncatechars:30 }}</small>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if not category.expensecategory_set.all %}
+                        <small class="text-gray-400">Нет подкатегорий</small>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Модальное окно подтверждения удаления -->
+    <div x-show="showDeleteModal" 
+         class="modal" 
+         style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подтверждение удаления</h5>
+                    <button type="button" class="btn-close" @click="showDeleteModal = false">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы действительно хотите удалить категорию <strong x-text="categoryName"></strong>?</p>
+                    <div class="alert alert-warning">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 mr-2"></i>
+                        <strong>Внимание!</strong> При удалении категории все связанные расходы останутся без категории.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @click="showDeleteModal = false">Отмена</button>
+                    <form :action="`/finance/expense-categories/${categoryId}/delete/`" method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i data-lucide="trash" class="w-4 h-4 mr-1"></i>Удалить
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Автоматическое обновление страницы каждые 30 секунд
+// Убрано для улучшения производительности
+// setInterval(function() {
+//     // Можно добавить AJAX обновление данных
+//     // location.reload();
+// }, 30000);
+</script>
+{% endblock %} 

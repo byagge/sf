@@ -1,0 +1,362 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Редактирование товара{% else %}Новый товар{% endif %} - Финансовая система{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            {% if form.instance.pk %}Редактирование товара{% else %}Новый товар{% endif %}
+        </h1>
+        <p class="text-gray-600">
+            {% if form.instance.pk %}
+                Измените информацию о товаре поставщика
+            {% else %}
+                Создайте новый товар для поставщика
+            {% endif %}
+        </p>
+    </div>
+    <a href="{% url 'finance:supplier_items' %}" class="btn btn-secondary flex items-center space-x-2">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        <span>Назад к товарам</span>
+    </a>
+</div>
+
+<!-- Статистика -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="package" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900" id="totalItems">0</h4>
+        <p class="text-gray-600">Всего товаров</p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="dollar-sign" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900" id="avgPrice">0 сом</h4>
+        <p class="text-gray-600">Средняя цена</p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="calendar" class="w-8 h-8 text-purple-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900" id="upcomingPurchases">0</h4>
+        <p class="text-gray-600">Предстоящих закупок</p>
+    </div>
+</div>
+
+<!-- Форма товара -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i data-lucide="file-text" class="w-5 h-5 mr-2 text-blue-600"></i>
+            {% if form.instance.pk %}Редактирование товара{% else %}Создание товара{% endif %}
+        </h3>
+    </div>
+    
+    <form method="post" class="p-6 space-y-6">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Название -->
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}" class="form-label">
+                    Название товара *
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <p class="errorlist">{{ form.name.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Поставщик -->
+            <div class="form-group">
+                <label for="{{ form.supplier.id_for_label }}" class="form-label">
+                    Поставщик *
+                </label>
+                {{ form.supplier }}
+                {% if form.supplier.errors %}
+                    <p class="errorlist">{{ form.supplier.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Цена за единицу -->
+            <div class="form-group">
+                <label for="{{ form.unit_price.id_for_label }}" class="form-label">
+                    Цена за единицу *
+                </label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                        сом
+                    </span>
+                    {{ form.unit_price }}
+                </div>
+                {% if form.unit_price.errors %}
+                    <p class="errorlist">{{ form.unit_price.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Единица измерения -->
+            <div class="form-group">
+                <label for="{{ form.unit.id_for_label }}" class="form-label">
+                    Единица измерения *
+                </label>
+                {{ form.unit }}
+                {% if form.unit.errors %}
+                    <p class="errorlist">{{ form.unit.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Частота покупок -->
+            <div class="form-group">
+                <label for="{{ form.purchase_frequency.id_for_label }}" class="form-label">
+                    Частота покупок (дни) *
+                </label>
+                {{ form.purchase_frequency }}
+                {% if form.purchase_frequency.errors %}
+                    <p class="errorlist">{{ form.purchase_frequency.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Дата следующей закупки -->
+        <div class="form-group">
+            <label for="{{ form.next_purchase_date.id_for_label }}" class="form-label">
+                Дата следующей закупки *
+            </label>
+            {{ form.next_purchase_date }}
+            {% if form.next_purchase_date.errors %}
+                <p class="errorlist">{{ form.next_purchase_date.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Описание -->
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}" class="form-label">
+                Описание
+            </label>
+            {{ form.description }}
+            <p class="form-help">Подробное описание товара</p>
+            {% if form.description.errors %}
+                <p class="errorlist">{{ form.description.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Кнопки -->
+        <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+            <a href="{% url 'finance:supplier_items' %}" class="btn btn-secondary">
+                Отмена
+            </a>
+            <button type="submit" class="btn btn-success">
+                {% if form.instance.pk %}Сохранить изменения{% else %}Создать товар{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Справка -->
+<div class="bg-white rounded-xl p-6 border border-gray-200 mt-6 shadow-sm">
+    <div class="mb-4">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i data-lucide="help-circle" class="w-5 h-5 mr-2 text-blue-600"></i>
+            Справка по заполнению
+        </h3>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <h6 class="font-medium text-gray-900 mb-2">Обязательные поля:</h6>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li><strong>Название</strong> - название товара или услуги</li>
+                <li><strong>Поставщик</strong> - выберите поставщика</li>
+                <li><strong>Цена</strong> - цена за единицу в сомах</li>
+                <li><strong>Единица</strong> - штука, кг, метр и т.д.</li>
+            </ul>
+        </div>
+        <div>
+            <h6 class="font-medium text-gray-900 mb-2">Рекомендации:</h6>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li>Указывайте актуальные цены</li>
+                <li>Устанавливайте реальную частоту закупок</li>
+                <li>Добавляйте подробные описания</li>
+                <li>Следите за датами закупок</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const supplierField = document.getElementById('{{ form.supplier.id_for_label }}');
+    const nameField = document.getElementById('{{ form.name.id_for_label }}');
+    const unitPriceField = document.getElementById('{{ form.unit_price.id_for_label }}');
+    const purchaseFrequencyField = document.getElementById('{{ form.purchase_frequency.id_for_label }}');
+    const unitField = document.getElementById('{{ form.unit.id_for_label }}');
+    const nextPurchaseDateField = document.getElementById('{{ form.next_purchase_date.id_for_label }}');
+    
+    // Загружаем статистику товаров
+    loadItemStats();
+    
+    // Устанавливаем текущую дату для новых товаров
+    if (nextPurchaseDateField && !nextPurchaseDateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        nextPurchaseDateField.value = today;
+    }
+    
+    // Валидация цены
+    if (unitPriceField) {
+        unitPriceField.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value <= 0) {
+                this.setCustomValidity('Цена должна быть больше нуля');
+                showWarning('Цена должна быть больше нуля');
+            } else {
+                this.setCustomValidity('');
+                hideWarning();
+            }
+        });
+    }
+    
+    // Валидация частоты покупок
+    if (purchaseFrequencyField) {
+        purchaseFrequencyField.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            if (value < 1) {
+                this.setCustomValidity('Частота покупок должна быть минимум 1 день');
+                showWarning('Частота покупок должна быть минимум 1 день');
+            } else if (value > 365) {
+                this.setCustomValidity('Частота покупок не должна превышать 365 дней');
+                showWarning('Частота покупок не должна превышать 365 дней');
+            } else {
+                this.setCustomValidity('');
+                hideWarning();
+            }
+        });
+    }
+    
+    // Валидация названия
+    if (nameField) {
+        nameField.addEventListener('input', function() {
+            if (this.value.length < 2) {
+                this.setCustomValidity('Название должно содержать минимум 2 символа');
+                showWarning('Название должно содержать минимум 2 символа');
+            } else if (this.value.length > 200) {
+                this.setCustomValidity('Название не должно превышать 200 символов');
+                showWarning('Название не должно превышать 200 символов');
+            } else {
+                this.setCustomValidity('');
+                hideWarning();
+            }
+        });
+    }
+    
+    // Автозаполнение при фокусе
+    if (nameField) {
+        nameField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Например: Цемент М400';
+            }
+        });
+    }
+    
+    if (unitField) {
+        unitField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Например: мешок, метр, штука';
+            }
+        });
+    }
+    
+    if (unitPriceField) {
+        unitPriceField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = '0.00';
+            }
+        });
+    }
+    
+    if (purchaseFrequencyField) {
+        purchaseFrequencyField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = '30';
+            }
+        });
+    }
+    
+    // Ограничение длины описания
+    const descriptionField = document.getElementById('{{ form.description.id_for_label }}');
+    if (descriptionField) {
+        descriptionField.addEventListener('input', function() {
+            if (this.value.length > 500) {
+                this.value = this.value.substring(0, 500);
+                showWarning('Описание не должно превышать 500 символов');
+            } else {
+                hideWarning();
+            }
+        });
+    }
+    
+    function loadItemStats() {
+        // Убрано для улучшения производительности
+        // Загружаем статистику только при необходимости
+        const totalItemsElement = document.getElementById('totalItems');
+        const avgPriceElement = document.getElementById('avgPrice');
+        const upcomingPurchasesElement = document.getElementById('upcomingPurchases');
+        
+        // Показываем статические данные вместо API запроса
+        if (totalItemsElement) {
+            totalItemsElement.textContent = '0';
+        }
+        
+        if (avgPriceElement) {
+            avgPriceElement.textContent = '0 сом';
+        }
+        
+        if (upcomingPurchasesElement) {
+            upcomingPurchasesElement.textContent = '0';
+        }
+    }
+    
+    // Функция показа предупреждений
+    function showWarning(message) {
+        // Удаляем существующие предупреждения
+        const existingWarning = document.querySelector('.warning-alert');
+        if (existingWarning) {
+            existingWarning.remove();
+        }
+        
+        // Создаем новое предупреждение
+        const warning = document.createElement('div');
+        warning.className = 'warning-alert alert alert-warning flex items-center space-x-2';
+        warning.innerHTML = `
+            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            <span>${message}</span>
+        `;
+        
+        // Вставляем перед формой
+        const form = document.querySelector('form');
+        form.parentNode.insertBefore(warning, form);
+        
+        // Автоматически скрываем через 5 секунд
+        setTimeout(() => {
+            if (warning.parentNode) {
+                warning.remove();
+            }
+        }, 5000);
+        
+        // Инициализируем иконки
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+    
+    // Функция скрытия предупреждений
+    function hideWarning() {
+        const warning = document.querySelector('.warning-alert');
+        if (warning) {
+            warning.remove();
+        }
+    }
+});
+</script>
+{% endblock %} 

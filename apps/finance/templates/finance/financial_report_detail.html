@@ -1,0 +1,409 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}{{ report.title }} - Финансовая система{% endblock %}
+
+{% block extra_css %}
+<style>
+@media print {
+	/* Скрыть sidebar/навигацию и кнопки */
+	.sidebar, .navbar, .btn, .pagination, .alert { display: none !important; }
+	/* Использовать полноразмерный контент */
+	.container, main, body { width: 100% !important; margin: 0 !important; }
+	/* Формат A4 по ширине */
+	@page { size: A4; margin: 12mm; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+	const params = new URLSearchParams(window.location.search);
+	if (params.get('print') === '1') {
+		setTimeout(() => { window.print(); }, 200);
+	}
+})();
+</script>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ report.title }}</h1>
+        <p class="text-gray-600">
+            Финансовый отчет за период {{ report.start_date|date:"d.m.Y" }} - {{ report.end_date|date:"d.m.Y" }}
+        </p>
+    </div>
+    <div class="flex space-x-2">
+        <a href="{% url 'finance:financial_reports' %}" class="btn btn-secondary flex items-center space-x-2">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            <span>Назад к отчетам</span>
+        </a>
+        <button onclick="window.print()" class="btn btn-primary flex items-center space-x-2">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            <span>Печать</span>
+        </button>
+    </div>
+</div>
+
+<!-- Основные показатели -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="trending-up" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900">{{ report.total_income|floatformat:2 }} сом</h4>
+        <p class="text-gray-600">Общий доход</p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="trending-down" class="w-8 h-8 text-red-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900">{{ report.total_expenses|floatformat:2 }} сом</h4>
+        <p class="text-gray-600">Общий расход</p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="dollar-sign" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold {% if report.net_income >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+            {% if report.net_income >= 0 %}+{% endif %}{{ report.net_income|floatformat:2 }} сом
+        </h4>
+        <p class="text-gray-600">Чистая прибыль</p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="building" class="w-8 h-8 text-purple-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900">{{ report.total_assets|floatformat:2 }} сом</h4>
+        <p class="text-gray-600">Общие активы</p>
+    </div>
+</div>
+
+<!-- Детальная информация -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Информация об отчете -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                <i data-lucide="info" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Информация об отчете
+            </h3>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="text-sm font-medium text-gray-500">Название отчета</label>
+                <p class="text-gray-900 font-medium">{{ report.title }}</p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-500">Тип отчета</label>
+                <p class="text-gray-900">{{ report.get_report_type_display }}</p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-500">Период</label>
+                <p class="text-gray-900">{{ report.start_date|date:"d.m.Y" }} - {{ report.end_date|date:"d.m.Y" }}</p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-500">Создан</label>
+                <p class="text-gray-900">{{ report.created_at|date:"d.m.Y H:i" }}</p>
+            </div>
+            {% if report.created_by %}
+            <div>
+                <label class="text-sm font-medium text-gray-500">Создал</label>
+                <p class="text-gray-900">{{ report.created_by.get_full_name|default:report.created_by.username }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Финансовые показатели -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+                <i data-lucide="bar-chart" class="w-5 h-5 mr-2 text-green-600"></i>
+                Финансовые показатели
+            </h3>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <span class="text-gray-600">Общий доход:</span>
+                <span class="font-semibold text-green-600">{{ report.total_income|floatformat:2 }} сом</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-600">Общий расход:</span>
+                <span class="font-semibold text-red-600">{{ report.total_expenses|floatformat:2 }} сом</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-600">Операционный доход:</span>
+                <span class="font-semibold text-blue-600">{{ report.operating_income|floatformat:2 }} сом</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-600">Чистая прибыль:</span>
+                <span class="font-semibold {% if report.net_income >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                    {% if report.net_income >= 0 %}+{% endif %}{{ report.net_income|floatformat:2 }} сом
+                </span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-600">Общие активы:</span>
+                <span class="font-semibold text-purple-600">{{ report.total_assets|floatformat:2 }} сом</span>
+            </div>
+            
+            <!-- Рентабельность -->
+            {% if report.total_income > 0 %}
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">Рентабельность:</span>
+                    <span class="font-semibold text-blue-600">
+                        {% if profit_margin_pct is not None %}{{ profit_margin_pct|floatformat:1 }}%{% else %}-{% endif %}
+                    </span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- График доходов и расходов -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm mt-8">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i data-lucide="pie-chart" class="w-5 h-5 mr-2 text-orange-600"></i>
+            Структура доходов и расходов
+        </h3>
+    </div>
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Доходы -->
+            <div>
+                <h4 class="text-lg font-semibold text-green-600 mb-4">Доходы</h4>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Общий доход</span>
+                        <span class="font-semibold">{{ report.total_income|floatformat:2 }} сом</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Операционный доход</span>
+                        <span class="font-semibold">{{ report.operating_income|floatformat:2 }} сом</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Расходы -->
+            <div>
+                <h4 class="text-lg font-semibold text-red-600 mb-4">Расходы</h4>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Общий расход</span>
+                        <span class="font-semibold">{{ report.total_expenses|floatformat:2 }} сом</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Чистая прибыль</span>
+                        <span class="font-semibold {% if report.net_income >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            {% if report.net_income >= 0 %}+{% endif %}{{ report.net_income|floatformat:2 }} сом
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Примечания -->
+{% if report.notes %}
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm mt-8">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i data-lucide="file-text" class="w-5 h-5 mr-2 text-blue-600"></i>
+            Примечания
+        </h3>
+    </div>
+    <div class="p-6">
+        <p class="text-gray-900">{{ report.notes }}</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Разбивки и ТОПы -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+	<!-- Доходы по типам -->
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+		<div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+			<h3 class="text-lg font-semibold text-gray-900 flex items-center">
+				<i data-lucide="list" class="w-5 h-5 mr-2 text-green-600"></i>
+				Доходы по типам
+			</h3>
+		</div>
+		<div class="p-6">
+			<div class="table-responsive">
+				<table class="table table-hover">
+					<thead>
+						<tr>
+							<th>Тип</th>
+							<th>Операций</th>
+							<th>Сумма, сом</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for row in income_by_type %}
+						<tr>
+							<td>
+								{% if row.income_type == 'sales' %}С продаж{% elif row.income_type == 'other' %}Другое{% else %}{{ row.income_type }}{% endif %}
+							</td>
+							<td>{{ row.cnt }}</td>
+							<td>{{ row.total|floatformat:2 }}</td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="3" class="text-center text-gray-500">Нет данных</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	
+	<!-- Расходы по категориям -->
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+		<div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+			<h3 class="text-lg font-semibold text-gray-900 flex items-center">
+				<i data-lucide="list" class="w-5 h-5 mr-2 text-red-600"></i>
+				Расходы по категориям
+			</h3>
+		</div>
+		<div class="p-6">
+			<div class="table-responsive">
+				<table class="table table-hover">
+					<thead>
+						<tr>
+							<th>Категория</th>
+							<th>Операций</th>
+							<th>Сумма, сом</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for row in expense_by_category %}
+						<tr>
+							<td>{{ row.category__name|default:'-' }}</td>
+							<td>{{ row.cnt }}</td>
+							<td>{{ row.total|floatformat:2 }}</td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="3" class="text-center text-gray-500">Нет данных</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- ТОП операции -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+	<!-- ТОП доходов -->
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+		<div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+			<h3 class="text-lg font-semibold text-gray-900 flex items-center">
+				<i data-lucide="star" class="w-5 h-5 mr-2 text-green-600"></i>
+				ТОП-10 доходов
+			</h3>
+		</div>
+		<div class="p-6">
+			<div class="table-responsive">
+				<table class="table table-hover">
+					<thead>
+						<tr>
+							<th>Дата</th>
+							<th>Тип</th>
+							<th>Сумма</th>
+							<th>Описание</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for inc in top_incomes %}
+						<tr>
+							<td>{{ inc.date|date:'d.m.Y' }}</td>
+							<td>{{ inc.get_income_type_display }}</td>
+							<td>{{ inc.amount|floatformat:2 }}</td>
+							<td>{{ inc.description|truncatechars:80 }}</td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="4" class="text-center text-gray-500">Нет данных</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+	<!-- ТОП расходов -->
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+		<div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+			<h3 class="text-lg font-semibold text-gray-900 flex items-center">
+				<i data-lucide="star" class="w-5 h-5 mr-2 text-red-600"></i>
+				ТОП-10 расходов
+			</h3>
+		</div>
+		<div class="p-6">
+			<div class="table-responsive">
+				<table class="table table-hover">
+					<thead>
+						<tr>
+							<th>Дата</th>
+							<th>Категория</th>
+							<th>Поставщик</th>
+							<th>Сумма</th>
+							<th>Описание</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for exp in top_expenses %}
+						<tr>
+							<td>{{ exp.date|date:'d.m.Y' }}</td>
+							<td>{{ exp.category.name }}</td>
+							<td>{% if exp.supplier_id %}{{ exp.supplier.name }}{% else %}-{% endif %}</td>
+							<td>{{ exp.amount|floatformat:2 }}</td>
+							<td>{{ exp.description|truncatechars:80 }}</td>
+						</tr>
+						{% empty %}
+						<tr><td colspan="5" class="text-center text-gray-500">Нет данных</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Динамика по дням -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm mt-8">
+	<div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+		<h3 class="text-lg font-semibold text-gray-900 flex items-center">
+			<i data-lucide="calendar" class="w-5 h-5 mr-2 text-indigo-600"></i>
+			Динамика по дням
+		</h3>
+	</div>
+	<div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+		<div>
+			<h4 class="font-semibold text-gray-700 mb-2">Доходы по дням</h4>
+			<div class="table-responsive">
+				<table class="table table-hover">
+					<thead><tr><th>Дата</th><th>Сумма</th></tr></thead>
+					<tbody>
+						{% for d in daily_income %}
+						<tr><td>{{ d.date|date:'d.m.Y' }}</td><td>{{ d.total|floatformat:2 }}</td></tr>
+						{% empty %}
+						<tr><td colspan="2" class="text-center text-gray-500">Нет данных</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
+		<div>
+			<h4 class="font-semibold text-gray-700 mb-2">Расходы по дням</h4>
+			<div class="table-responsive">
+				<table class="table table-hover">
+					<thead><tr><th>Дата</th><th>Сумма</th></tr></thead>
+					<tbody>
+						{% for d in daily_expenses %}
+						<tr><td>{{ d.date|date:'d.m.Y' }}</td><td>{{ d.total|floatformat:2 }}</td></tr>
+						{% empty %}
+						<tr><td colspan="2" class="text-center text-gray-500">Нет данных</td></tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %} 

@@ -12,44 +12,49 @@ from apps.orders.models import OrderDefect
 # Create your views here.
 
 class EmployeeTaskViewSet(viewsets.ModelViewSet):
-    queryset = EmployeeTask.objects.all().order_by('-created_at')
+    queryset = EmployeeTask.objects.select_related(
+        'stage__order_item__product', 
+        'stage__workshop', 
+        'stage__order',
+        'stage__order__client',
+        'employee'
+    ).prefetch_related(
+        'stage__order_item__product__services'
+    ).all().order_by('-created_at')
     serializer_class = EmployeeTaskSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['title', 'employee__first_name', 'employee__last_name', 'order__name']
-    ordering_fields = ['created_at', 'is_completed', 'plan_quantity', 'completed_quantity']
+    search_fields = [
+        'stage__operation', 
+        'stage__order_item__product__name',
+        'employee__first_name', 
+        'employee__last_name', 
+        'stage__order__name'
+    ]
+    ordering_fields = ['created_at', 'completed_quantity', 'quantity']
 
     def get_queryset(self):
         queryset = super().get_queryset()
         employee_id = self.request.query_params.get('employee')
         order_id = self.request.query_params.get('order')
+        stage_id = self.request.query_params.get('stage')
+        
         if employee_id:
             queryset = queryset.filter(employee_id=employee_id)
         if order_id:
-            queryset = queryset.filter(order_id=order_id)
+            queryset = queryset.filter(stage__order_id=order_id)
+        if stage_id:
+            queryset = queryset.filter(stage_id=stage_id)
+            
         return queryset
 
     def update(self, request, *args, **kwargs):
-        """Переопределяем update для автоматического создания OrderDefect при фиксации брака"""
-        instance = self.get_object()
-        old_defective_quantity = instance.defective_quantity
-        
+        """Переопределяем update для обработки изменений задачи"""
         # Вызываем родительский метод update
         response = super().update(request, *args, **kwargs)
         
-        # Проверяем, изменилось ли количество брака
-        instance.refresh_from_db()
-        new_defective_quantity = instance.defective_quantity
-        
-        if new_defective_quantity > old_defective_quantity:
-            # Создаём запись в OrderDefect
-            defect_quantity = new_defective_quantity - old_defective_quantity
-            OrderDefect.objects.create(
-                order=instance.stage.order,
-                workshop=instance.stage.workshop,
-                quantity=defect_quantity,
-                comment=f"Брак зафиксирован сотрудником {instance.employee.get_full_name() or instance.employee.username} в задаче"
-            )
+        # Браки теперь создаются автоматически через сигнал pre_save
+        # при изменении defective_quantity
         
         return response
 
@@ -94,3 +99,9 @@ def stats_employee_page(request):
 def defects_management_page(request):
     """Страница управления браком"""
     return render(request, 'defects_management.html')
+
+def task_detail_page(request, task_id):
+    """Страница детального просмотра задачи"""
+    return render(request, 'task_detail.html', {
+        'task_id': task_id
+    })

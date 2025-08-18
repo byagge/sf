@@ -1,0 +1,199 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}Дашборд - Финансовая система{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Финансовый дашборд</h1>
+        <p class="text-gray-600">Краткая сводка по доходам, расходам, балансу и активам предприятия</p>
+    </div>
+    <div class="flex space-x-4">
+        <a href="{% url 'finance:expense_create' %}" class="btn btn-primary flex items-center space-x-2">
+            <i data-lucide="minus-circle" class="w-4 h-4"></i>
+            <span>Новый расход</span>
+        </a>
+        <a href="{% url 'finance:incomes' %}" class="btn btn-success flex items-center space-x-2">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>Новый доход</span>
+        </a>
+        <a href="{% url 'finance:money_movement_create' %}" class="btn btn-secondary flex items-center space-x-2">
+            <i data-lucide="banknote" class="w-4 h-4"></i>
+            <span>Движение денег</span>
+        </a>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Общий баланс</p>
+                <p class="text-2xl font-semibold text-gray-900">{{ total_balance|floatformat:0 }} сом</p>
+            </div>
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <i data-lucide="wallet" class="w-6 h-6 text-blue-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Доходы за месяц</p>
+                <p class="text-2xl font-semibold text-gray-900">{{ monthly_income|floatformat:0 }} сом</p>
+            </div>
+            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <i data-lucide="trending-up" class="w-6 h-6 text-green-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Расходы за месяц</p>
+                <p class="text-2xl font-semibold text-gray-900">{{ monthly_expenses|floatformat:0 }} сом</p>
+            </div>
+            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <i data-lucide="trending-down" class="w-6 h-6 text-red-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600">Прибыль за месяц</p>
+                <p class="text-2xl font-semibold {% if monthly_profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ monthly_profit|floatformat:0 }} сом</p>
+            </div>
+            <div class="w-12 h-12 {% if monthly_profit >= 0 %}bg-green-100{% else %}bg-red-100{% endif %} rounded-full flex items-center justify-center">
+                <i data-lucide="{% if monthly_profit >= 0 %}arrow-up{% else %}arrow-down{% endif %}" class="w-6 h-6 {% if monthly_profit >= 0 %}text-green-600{% else %}text-red-600{% endif %}"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Income and Expense Dynamics -->
+    <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Динамика доходов и расходов</h3>
+            <div class="flex space-x-2">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span class="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
+                    Доходы
+                </span>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    <span class="w-2 h-2 bg-red-400 rounded-full mr-1"></span>
+                    Расходы
+                </span>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+                <p class="text-2xl font-bold text-green-600">{{ monthly_income|floatformat:0 }}</p>
+                <p class="text-sm text-green-700">Доходы за месяц</p>
+            </div>
+            <div class="text-center p-4 bg-red-50 rounded-lg">
+                <p class="text-2xl font-bold text-red-600">{{ monthly_expenses|floatformat:0 }}</p>
+                <p class="text-sm text-red-700">Расходы за месяц</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Asset Structure -->
+    <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Структура активов</h3>
+            <span class="text-sm text-gray-500">Общая стоимость: {{ total_assets|floatformat:0 }} сом</span>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                <p class="text-2xl font-bold text-blue-600">{{ total_assets|floatformat:0 }}</p>
+                <p class="text-sm text-blue-700">Общая стоимость</p>
+            </div>
+            <div class="text-center p-4 bg-purple-50 rounded-lg">
+                <p class="text-2xl font-bold text-purple-600">{{ monthly_profit|floatformat:0 }}</p>
+                <p class="text-sm text-purple-700">Прибыль за месяц</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Recent Financial Activities -->
+    <div class="bg-white rounded-xl p-6 border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Последние операции</h3>
+            <a href="{% url 'finance:money_movements' %}" class="text-sm text-blue-600 hover:text-blue-700">Посмотреть все</a>
+        </div>
+        <div class="space-y-4">
+            {% for movement in recent_movements %}
+            <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div class="w-8 h-8 {% if movement.movement_type == 'deposit' %}bg-green-100{% else %}bg-red-100{% endif %} rounded-full flex items-center justify-center">
+                    <i data-lucide="{% if movement.movement_type == 'deposit' %}plus{% else %}minus{% endif %}" class="w-4 h-4 {% if movement.movement_type == 'deposit' %}text-green-600{% else %}text-red-600{% endif %}"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">{{ movement.get_movement_type_display }}</p>
+                    <p class="text-xs text-gray-500">{{ movement.date|date:"d.m.Y H:i" }} • {{ movement.user.username }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-semibold {% if movement.movement_type == 'deposit' %}text-green-600{% else %}text-red-600{% endif %}">
+                        {% if movement.movement_type == 'withdrawal' %}-{% endif %}{{ movement.amount|floatformat:0 }} сом
+                    </p>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-8">
+                <i data-lucide="activity" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+                <p class="text-gray-500">Нет операций</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Upcoming Purchases -->
+    <div class="bg-white rounded-xl p-6 border border-gray-200">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Предстоящие закупки</h3>
+            <a href="{% url 'finance:supplier_items' %}" class="text-sm text-blue-600 hover:text-blue-700">Посмотреть все</a>
+        </div>
+        <div class="space-y-4">
+            {% for item in upcoming_purchases %}
+            <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i data-lucide="package" class="w-4 h-4 text-blue-600"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">{{ item.name }}</p>
+                    <p class="text-xs text-gray-500">{{ item.supplier.name }} • {{ item.unit_price|floatformat:0 }} сом/{{ item.unit }}</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm font-semibold text-gray-900">{{ item.next_purchase_date|date:"d.m.Y" }}</p>
+                    <p class="text-xs text-gray-500">через {{ item.next_purchase_date|timeuntil }}</p>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-8">
+                <i data-lucide="calendar" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+                <p class="text-gray-500">Нет предстоящих закупок</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Простая инициализация без тяжелых графиков
+    console.log('Dashboard loaded successfully');
+    
+    // Убираем auto-refresh и тяжелые операции
+    // Статистика загружается один раз при загрузке страницы через base.html
+});
+</script>
+{% endblock %} 

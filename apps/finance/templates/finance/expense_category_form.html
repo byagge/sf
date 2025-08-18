@@ -1,0 +1,210 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Редактирование категории{% else %}Новая категория{% endif %} - Финансовая система{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            {% if form.instance.pk %}Редактирование категории{% else %}Новая категория{% endif %}
+        </h1>
+        <p class="text-gray-600">
+            {% if form.instance.pk %}
+                Измените информацию о категории расходов
+            {% else %}
+                Создайте новую категорию для расходов
+            {% endif %}
+        </p>
+    </div>
+    <a href="{% url 'finance:expense_categories' %}" class="btn btn-secondary flex items-center space-x-2">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        <span>Назад к категориям</span>
+    </a>
+</div>
+
+<!-- Форма категории -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i data-lucide="file-text" class="w-5 h-5 mr-2 text-blue-600"></i>
+            {% if form.instance.pk %}Редактирование категории{% else %}Создание категории{% endif %}
+        </h3>
+    </div>
+    
+    <form method="post" class="p-6 space-y-6">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Название -->
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}" class="form-label">
+                    Название категории *
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <p class="errorlist">{{ form.name.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Родительская категория -->
+            <div class="form-group">
+                <label for="{{ form.parent.id_for_label }}" class="form-label">
+                    Родительская категория
+                </label>
+                {{ form.parent }}
+                {% if form.parent.errors %}
+                    <p class="errorlist">{{ form.parent.errors.0 }}</p>
+                {% endif %}
+                <p class="form-help">Оставьте пустым для основной категории</p>
+            </div>
+        </div>
+        
+        <!-- Описание -->
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}" class="form-label">
+                Описание
+            </label>
+            {{ form.description }}
+            <p class="form-help">Подробное описание категории расходов</p>
+            {% if form.description.errors %}
+                <p class="errorlist">{{ form.description.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Кнопки -->
+        <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+            <a href="{% url 'finance:expense_categories' %}" class="btn btn-secondary">
+                Отмена
+            </a>
+            <button type="submit" class="btn btn-primary">
+                {% if form.instance.pk %}Сохранить изменения{% else %}Создать категорию{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Справка -->
+<div class="bg-white rounded-xl p-6 border border-gray-200 mt-6 shadow-sm">
+    <div class="mb-4">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i data-lucide="help-circle" class="w-5 h-5 mr-2 text-blue-600"></i>
+            Справка по заполнению
+        </h3>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <h6 class="font-medium text-gray-900 mb-2">Обязательные поля:</h6>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li><strong>Название</strong> - краткое название категории</li>
+                <li><strong>Описание</strong> - подробное описание</li>
+            </ul>
+        </div>
+        <div>
+            <h6 class="font-medium text-gray-900 mb-2">Рекомендации:</h6>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li>Используйте понятные названия</li>
+                <li>Создавайте иерархию категорий</li>
+                <li>Добавляйте подробные описания</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const nameField = document.getElementById('{{ form.name.id_for_label }}');
+    const descriptionField = document.getElementById('{{ form.description.id_for_label }}');
+    const parentField = document.getElementById('{{ form.parent.id_for_label }}');
+    
+    // Валидация названия
+    if (nameField) {
+        nameField.addEventListener('input', function() {
+            if (this.value.length < 2) {
+                this.setCustomValidity('Название должно содержать минимум 2 символа');
+            } else if (this.value.length > 100) {
+                this.setCustomValidity('Название не должно превышать 100 символов');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    }
+    
+    // Ограничение длины описания
+    if (descriptionField) {
+        descriptionField.addEventListener('input', function() {
+            if (this.value.length > 500) {
+                this.value = this.value.substring(0, 500);
+            }
+        });
+    }
+    
+    // Предотвращение циклических ссылок в иерархии
+    if (parentField) {
+        parentField.addEventListener('change', function() {
+            const selectedValue = this.value;
+            const currentCategoryId = '{{ form.instance.pk|default:"" }}';
+            
+            if (selectedValue && selectedValue === currentCategoryId) {
+                // Показываем предупреждение
+                showWarning('Категория не может быть родителем самой себя!');
+                this.value = '';
+            }
+        });
+    }
+    
+    // Автозаполнение при фокусе на поле названия
+    if (nameField) {
+        nameField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Например: Материальные расходы';
+            }
+        });
+    }
+    
+    // Автозаполнение при фокусе на поле описания
+    if (descriptionField) {
+        descriptionField.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = 'Опишите назначение и содержание данной категории расходов...';
+            }
+        });
+    }
+    
+    // Функция показа предупреждений
+    function showWarning(message) {
+        // Удаляем существующие предупреждения
+        const existingWarning = document.querySelector('.warning-alert');
+        if (existingWarning) {
+            existingWarning.remove();
+        }
+        
+        // Создаем новое предупреждение
+        const warning = document.createElement('div');
+        warning.className = 'warning-alert alert alert-warning flex items-center space-x-2';
+        warning.innerHTML = `
+            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            <span>${message}</span>
+        `;
+        
+        // Вставляем перед формой
+        const form = document.querySelector('form');
+        form.parentNode.insertBefore(warning, form);
+        
+        // Автоматически скрываем через 5 секунд
+        setTimeout(() => {
+            if (warning.parentNode) {
+                warning.remove();
+            }
+        }, 5000);
+        
+        // Инициализируем иконки
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+});
+</script>
+{% endblock %} 

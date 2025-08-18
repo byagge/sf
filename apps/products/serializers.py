@@ -26,17 +26,18 @@ class ProductSerializer(serializers.ModelSerializer):
     materials = serializers.SerializerMethodField()
     cost_price = serializers.SerializerMethodField()
     type_display = serializers.CharField(source='get_type_display', read_only=True)
+    glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
     materials_consumption = MaterialConsumptionSerializer(many=True, source='materialconsumption_set', required=False)
 
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'type', 'type_display', 'description', 'is_glass', 'img', 'price',
+            'id', 'name', 'type', 'type_display', 'description', 'is_glass', 'glass_type', 'glass_type_display', 'img', 'price',
             'services', 'service_ids', 'materials', 'cost_price',
             'materials_consumption',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'services', 'materials', 'cost_price', 'type_display']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'services', 'materials', 'cost_price', 'type_display', 'glass_type_display']
 
     def get_materials(self, obj):
         result = []

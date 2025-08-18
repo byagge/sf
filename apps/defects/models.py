@@ -17,11 +17,22 @@ class Defect(models.Model):
         REPAIRED = 'repaired', 'Починен'
         CLOSED = 'closed', 'Закрыт'
     
+    # Связь с задачей сотрудника
+    employee_task = models.ForeignKey(
+        'employee_tasks.EmployeeTask',
+        on_delete=models.CASCADE,
+        related_name='defects',
+        verbose_name='Задача сотрудника',
+        null=True,
+        blank=True
+    )
+    
+    # Основная информация
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='defects', verbose_name='Продукт')
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='defects', verbose_name='Сотрудник (кто создал брак)')
     created_at = models.DateTimeField('Дата брака', auto_now_add=True)
     
-    # Новые поля для системы подтверждения
+    # Статус и тип брака
     status = models.CharField(
         max_length=20,
         choices=DefectStatus.choices,
@@ -74,7 +85,7 @@ class Defect(models.Model):
     master_comment = models.TextField('Комментарий мастера', blank=True)
     repair_comment = models.TextField('Комментарий по починке', blank=True)
     
-    # Штрафные санкции
+    # Штрафные санкции (теперь применяются только после подтверждения мастером)
     penalty_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -126,95 +137,47 @@ class Defect(models.Model):
         self.status = self.DefectStatus.CONFIRMED
         
         if is_repairable:
-            # Если можно починить — переводим в REPAIRABLE без создания этапов/задач
+            # Если можно починить — переводим в REPAIRABLE
             self.status = self.DefectStatus.REPAIRABLE
         else:
             # Если нельзя починить — ставим статус IRREPARABLE и тип брака
             self.status = self.DefectStatus.IRREPARABLE
             self.defect_type = defect_type
-            # Применяем штраф для ручного брака
+            
+            # Применяем штраф только для ручного брака
             if defect_type == self.DefectType.MANUAL:
                 self._apply_penalty()
-            # Если указан целевой цех — переводим брак (без создания этапов/задач)
+            
+            # Если указан целевой цех — переводим брак
             if target_workshop:
                 self._transfer_to_workshop(target_workshop)
         
         self.save()
     
-    def _create_repair_task(self):
-        """Создает задачу на починку брака"""
-        from apps.employee_tasks.models import EmployeeTask
-        from apps.orders.models import OrderStage
-        
-        # Создаем фиктивный этап заказа для починки брака
-        if not hasattr(self, '_repair_stage'):
-            self._repair_stage = OrderStage.objects.create(
-                order=None,  # Брак не привязан к конкретному заказу
-                workshop=self.get_workshop(),
-                service=None,  # Услуга будет определена позже
-                quantity=1,
-                completed_quantity=0,
-                status='in_progress'
-            )
-        
-        # Создаем задачу для сотрудника
-        repair_task = EmployeeTask.objects.create(
-            stage=self._repair_stage,
-            employee=self.user,
-            quantity=1,
-            completed_quantity=0
-        )
-        
-        self.repair_task = repair_task
-        self.save()
-    
     def _apply_penalty(self):
-        """Применяет штраф за ручной брак"""
-        if self.user and self.user.workshop:
+        """Применяет штраф за ручной брак к задаче сотрудника"""
+        if self.user and self.user.workshop and self.employee_task:
             from apps.services.models import Service
             try:
                 service = Service.objects.filter(workshop=self.user.workshop, is_active=True).first()
                 if service and hasattr(service, 'defect_penalty'):
                     self.penalty_amount = service.defect_penalty
                     self.penalty_applied = True
-            except:
-                pass
+                    
+                    # Обновляем штраф в задаче сотрудника
+                    self.employee_task.penalties += self.penalty_amount
+                    self.employee_task.net_earnings = self.employee_task.earnings - self.employee_task.penalties
+                    self.employee_task.save()
+            except Exception as e:
+                print(f"Ошибка при применении штрафа: {e}")
     
     def _transfer_to_workshop(self, target_workshop):
-        """Переводит брак в другой цех для исправления (без создания этапов/задач)"""
+        """Переводит брак в другой цех для исправления"""
         from django.utils import timezone
         
         self.target_workshop = target_workshop
         self.transferred_at = timezone.now()
         self.status = self.DefectStatus.TRANSFERRED
-        # Не создаем никаких OrderStage/EmployeeTask, чтобы соответствовать текущей схеме
-        self.save()
-    
-    def _create_transfer_task(self, target_workshop):
-        """Создает задачу для мастера целевого цеха"""
-        from apps.employee_tasks.models import EmployeeTask
-        from apps.orders.models import OrderStage
-        
-        # Создаем этап для восстановления брака
-        recovery_stage = OrderStage.objects.create(
-            order=None,
-            workshop=target_workshop,
-            service=None,
-            quantity=1,
-            completed_quantity=0,
-            status='in_progress'
-        )
-        
-        # Создаем задачу для мастера
-        recovery_task = EmployeeTask.objects.create(
-            stage=recovery_stage,
-            employee=target_workshop.manager,
-            quantity=1,
-            completed_quantity=0
-        )
-        
-        # Обновляем связь с задачей восстановления
-        self.repair_task = recovery_task
         self.save()
     
     def mark_as_repaired(self, comment=''):
@@ -223,7 +186,6 @@ class Defect(models.Model):
         
         self.status = self.DefectStatus.REPAIRED
         self.repair_comment = comment
-        self.completed_at = timezone.now()
         self.save()
     
     def close_defect(self):

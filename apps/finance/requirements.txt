@@ -1,0 +1,384 @@
+# Основные зависимости Django
+Django>=4.2.0,<5.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.0.0
+
+# База данных
+psycopg2-binary>=2.9.0  # PostgreSQL
+mysqlclient>=2.1.0       # MySQL
+# SQLite встроен в Python
+
+# Обработка форм и валидация
+django-crispy-forms>=2.0
+crispy-bootstrap5>=0.7
+
+# Аутентификация и безопасность
+django-allauth>=0.54.0
+django-oauth-toolkit>=2.0.0
+
+# API и сериализация
+djangorestframework-simplejwt>=5.2.0
+django-filter>=23.0
+
+# Кэширование
+redis>=4.5.0
+django-redis>=5.3.0
+
+# Фоновые задачи
+celery>=5.3.0
+django-celery-beat>=2.5.0
+
+# Логирование и мониторинг
+sentry-sdk>=1.28.0
+django-debug-toolbar>=4.1.0
+
+# Экспорт данных
+openpyxl>=3.1.0          # Excel
+reportlab>=4.0.0          # PDF
+xhtml2pdf>=0.2.11         # HTML to PDF
+
+# Утилиты
+python-dateutil>=2.8.0
+pytz>=2023.3
+Pillow>=10.0.0            # Обработка изображений
+
+# Разработка и тестирование
+pytest>=7.4.0
+pytest-django>=4.5.0
+factory-boy>=3.3.0
+coverage>=7.3.0
+
+# Линтинг и форматирование
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
+
+# Документация
+Sphinx>=7.0.0
+sphinx-rtd-theme>=1.3.0
+
+# Продакшн
+gunicorn>=21.0.0
+whitenoise>=6.5.0
+django-storages>=1.14.0
+
+# Дополнительные возможности
+django-extensions>=3.2.0
+django-debug-toolbar>=4.1.0
+django-silk>=5.0.0        # Профилирование
+
+# Финансовые расчеты
+decimal>=1.70
+numpy>=1.24.0
+pandas>=2.0.0
+
+# Графики и визуализация
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Уведомления
+django-notifications-hq>=1.8.0
+
+# Локализация
+django-modeltranslation>=0.18.0
+
+# Версионирование
+django-reversion>=5.0.0
+
+# Поиск
+django-haystack>=3.2.0
+elasticsearch>=8.0.0
+
+# Кэширование файлов
+django-compressor>=4.4.0
+
+# Безопасность
+django-ratelimit>=4.0.0
+django-axes>=6.0.0
+
+# Админка
+django-jet>=1.0.8
+django-grappelli>=2.15.0
+
+# Формы
+django-bootstrap-modal-forms>=1.5.0
+django-select2>=8.0.0
+
+# Календарь и планирование
+django-scheduler>=0.10.0
+
+# Импорт/экспорт
+django-import-export>=3.0.0
+
+# Аудит
+django-simple-history>=3.3.0
+
+# Мультитенантность
+django-tenants>=3.5.0
+
+# API документация
+drf-yasg>=1.21.0
+
+# Тестирование API
+pytest-html>=3.2.0
+pytest-cov>=4.1.0
+
+# Мониторинг производительности
+django-silk>=5.0.0
+
+# Логирование
+structlog>=23.1.0
+
+# Конфигурация
+python-decouple>=3.8
+django-environ>=0.11.0
+
+# Развертывание
+fabric>=2.7.0
+invoke>=2.0.0
+
+# Документация API
+drf-spectacular>=0.26.0
+
+# Валидация данных
+marshmallow>=3.20.0
+django-marshmallow>=0.5.0
+
+# Кэширование запросов
+django-cacheops>=8.0.0
+
+# Оптимизация запросов
+django-query-profiler>=0.4.0
+
+# Бэкапы
+django-dbbackup>=1.3.0
+
+# Мониторинг ошибок
+django-sentry>=0.1.0
+
+# Аналитика
+django-analytics>=0.5.0
+
+# Уведомления по email
+django-anymail>=10.0
+
+# SMS уведомления
+django-sms>=0.1.0
+
+# Webhook интеграции
+django-webhooks>=0.1.0
+
+# Планировщик задач
+django-celery-beat>=2.5.0
+
+# Мониторинг задач
+flower>=2.0.0
+
+# Логирование в файлы
+django-log-file-viewer>=0.1.0
+
+# Экспорт в различные форматы
+django-export-action>=0.1.0
+
+# Импорт из Excel
+django-excel>=0.0.1
+
+# Работа с CSV
+django-csv>=0.1.0
+
+# Генерация отчетов
+django-report-builder>=0.1.0
+
+# Дашборды
+django-dash>=1.0.0
+
+# Графики
+django-chartjs>=0.1.0
+
+# Таблицы
+django-tables2>=2.5.0
+
+# Фильтры
+django-filter>=23.0
+
+# Поиск
+django-haystack>=3.2.0
+
+# Полнотекстовый поиск
+django-elasticsearch-dsl>=8.0.0
+
+# Автодополнение
+django-autocomplete-light>=3.9.0
+
+# Drag & Drop
+django-sortable>=0.1.0
+
+# Древовидные структуры
+django-mptt>=0.14.0
+
+# Иерархические данные
+django-treebeard>=4.7.0
+
+# Медиа файлы
+django-storages>=1.14.0
+
+# CDN интеграция
+django-cdn>=1.0.0
+
+# Сжатие статики
+django-compressor>=4.4.0
+
+# Минификация
+django-pipeline>=1.7.0
+
+# Сбор статики
+django-staticfiles>=0.1.0
+
+# Кэширование статики
+django-static-cache>=0.1.0
+
+# Обработка изображений
+django-imagekit>=5.0.0
+
+# Водяные знаки
+django-watermark>=0.1.0
+
+# Генерация QR кодов
+django-qr-code>=1.0.0
+
+# Штрих-коды
+django-barcode>=0.1.0
+
+# Подписи документов
+django-signature-pad>=0.1.0
+
+# PDF генерация
+django-weasyprint>=1.0.0
+
+# Excel генерация
+django-excel-response>=0.1.0
+
+# Email шаблоны
+django-templated-mail>=1.1.0
+
+# SMS сервисы
+django-sms-gateway>=0.1.0
+
+# Push уведомления
+django-push-notifications>=2.0.0
+
+# WebSocket
+django-channels>=4.0.0
+
+# Real-time обновления
+django-sse>=0.1.0
+
+# Кэширование Redis
+django-redis>=5.3.0
+
+# Сессии Redis
+django-redis-sessions>=0.7.0
+
+# Кэширование Memcached
+django-memcached>=0.1.0
+
+# База данных MongoDB
+djongo>=1.3.0
+
+# База данных Elasticsearch
+django-elasticsearch-dsl>=8.0.0
+
+# База данных InfluxDB
+django-influxdb>=0.1.0
+
+# База данных TimescaleDB
+django-timescaledb>=0.1.0
+
+# Миграции
+django-migration-testcase>=0.1.0
+
+# Тестирование миграций
+django-test-migrations>=0.1.0
+
+# Фабрики для тестов
+factory-boy>=3.3.0
+
+# Моки для тестов
+responses>=0.23.0
+
+# Тестирование API
+pytest-html>=3.2.0
+
+# Покрытие кода
+pytest-cov>=4.1.0
+
+# Профилирование
+pytest-profiling>=1.7.0
+
+# Бенчмарки
+pytest-benchmark>=4.0.0
+
+# Линтинг
+flake8>=6.0.0
+pylint>=2.17.0
+black>=23.0.0
+isort>=5.12.0
+
+# Безопасность
+bandit>=1.7.0
+safety>=2.3.0
+
+# Документация
+sphinx>=7.0.0
+sphinx-rtd-theme>=1.3.0
+
+# Автогенерация документации
+drf-spectacular>=0.26.0
+
+# Swagger UI
+drf-yasg>=1.21.0
+
+# Мониторинг
+prometheus-client>=0.17.0
+
+# Логирование
+structlog>=23.1.0
+
+# Конфигурация
+python-decouple>=3.8
+
+# Переменные окружения
+django-environ>=0.11.0
+
+# Развертывание
+fabric>=2.7.0
+
+# Автоматизация
+invoke>=2.0.0
+
+# Docker
+docker>=6.1.0
+
+# Kubernetes
+kubernetes>=26.1.0
+
+# CI/CD
+jenkins>=0.1.0
+
+# Git hooks
+pre-commit>=3.3.0
+
+# Управление зависимостями
+pip-tools>=7.3.0
+
+# Виртуальные окружения
+virtualenv>=20.24.0
+
+# Управление версиями Python
+pyenv>=2.3.0
+
+# Управление пакетами
+poetry>=1.5.0
+
+# Управление зависимостями
+pipenv>=2023.7.0 

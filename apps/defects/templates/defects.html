@@ -86,19 +86,13 @@
     </aside>
     <!-- Main Content -->
     <main class="flex-1 overflow-auto ml-64 p-6 pt-28">
-        <!-- Проверка работы Alpine.js -->
-        <div x-show="false" x-text="'Alpine.js работает!'" class="hidden"></div>
+
         
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 flex flex-col lg:flex-row lg:items-center justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 mb-2">Браки (дефекты)</h1>
                 <p class="text-gray-600">Система управления браками с подтверждением мастера</p>
-                <!-- Проверка работы Alpine.js -->
-                <p class="text-sm text-gray-500 mt-2">
-                    Alpine.js статус: 
-                    <span x-text="showConfirmationModal ? 'Модальное окно открыто' : 'Модальное окно закрыто'"></span>
-                    | showConfirmationModal: <span x-text="showConfirmationModal"></span>
-                </p>
+
             </div>
             <div class="flex items-center space-x-4 mt-4 lg:mt-0">
                 <input type="text" placeholder="Поиск..." x-model="searchTerm"
@@ -107,43 +101,53 @@
                     <i data-lucide="wrench" class="w-4 h-4 mr-2"></i>
                     Управление браком
                 </a>
-                <!-- Тестовая кнопка для проверки модального окна -->
-                <button @click="showConfirmationModal = true; console.log('Тестовая кнопка нажата, showConfirmationModal:', showConfirmationModal)" 
-                        class="inline-flex items-center px-3 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700">
-                    Тест модального окна
-                </button>
+
             </div>
         </div>
         
         <!-- Статистика браков -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="bg-red-50 rounded-xl p-6 flex items-center justify-between">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
+            <div class="bg-red-50 rounded-xl p-4 flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-red-600">Всего браков</p>
-                    <p class="text-2xl font-bold text-red-900" x-text="stats().totalDefects || 0"></p>
+                    <p class="text-xs text-red-600">Всего браков</p>
+                    <p class="text-xl font-bold text-red-900" x-text="stats().totalDefects || 0"></p>
                 </div>
-                <i data-lucide="alert-triangle" class="text-red-600 w-8 h-8"></i>
+                <i data-lucide="alert-triangle" class="text-red-600 w-6 h-6"></i>
             </div>
-            <div class="bg-yellow-50 rounded-xl p-6 flex items-center justify-between">
+            <div class="bg-yellow-50 rounded-xl p-4 flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-yellow-600">Ожидают подтверждения</p>
-                    <p class="text-2xl font-bold text-yellow-900" x-text="stats().pendingConfirmation || 0"></p>
+                    <p class="text-xs text-yellow-600">Ожидают подтверждения</p>
+                    <p class="text-xl font-bold text-yellow-900" x-text="stats().pendingConfirmation || 0"></p>
                 </div>
-                <i data-lucide="clock" class="text-yellow-600 w-8 h-8"></i>
+                <i data-lucide="clock" class="text-yellow-600 w-6 h-6"></i>
             </div>
-            <div class="bg-blue-50 rounded-xl p-6 flex items-center justify-between">
+            <div class="bg-blue-50 rounded-xl p-4 flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-blue-600">Можно починить</p>
-                    <p class="text-2xl font-bold text-blue-900" x-text="stats().repairable || 0"></p>
+                    <p class="text-xs text-blue-600">Можно починить</p>
+                    <p class="text-xl font-bold text-blue-900" x-text="stats().repairable || 0"></p>
                 </div>
-                <i data-lucide="wrench" class="text-blue-600 w-8 h-8"></i>
+                <i data-lucide="wrench" class="text-blue-600 w-6 h-6"></i>
             </div>
-            <div class="bg-green-50 rounded-xl p-6 flex items-center justify-between">
+            <div class="bg-green-50 rounded-xl p-4 flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-green-600">Починено</p>
-                    <p class="text-2xl font-bold text-green-900" x-text="stats().repaired || 0"></p>
+                    <p class="text-xs text-green-600">Починено</p>
+                    <p class="text-xl font-bold text-green-900" x-text="stats().repaired || 0"></p>
                 </div>
-                <i data-lucide="check-circle" class="text-green-600 w-8 h-8"></i>
+                <i data-lucide="check-circle" class="text-green-600 w-6 h-6"></i>
+            </div>
+            <div class="bg-orange-50 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-orange-600">Неисправимые</p>
+                    <p class="text-xl font-bold text-orange-900" x-text="stats().irreparable || 0"></p>
+                </div>
+                <i data-lucide="x-circle" class="text-orange-600 w-6 h-6"></i>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-600">Закрыто</p>
+                    <p class="text-xl font-bold text-gray-900" x-text="stats().closed || 0"></p>
+                </div>
+                <i data-lucide="archive" class="text-gray-600 w-6 h-6"></i>
             </div>
         </div>
         
@@ -155,6 +159,7 @@
                         <tr>
                             <th class="px-4 py-3 text-left">Продукт</th>
                             <th class="px-4 py-3 text-left">Сотрудник</th>
+                            <th class="px-4 py-3 text-left">Задача</th>
                             <th class="px-4 py-3 text-left">Статус</th>
                             <th class="px-4 py-3 text-left">Тип брака</th>
                             <th class="px-4 py-3 text-left">Дата</th>
@@ -166,6 +171,7 @@
                             <tr>
                                 <td class="px-4 py-3" x-text="defect.product && defect.product.name ? defect.product.name : 'Неизвестный продукт'"></td>
                                 <td class="px-4 py-3" x-text="defect.user && defect.user.full_name ? defect.user.full_name : 'Неизвестный сотрудник'"></td>
+                                <td class="px-4 py-3 text-sm text-gray-600" x-text="defect.employee_task ? `Задача #${defect.employee_task.id}` : 'Нет задачи'"></td>
                                 <td class="px-4 py-3">
                                     <span class="px-2 py-1 text-xs rounded-full" 
                                           :class="getStatusClass(defect.status)">
@@ -386,15 +392,12 @@
                         } else if (data && data.results && Array.isArray(data.results)) {
                             this.defects = data.results;
                         } else {
-                            console.warn('Неожиданная структура данных браков:', data);
                             this.defects = [];
                         }
                     } else {
-                        console.warn('Не удалось загрузить браки:', resp.status);
                         this.defects = [];
                     }
                 } catch (error) {
-                    console.warn('Ошибка при загрузке браков:', error);
                     this.defects = [];
                 }
             },
@@ -410,43 +413,33 @@
                         } else if (data && data.results && Array.isArray(data.results)) {
                             this.workshops = data.results;
                         } else {
-                            console.warn('Неожиданная структура данных цехов:', data);
                             this.workshops = [];
                         }
                     } else {
-                        console.warn('Не удалось загрузить цеха:', resp.status);
                         this.workshops = [];
                     }
                 } catch (error) {
-                    console.warn('Ошибка при загрузке цехов:', error);
                     this.workshops = [];
                 }
             },
             
             async fetchCurrentUser() {
                 try {
-                    console.log('Загружаем пользователя...');
                     const resp = await fetch('/accounts/api/profile/');
-                    console.log('Ответ от /accounts/api/profile/:', resp.status, resp.statusText);
                     
                     if (resp.ok) {
                         const data = await resp.json();
-                        console.log('Данные пользователя получены:', data);
                         
                         // Проверяем структуру данных
                         if (data && typeof data === 'object') {
                             this.currentUser = data;
-                            console.log('Пользователь установлен:', this.currentUser);
                         } else {
-                            console.warn('Неожиданная структура данных пользователя:', data);
                             this.currentUser = null;
                         }
                     } else {
-                        console.warn('Не удалось загрузить пользователя:', resp.status);
                         this.currentUser = null;
                     }
                 } catch (error) {
-                    console.warn('Ошибка при загрузке пользователя:', error);
                     this.currentUser = null;
                 }
             },
@@ -459,7 +452,8 @@
                 const term = this.searchTerm.toLowerCase();
                 return this.defects.filter(d =>
                     (d.product && d.product.name ? d.product.name : '').toLowerCase().includes(term) ||
-                    (d.user && d.user.full_name ? d.user.full_name : '').toLowerCase().includes(term)
+                    (d.user && d.user.full_name ? d.user.full_name : '').toLowerCase().includes(term) ||
+                    (d.employee_task ? `задача ${d.employee_task.id}` : '').toLowerCase().includes(term)
                 );
             },
             
@@ -500,22 +494,15 @@
             },
             
             canConfirmDefect(defect) {
-                console.log('canConfirmDefect проверяется для:', defect);
-                console.log('currentUser:', this.currentUser);
-                
                 if (!this.currentUser || !defect) {
-                    console.log('canConfirmDefect: false - нет пользователя или брака');
                     return false;
                 }
                 
                 if (this.currentUser.role !== 'master') {
-                    console.log('canConfirmDefect: false - роль не master, текущая роль:', this.currentUser.role);
                     return false;
                 }
                 
-                const canConfirm = defect.status === 'pending';
-                console.log('canConfirmDefect:', canConfirm, 'статус брака:', defect.status);
-                return canConfirm;
+                return defect.status === 'pending';
             },
             
             canMarkRepaired(defect) {
@@ -530,46 +517,11 @@
             },
             
             openConfirmationModal(defect) {
-                console.log('openConfirmationModal вызвана с:', defect);
                 if (!defect) return;
                 this.selectedDefect = { ...defect };
                 this.confirmationStep = 1;
                 this.showConfirmationModal = true;
                 this.showRepairModal = false; // Закрываем другое модальное окно
-                console.log('Модальное окно открыто, selectedDefect:', this.selectedDefect);
-                console.log('showConfirmationModal:', this.showConfirmationModal);
-                
-                // Принудительно обновляем DOM
-                this.$nextTick(() => {
-                    console.log('DOM обновлен, проверяем модальное окно...');
-                    const modal = document.querySelector('[x-show="showConfirmationModal"]');
-                    console.log('Найденное модальное окно:', modal);
-                    if (modal) {
-                        console.log('Стили модального окна:', window.getComputedStyle(modal));
-                        console.log('Видимость:', modal.offsetParent !== null);
-                        console.log('Display:', window.getComputedStyle(modal).display);
-                        console.log('Z-index:', window.getComputedStyle(modal).zIndex);
-                        
-                        // Принудительно показываем модальное окно для тестирования
-                        modal.style.display = 'flex';
-                        modal.style.visibility = 'visible';
-                        modal.style.opacity = '1';
-                        console.log('Модальное окно принудительно показано');
-                        
-                        // Проверяем, есть ли перекрывающие элементы
-                        const rect = modal.getBoundingClientRect();
-                        console.log('Позиция модального окна:', rect);
-                        
-                        // Проверяем элементы на той же позиции
-                        const elementsAtPosition = document.elementsFromPoint(rect.left + rect.width/2, rect.top + rect.height/2);
-                        console.log('Элементы на позиции модального окна:', elementsAtPosition);
-                    } else {
-                        console.error('Модальное окно не найдено в DOM!');
-                        // Ищем все элементы с x-show
-                        const allXShowElements = document.querySelectorAll('[x-show]');
-                        console.log('Все элементы с x-show:', allXShowElements);
-                    }
-                });
             },
             
             openRepairModal(defect) {
@@ -593,19 +545,14 @@
             },
             
             async confirmDefect() {
-                console.log('confirmDefect вызвана', this.selectedDefect);
-                
                 if (!this.selectedDefect || !this.selectedDefect.id) {
-                    console.error('Брак не выбран:', this.selectedDefect);
                     this.showNotification('Ошибка: брак не выбран', 'error');
                     return;
                 }
                 
                 const csrfToken = this.getCSRFToken();
-                console.log('CSRF токен:', csrfToken);
                 
                 if (!csrfToken) {
-                    console.error('CSRF токен не найден');
                     this.showNotification('Ошибка: CSRF токен не найден. Обновите страницу.', 'error');
                     return;
                 }
@@ -617,8 +564,6 @@
                     comment: this.selectedDefect.comment || ''
                 };
                 
-                console.log('Отправляем запрос:', requestBody);
-                
                 try {
                     const response = await fetch(`/defects/api/defects/${this.selectedDefect.id}/confirm/`, {
                         method: 'POST',
@@ -629,17 +574,13 @@
                         body: JSON.stringify(requestBody)
                     });
                     
-                    console.log('Ответ получен:', response.status, response.statusText);
-                    
                     if (response.ok) {
                         const result = await response.json();
-                        console.log('Успешный ответ:', result);
                         this.closeConfirmationModal();
                         await this.fetchDefects();
                         this.showNotification('Брак успешно подтвержден', 'success');
                     } else {
                         const errorText = await response.text();
-                        console.error('Ошибка ответа:', response.status, errorText);
                         let errorMessage = 'Ошибка при подтверждении брака';
                         
                         try {
@@ -652,7 +593,6 @@
                         this.showNotification(errorMessage, 'error');
                     }
                 } catch (error) {
-                    console.error('Ошибка при выполнении запроса:', error);
                     this.showNotification(`Ошибка при подтверждении брака: ${error.message}`, 'error');
                 }
             },
@@ -688,8 +628,8 @@
                 }
             },
             
-            async closeDefect() {
-                if (!this.selectedDefect || !this.selectedDefect.id) {
+            async closeDefect(defect) {
+                if (!defect || !defect.id) {
                     this.showNotification('Ошибка: брак не выбран', 'error');
                     return;
                 }
@@ -697,7 +637,7 @@
                 if (!confirm('Вы уверены, что хотите закрыть этот брак?')) return;
                 
                 try {
-                    const response = await fetch(`/defects/api/defects/${this.selectedDefect.id}/close/`, {
+                    const response = await fetch(`/defects/api/defects/${defect.id}/close/`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -721,7 +661,6 @@
                 // Сначала пытаемся получить из meta тега
                 const metaToken = document.querySelector('meta[name="csrf-token"]');
                 if (metaToken) {
-                    console.log('CSRF токен найден в meta теге');
                     return metaToken.getAttribute('content');
                 }
                 
@@ -740,18 +679,15 @@
                 }
                 
                 if (cookieValue) {
-                    console.log('CSRF токен найден в cookie');
                     return cookieValue;
                 }
                 
                 // Если ничего не найдено, попробуем получить из Django формы
                 const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
                 if (csrfInput) {
-                    console.log('CSRF токен найден в форме');
                     return csrfInput.value;
                 }
                 
-                console.warn('CSRF токен не найден нигде');
                 return null;
             },
             
@@ -762,8 +698,6 @@
             
             async init() {
                 try {
-                    console.log('Инициализация defectsData...');
-                    
                     // Явно устанавливаем модальные окна в скрытое состояние
                     this.showConfirmationModal = false;
                     this.showRepairModal = false;
@@ -771,35 +705,21 @@
                     this.selectedDefect = {};
                     this.repairComment = '';
                     
-                    console.log('Начальные значения установлены');
-                    console.log('showConfirmationModal:', this.showConfirmationModal);
-                    console.log('showRepairModal:', this.showRepairModal);
-                    
                     await Promise.all([
                         this.fetchDefects(),
                         this.fetchWorkshops(),
                         this.fetchCurrentUser()
                     ]);
                     
-                    console.log('Данные загружены, currentUser:', this.currentUser);
-                    
                     this.$nextTick(() => {
                         try {
                             lucide.createIcons();
-                            console.log('Иконки созданы');
-                            
-                            // Проверяем начальное состояние модальных окон
-                            console.log('Проверяем начальное состояние модальных окон...');
-                            const confirmationModal = document.querySelector('[x-show="showConfirmationModal"]');
-                            const repairModal = document.querySelector('[x-show="showRepairModal"]');
-                            console.log('Модальное окно подтверждения найдено:', confirmationModal);
-                            console.log('Модальное окно починки найдено:', repairModal);
                         } catch (error) {
-                            console.warn('Ошибка при создании иконок:', error);
+                            // Игнорируем ошибки создания иконок
                         }
                     });
                 } catch (error) {
-                    console.error('Ошибка при инициализации:', error);
+                    // Игнорируем ошибки инициализации
                 }
             },
             
@@ -810,8 +730,8 @@
                         pendingConfirmation: 0,
                         repairable: 0,
                         repaired: 0,
-                        uniqueProducts: 0,
-                        uniqueUsers: 0
+                        irreparable: 0,
+                        closed: 0
                     };
                 }
                 
@@ -819,41 +739,31 @@
                 const pendingConfirmation = this.defects.filter(d => d.status === 'pending').length;
                 const repairable = this.defects.filter(d => d.status === 'repairable').length;
                 const repaired = this.defects.filter(d => d.status === 'repaired').length;
-                const uniqueProducts = new Set(this.defects.map(d => d.product && d.product.id).filter(Boolean)).size;
-                const uniqueUsers = new Set(this.defects.map(d => d.user && d.user.id).filter(Boolean)).size;
+                const irreparable = this.defects.filter(d => d.status === 'irreparable').length;
+                const closed = this.defects.filter(d => d.status === 'closed').length;
                 
                 return { 
                     totalDefects, 
                     pendingConfirmation, 
                     repairable, 
                     repaired,
-                    uniqueProducts, 
-                    uniqueUsers 
+                    irreparable,
+                    closed
                 };
             }
         }
     }
     
     document.addEventListener('alpine:init', () => {
-        console.log('Alpine.js инициализируется...');
         Alpine.data('defectsData', defectsData);
-        console.log('defectsData зарегистрирован в Alpine.js');
     });
     
     // Дополнительная проверка после загрузки DOM
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM загружен, проверяем Alpine.js...');
-        if (typeof Alpine !== 'undefined') {
-            console.log('Alpine.js доступен');
-        } else {
-            console.error('Alpine.js не загружен!');
-        }
-        
         try {
             lucide.createIcons();
-            console.log('Иконки созданы в DOMContentLoaded');
         } catch (error) {
-            console.warn('Ошибка при создании иконок в DOMContentLoaded:', error);
+            // Игнорируем ошибки создания иконок
         }
     });
     </script>

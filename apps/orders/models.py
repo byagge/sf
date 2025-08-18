@@ -45,8 +45,79 @@ class Order(models.Model):
 
     @property
     def total_quantity(self):
+        """Общее количество товаров в заказе"""
         items_sum = sum(item.quantity for item in self.items.all())
         return items_sum if items_sum > 0 else (self.quantity or 0)
+    
+    @property
+    def has_glass_items(self):
+        """Проверяет, есть ли в заказе стеклянные изделия"""
+        return any(item.product.is_glass for item in self.items.all() if item.product)
+    
+    @property
+    def glass_items(self):
+        """Возвращает все стеклянные позиции заказа"""
+        return [item for item in self.items.all() if item.product and item.product.is_glass]
+    
+    @property
+    def regular_items(self):
+        """Возвращает все обычные (не стеклянные) позиции заказа"""
+        return [item for item in self.items.all() if item.product and not item.product.is_glass]
+    
+    def get_order_summary(self):
+        """Возвращает сводку по всему заказу"""
+        summary = {
+            'order_id': self.id,
+            'order_name': self.name,
+            'client': self.client.name if self.client else '',
+            'status': self.status,
+            'total_quantity': self.total_quantity,
+            'has_glass_items': self.has_glass_items,
+            'items': [],
+            'glass_items': [],
+            'regular_items': [],
+        }
+        
+        for item in self.items.all():
+            item_summary = {
+                'id': item.id,
+                'product': item.product.name if item.product else '',
+                'quantity': item.quantity,
+                'size': item.size,
+                'color': item.color,
+                'is_glass': item.product.is_glass if item.product else False,
+                'glass_type': item.get_glass_type_display(),
+                'paint_type': item.paint_type,
+                'paint_color': item.paint_color,
+            }
+            
+            summary['items'].append(item_summary)
+            
+            if item.product and item.product.is_glass:
+                summary['glass_items'].append(item_summary)
+            else:
+                summary['regular_items'].append(item_summary)
+        
+        return summary
+    
+    def get_workshop_tasks(self, workshop_name):
+        """Возвращает задачи для конкретного цеха с необходимой информацией"""
+        tasks = []
+        
+        for item in self.items.all():
+            if not item.product:
+                continue
+                
+            workshop_info = item.get_workshop_info(workshop_name)
+            if workshop_info:
+                tasks.append({
+                    'item': item,
+                    'workshop_info': workshop_info,
+                    'is_glass': item.product.is_glass,
+                    'glass_type': item.get_glass_type_display(),
+                })
+        
+        return tasks
 
 class OrderStage(models.Model):
     STAGE_TYPE_CHOICES = [
@@ -60,6 +131,7 @@ class OrderStage(models.Model):
         ('waiting', 'Ожидание'),
     ]
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='stages')
+    order_item = models.ForeignKey('OrderItem', on_delete=models.CASCADE, related_name='stages', null=True, blank=True, verbose_name='Позиция заказа')
     stage_type = models.CharField('Тип этапа', max_length=20, choices=STAGE_TYPE_CHOICES, default='workshop')
     workshop = models.ForeignKey('operations_workshops.Workshop', on_delete=models.CASCADE, null=True, blank=True)
     finished_good = models.ForeignKey('finished_goods.FinishedGood', on_delete=models.SET_NULL, null=True, blank=True)
@@ -74,16 +146,20 @@ class OrderStage(models.Model):
     completed_quantity = models.PositiveIntegerField('Выполнено (кол-во)', default=0)
     deadline = models.DateField('Срок', null=True, blank=True)
     status = models.CharField('Статус', max_length=30, choices=STAGE_STATUS_CHOICES, default='in_progress')
+    parallel_group = models.PositiveIntegerField('Группа параллельной обработки', null=True, blank=True, help_text='Для параллельных потоков (например, стекло)')
 
     class Meta:
-        unique_together = ('order', 'workshop', 'stage_type', 'finished_good')
+        unique_together = ('order', 'workshop', 'stage_type', 'finished_good', 'order_item', 'parallel_group')
         verbose_name = 'Этап заказа'
         verbose_name_plural = 'Этапы заказа'
 
     def __str__(self):
+        item_info = f" — {self.order_item}" if self.order_item else ""
+        parallel_info = f" [Параллельная группа {self.parallel_group}]" if self.parallel_group else ""
+        
         if self.stage_type == 'stock':
-            return f"[Склад] {self.order} — {self.finished_good}: {self.in_progress} на складе"
-        return f"{self.order} — {self.workshop}: {self.in_progress} в работе, {self.completed} передано, {self.defective} брак"
+            return f"[Склад] {self.order}{item_info} — {self.finished_good}: {self.in_progress} на складе{parallel_info}"
+        return f"{self.order}{item_info} — {self.workshop}: {self.in_progress} в работе, {self.completed} передано, {self.defective} брак{parallel_info}"
 
     @property
     def waiting_for_master(self):
@@ -111,25 +187,80 @@ class OrderStage(models.Model):
         # Сколько мастер перевёл на следующий цех (используем completed)
         return self.completed
 
+    def get_workshop_info(self):
+        """Возвращает информацию для цеха на основе связанной позиции заказа"""
+        if self.order_item:
+            return self.order_item.get_workshop_info(self.workshop.name if self.workshop else '')
+        return {}
+    
+    def is_glass_stage(self):
+        """Проверяет, относится ли этап к обработке стекла"""
+        return self.parallel_group == 1
+    
+    def is_packaging_stage(self):
+        """Проверяет, является ли этап упаковкой"""
+        return 'упаковк' in (self.operation or '').lower()
+    
+    def can_proceed_to_packaging(self):
+        """Проверяет, можно ли переходить к упаковке (для стеклянных изделий)"""
+        if not self.is_glass_stage() or not self.is_packaging_stage():
+            return True
+        
+        # Для упаковки стекла проверяем, завершена ли резка стекла
+        if self.order_item:
+            return self.order_item.glass_cutting_completed
+        
+        return True
+
     def confirm_stage(self, completed_qty):
         """
         Мастер подтверждает выполнение этапа. Если выполнено не всё — остаток остаётся, выполненное уходит дальше.
         """
         from apps.orders.models import OrderStage
+        
+        # Проверяем, можно ли переходить к упаковке (для стеклянных изделий)
+        if not self.can_proceed_to_packaging():
+            return False, "Нельзя переходить к упаковке: резка стекла не завершена"
+        
         if completed_qty >= self.plan_quantity:
             self.completed_quantity = self.plan_quantity
             self.status = 'done'
             self.save()
+            
+            # Если это этап резки стекла, отмечаем его как завершенный
+            if self.is_glass_stage() and 'распил стекла' in (self.operation or '').lower():
+                if self.order_item:
+                    self.order_item.glass_cutting_completed = True
+                    self.order_item.glass_cutting_quantity = completed_qty
+                    self.order_item.save()
+            
+            # Если это этап упаковки, создаем запись в finished_goods
+            if self.is_packaging_stage():
+                self._create_finished_good(completed_qty)
+            
             self._activate_next_stage(self.plan_quantity)
         elif completed_qty > 0:
             # Часть выполнено, часть — остаток
             self.completed_quantity = completed_qty
             self.status = 'partial'
             self.save()
+            
+            # Если это этап резки стекла, отмечаем его как завершенный
+            if self.is_glass_stage() and 'распил стекла' in (self.operation or '').lower():
+                if self.order_item:
+                    self.order_item.glass_cutting_completed = True
+                    self.order_item.glass_cutting_quantity = completed_qty
+                    self.order_item.save()
+            
+            # Если это этап упаковки, создаем запись в finished_goods
+            if self.is_packaging_stage():
+                self._create_finished_good(completed_qty)
+            
             self._activate_next_stage(completed_qty)
             # Создаём новый этап-остаток в этом же цехе
             OrderStage.objects.create(
                 order=self.order,
+                order_item=self.order_item,
                 stage_type=self.stage_type,
                 workshop=self.workshop,
                 operation=self.operation,
@@ -138,10 +269,36 @@ class OrderStage(models.Model):
                 completed_quantity=0,
                 deadline=None,  # Можно задать новый срок
                 status='in_progress',
+                parallel_group=self.parallel_group,
             )
         else:
             # Ничего не сделано — этап остаётся в работе
             pass
+        
+        return True, "Этап подтвержден"
+    
+    def _create_finished_good(self, quantity):
+        """Создает запись в finished_goods при завершении упаковки"""
+        if not self.order_item:
+            return
+        
+        from apps.finished_goods.models import FinishedGood
+        
+        # Создаем запись о готовой продукции
+        finished_good = FinishedGood.objects.create(
+            product=self.order_item.product,
+            order_item=self.order_item,
+            order=self.order,
+            quantity=quantity,
+            workshop=self.workshop,
+            status='stock'
+        )
+        
+        # Отмечаем как упакованный
+        finished_good.mark_as_packaged(self.workshop)
+        
+        # Обновляем количество полученное в упаковке
+        self.order_item.record_packaging_receipt(quantity)
 
     def _activate_next_stage(self, qty):
         """
@@ -149,28 +306,62 @@ class OrderStage(models.Model):
         Если следующего этапа нет — создаёт его по workflow.
         """
         from apps.orders.models import OrderStage
+        
+        # Определяем, к какому потоку относится текущий этап
+        current_parallel_group = self.parallel_group
+        current_order_item = self.order_item
+        
+        # Ищем следующий этап в том же потоке
         next_seq = self.sequence + 1
-        # Найти шаг workflow по sequence
-        if next_seq-1 < len(ORDER_WORKFLOW):
-            step = ORDER_WORKFLOW[next_seq-1]
-            from apps.operations.workshops.models import Workshop
-            workshop = Workshop.objects.get(pk=step["workshop"])
-            next_stage, created = OrderStage.objects.get_or_create(
+        
+        if current_parallel_group is not None:
+            # Для параллельных потоков ищем следующий этап в той же группе
+            next_stage = OrderStage.objects.filter(
                 order=self.order,
-                sequence=next_seq,
-                defaults={
-                    'stage_type': 'workshop',
-                    'workshop': workshop,
-                    'operation': step["operation"],
-                    'plan_quantity': qty,
-                    'deadline': timezone.now().replace(hour=18, minute=0, second=0, microsecond=0).date(),
-                    'status': 'in_progress',
-                }
-            )
-            if not created:
+                order_item=current_order_item,
+                parallel_group=current_parallel_group,
+                sequence=next_seq
+            ).first()
+        else:
+            # Для основного потока ищем следующий этап
+            next_stage = OrderStage.objects.filter(
+                order=self.order,
+                order_item=current_order_item,
+                parallel_group__isnull=True,
+                sequence=next_seq
+            ).first()
+        
+        if next_stage:
+            # Активируем существующий этап
                 next_stage.plan_quantity += qty
                 next_stage.status = 'in_progress'
                 next_stage.save()
+        else:
+            # Создаем новый этап по workflow
+            if current_parallel_group is not None:
+                # Для параллельных потоков
+                workflow_steps = [step for step in ORDER_WORKFLOW if step.get("parallel_group") == current_parallel_group]
+            else:
+                # Для основного потока
+                workflow_steps = [step for step in ORDER_WORKFLOW if step.get("parallel_group") is None]
+            
+            if next_seq - 1 < len(workflow_steps):
+                step = workflow_steps[next_seq - 1]
+                from apps.operations.workshops.models import Workshop
+                workshop = Workshop.objects.get(pk=step["workshop"])
+                
+                OrderStage.objects.create(
+                    order=self.order,
+                    order_item=current_order_item,
+                    sequence=next_seq,
+                    stage_type='workshop',
+                    workshop=workshop,
+                    operation=step["operation"],
+                    plan_quantity=qty,
+                    deadline=timezone.now().replace(hour=18, minute=0, second=0, microsecond=0).date(),
+                    status='in_progress',
+                    parallel_group=current_parallel_group,
+                )
 
 class OrderDefect(models.Model):
     DEFECT_STATUS_CHOICES = [
@@ -331,6 +522,19 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField('Количество', default=1)
     size = models.CharField('Размер', max_length=100, blank=True)
     color = models.CharField('Цвет', max_length=100, blank=True)
+    
+    # Дополнительные поля для передачи информации между цехами
+    glass_type = models.CharField('Тип стекла', max_length=20, blank=True, help_text='Пескоструйный или УФ')
+    paint_type = models.CharField('Тип краски', max_length=100, blank=True)
+    paint_color = models.CharField('Цвет краски', max_length=100, blank=True)
+    cnc_specs = models.TextField('Спецификации для ЧПУ', blank=True)
+    cutting_specs = models.TextField('Спецификации для распила', blank=True)
+    packaging_notes = models.TextField('Заметки для упаковки', blank=True)
+    
+    # Поля для отслеживания прогресса по цехам
+    glass_cutting_completed = models.BooleanField('Резка стекла завершена', default=False)
+    glass_cutting_quantity = models.PositiveIntegerField('Количество порезанного стекла', default=0)
+    packaging_received_quantity = models.PositiveIntegerField('Количество полученное в упаковке', default=0)
 
     class Meta:
         verbose_name = 'Позиция заявки'
@@ -342,37 +546,128 @@ class OrderItem(models.Model):
             details.append(self.size)
         if self.color:
             details.append(self.color)
+        if self.glass_type:
+            details.append(f"стекло: {self.get_glass_type_display()}")
         suffix = f" ({', '.join(details)})" if details else ''
         return f"{self.product} x{self.quantity}{suffix}"
+    
+    def get_workshop_info(self, workshop_name):
+        """Возвращает информацию, необходимую для конкретного цеха"""
+        info = {
+            'size': self.size,
+            'color': self.color,
+            'quantity': self.quantity,
+        }
+        
+        if 'распил' in workshop_name.lower():
+            info.update({
+                'cutting_specs': self.cutting_specs,
+                'size': self.size,
+            })
+        elif 'чпу' in workshop_name.lower():
+            info.update({
+                'cnc_specs': self.cnc_specs,
+                'size': self.size,
+                'photo': self.product.img if self.product.img else None,
+            })
+        elif 'краск' in workshop_name.lower() or 'окрасочн' in workshop_name.lower():
+            info.update({
+                'paint_type': self.paint_type,
+                'paint_color': self.paint_color,
+                'size': self.size,
+                'photo': self.product.img if self.product.img else None,
+            })
+        elif 'упаковк' in workshop_name.lower():
+            info.update({
+                'size': self.size,
+                'color': self.color,
+                'glass_type': self.glass_type,
+                'paint_type': self.paint_type,
+                'paint_color': self.paint_color,
+                'packaging_notes': self.packaging_notes,
+                'photo': self.product.img if self.product.img else None,
+            })
+        
+        return info
+    
+    def get_glass_type_display(self):
+        """Возвращает человекочитаемое название типа стекла"""
+        if not self.glass_type:
+            return ""
+        
+        glass_types = dict(self.product.GLASS_TYPES) if self.product else {}
+        return glass_types.get(self.glass_type, self.glass_type)
+    
+    def save(self, *args, **kwargs):
+        """Автоматически заполняем тип стекла при создании стеклянного изделия"""
+        if self.product and self.product.is_glass and not self.glass_type:
+            # По умолчанию устанавливаем пескоструйный тип
+            self.glass_type = 'sandblasted'
+        super().save(*args, **kwargs)
+    
+    def record_packaging_receipt(self, received_quantity):
+        """Записывает количество товара, полученного в упаковке"""
+        self.packaging_received_quantity = received_quantity
+        self.save()
+    
+    def get_packaging_summary(self):
+        """Возвращает сводку для упаковки"""
+        summary = {
+            'product': self.product.name,
+            'quantity': self.quantity,
+            'size': self.size,
+            'color': self.color,
+            'glass_type': self.get_glass_type_display(),
+            'paint_type': self.paint_type,
+            'paint_color': self.paint_color,
+            'packaging_notes': self.packaging_notes,
+            'photo': self.product.img if self.product.img else None,
+            'glass_cutting_completed': self.glass_cutting_completed,
+            'glass_cutting_quantity': self.glass_cutting_quantity,
+        }
+        
+        # Добавляем информацию о стекле, если это стеклянное изделие
+        if self.product and self.product.is_glass:
+            summary['is_glass'] = True
+            summary['glass_type_code'] = self.glass_type
+        
+        return summary
 
 ORDER_WORKFLOW = [
-    {"workshop": 1, "operation": "Резка"},
-    {"workshop": 2, "operation": "ЧПУ"},
-    {"workshop": 3, "operation": "Заготовка досок"},
-    {"workshop": 4, "operation": "Пресс"},
-    {"workshop": 1, "operation": "Распил (места)"},
-    {"workshop": 5, "operation": "Кромка"},
-    {"workshop": 6, "operation": "Шкурка аппаратная"},
-    {"workshop": 7, "operation": "Шкурка сухой"},
-    {"workshop": 8, "operation": "Шкурка ручная"},
-    {"workshop": 9, "operation": "Грунтовка"},
-    {"workshop": 10, "operation": "Шкурка белый"},
-    {"workshop": 11, "operation": "Покраска"},
-    {"workshop": 12, "operation": "Упаковка"},
+    # Основной поток для обычных изделий
+    {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": None},
+    {"workshop": 3, "operation": "Обработка на станках с ЧПУ", "sequence": 2, "parallel_group": None},
+    {"workshop": 4, "operation": "Заготовка досок", "sequence": 3, "parallel_group": None},
+    {"workshop": 5, "operation": "Пресс", "sequence": 4, "parallel_group": None},
+    {"workshop": 1, "operation": "Распил (места)", "sequence": 5, "parallel_group": None},
+    {"workshop": 6, "operation": "Кромка", "sequence": 6, "parallel_group": None},
+    {"workshop": 7, "operation": "Шкурка аппаратная", "sequence": 7, "parallel_group": None},
+    {"workshop": 8, "operation": "Шкурка сухой", "sequence": 8, "parallel_group": None},
+    {"workshop": 9, "operation": "Грунтовка", "sequence": 9, "parallel_group": None},
+    {"workshop": 10, "operation": "Шкурка белый", "sequence": 10, "parallel_group": None},
+    {"workshop": 11, "operation": "Покраска", "sequence": 11, "parallel_group": None},
+    {"workshop": 12, "operation": "Упаковка", "sequence": 12, "parallel_group": None},
+    
+    # Параллельный поток для стеклянных изделий (группа 1)
+    {"workshop": 2, "operation": "Распил стекла", "sequence": 1, "parallel_group": 1, "glass_only": True},
+    {"workshop": 12, "operation": "Упаковка стекла", "sequence": 2, "parallel_group": 1, "glass_only": True},
 ]
 
 def create_order_stages(order):
     from apps.operations.workshops.models import Workshop
-    # Создаём только первый этап из workflow
-    if not ORDER_WORKFLOW:
-        return
+    
+    # Получаем все позиции заказа
+    order_items = order.items.all()
+    
+    if not order_items.exists():
+        # Если нет позиций, используем старую логику для одиночного продукта
+        if not ORDER_WORKFLOW:
+            return
     step = ORDER_WORKFLOW[0]
     workshop = Workshop.objects.get(pk=step["workshop"])
-    # deadline = сегодня 18:00
     now = timezone.now()
     deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
     if now.hour >= 18:
-        # если заказ создан после 18:00, дедлайн на следующий день
         deadline_dt += timedelta(days=1)
     OrderStage.objects.create(
         order=order,
@@ -383,6 +678,64 @@ def create_order_stages(order):
         plan_quantity=order.total_quantity,
         deadline=deadline_dt.date(),
         status='in_progress',
+        )
+    return
+    
+    # Создаем этапы для каждой позиции заказа
+    for item in order_items:
+        _create_stages_for_item(order, item)
+
+def _create_stages_for_item(order, item):
+    """Создает этапы для конкретной позиции заказа"""
+    from apps.operations.workshops.models import Workshop
+    
+    # Определяем, нужно ли создавать параллельные этапы для стекла
+    is_glass_item = item.product.is_glass if item.product else False
+    
+    # Создаем основные этапы для позиции
+    main_workflow = [step for step in ORDER_WORKFLOW if step.get("parallel_group") is None]
+    
+    for step in main_workflow:
+        workshop = Workshop.objects.get(pk=step["workshop"])
+        now = timezone.now()
+        deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
+        if now.hour >= 18:
+            deadline_dt += timedelta(days=1)
+        
+        OrderStage.objects.create(
+            order=order,
+            workshop=workshop,
+            operation=step["operation"],
+            sequence=step["sequence"],
+            stage_type='workshop',
+            plan_quantity=item.quantity,
+            deadline=deadline_dt.date(),
+            status='in_progress',
+            order_item=item,  # Привязываем к конкретной позиции
+        )
+    
+    # Если это стеклянное изделие, создаем параллельные этапы
+    if is_glass_item:
+        glass_workflow = [step for step in ORDER_WORKFLOW if step.get("parallel_group") == 1]
+        
+        for step in glass_workflow:
+            workshop = Workshop.objects.get(pk=step["workshop"])
+            now = timezone.now()
+            deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
+            if now.hour >= 18:
+                deadline_dt += timedelta(days=1)
+            
+            OrderStage.objects.create(
+                order=order,
+                workshop=workshop,
+                operation=step["operation"],
+                sequence=step["sequence"],
+                stage_type='workshop',
+                plan_quantity=item.quantity,
+                deadline=deadline_dt.date(),
+                status='in_progress',
+                order_item=item,  # Привязываем к конкретной позиции
+                parallel_group=1,
     )
 
 from django.db.models.signals import post_save

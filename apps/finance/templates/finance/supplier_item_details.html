@@ -1,0 +1,107 @@
+<div class="bg-white rounded-lg p-6">
+    <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-semibold text-gray-900">Детали товара</h3>
+        <span class="badge bg-primary text-white px-3 py-1 rounded-full">
+            {{ item.unit_price|floatformat:2 }} сом/{{ item.unit }}
+        </span>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <h4 class="font-medium text-gray-900 mb-3">Основная информация</h4>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Название товара</label>
+                    <p class="text-gray-900">{{ item.name }}</p>
+                </div>
+                {% if item.description %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Описание</label>
+                    <p class="text-gray-900">{{ item.description }}</p>
+                </div>
+                {% endif %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Цена за единицу</label>
+                    <p class="text-lg font-semibold text-blue-600">{{ item.unit_price|floatformat:2 }} сом</p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Единица измерения</label>
+                    <p class="text-gray-900">{{ item.unit }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div>
+            <h4 class="font-medium text-gray-900 mb-3">Информация о поставщике</h4>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Поставщик</label>
+                    <p class="text-gray-900">{{ item.supplier.name }}</p>
+                </div>
+                {% if item.supplier.contact_person %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Контактное лицо</label>
+                    <p class="text-gray-900">{{ item.supplier.contact_person }}</p>
+                </div>
+                {% endif %}
+                {% if item.supplier.phone %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Телефон</label>
+                    <p class="text-gray-900">{{ item.supplier.phone }}</p>
+                </div>
+                {% endif %}
+                {% if item.supplier.email %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Email</label>
+                    <p class="text-gray-900">{{ item.supplier.email }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-6">
+        <h4 class="font-medium text-gray-900 mb-3">Планирование закупок</h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+                <label class="text-sm font-medium text-gray-500">Частота покупок</label>
+                <p class="text-gray-900">{{ item.purchase_frequency }} дней</p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-500">Последняя покупка</label>
+                <p class="text-gray-900">
+                    {% if item.last_purchase_date %}
+                        {{ item.last_purchase_date|date:"d.m.Y" }}
+                    {% else %}
+                        <span class="text-gray-400">Не указано</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-500">Следующая покупка</label>
+                <p class="text-gray-900">
+                    {% if item.next_purchase_date %}
+                        {% if item.next_purchase_date <= today %}
+                            <span class="badge bg-danger">Просрочено</span>
+                        {% elif item.next_purchase_date <= week_from_now %}
+                            <span class="badge bg-warning">Скоро</span>
+                        {% else %}
+                            {{ item.next_purchase_date|date:"d.m.Y" }}
+                        {% endif %}
+                    {% else %}
+                        <span class="text-gray-400">Не указано</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    {% if item.notes %}
+    <div class="mt-6">
+        <h4 class="font-medium text-gray-900 mb-3">Примечания</h4>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-gray-900">{{ item.notes }}</p>
+        </div>
+    </div>
+    {% endif %}
+</div> 

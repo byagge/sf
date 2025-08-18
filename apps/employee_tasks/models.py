@@ -54,11 +54,34 @@ class EmployeeTask(models.Model):
         # Заработок за выполненную работу
         self.earnings = Decimal(str(self.completed_quantity)) * self.service.service_price
         
-        # Штрафы за брак
-        self.penalties = Decimal(str(self.defective_quantity)) * self.service.defect_penalty
+        # Штрафы теперь начисляются только после подтверждения мастером
+        # Здесь оставляем только уже примененные штрафы (из системы браков)
+        # self.penalties остается как есть - обновляется только при подтверждении брака мастером
         
         # Чистый заработок
         self.net_earnings = self.earnings - self.penalties
+
+    @property
+    def is_completed(self):
+        """Проверяет, выполнена ли задача полностью"""
+        return self.completed_quantity >= self.quantity
+    
+    @property
+    def title(self):
+        """Возвращает название задачи на основе этапа"""
+        if self.stage:
+            return f"{self.stage.operation} - {self.stage.order.name if self.stage.order else 'Заказ'}"
+        return f"Задача #{self.id}"
+    
+    @property
+    def plan_quantity(self):
+        """Возвращает план задачи (для совместимости с фронтендом)"""
+        return self.quantity
+    
+    @property
+    def started_at(self):
+        """Возвращает дату начала задачи"""
+        return self.created_at
 
     def consume_materials(self, delta_completed_quantity: int):
         """Учитывает расход сырья при выполнении работы для приращения delta_completed_quantity"""
@@ -108,8 +131,8 @@ class EmployeeTask(models.Model):
                     print(f"Ошибка создания уведомления: {e}")
 
 @receiver(pre_save, sender=EmployeeTask)
-def create_order_defect_on_defective_change(sender, instance, **kwargs):
-    """Агрегирует браки по заказу и вычисляет дельту выполнения до сохранения"""
+def create_defect_on_defective_change(sender, instance, **kwargs):
+    """Создает записи браков в новой системе при изменении defective_quantity"""
     if instance.pk:
         try:
             old_instance = EmployeeTask.objects.get(pk=instance.pk)
@@ -117,21 +140,19 @@ def create_order_defect_on_defective_change(sender, instance, **kwargs):
             delta_completed = int(instance.completed_quantity) - int(old_instance.completed_quantity)
             instance._delta_completed_quantity = max(delta_completed, 0)
 
-            # Агрегация брака
+            # Создание браков в новой системе
             if instance.defective_quantity > old_instance.defective_quantity:
-                from apps.orders.models import OrderDefect
+                from apps.defects.models import Defect
                 defect_quantity = instance.defective_quantity - old_instance.defective_quantity
-                defect_obj, created = OrderDefect.objects.get_or_create(
-                    order=instance.stage.order,
-                    status='pending_review',
-                    defaults={
-                        'workshop': instance.stage.workshop,
-                        'quantity': 0,
-                        'comment': f"Брак по заказу {instance.stage.order_id} (агрегировано)"
-                    }
-                )
-                defect_obj.quantity = (defect_obj.quantity or 0) + defect_quantity
-                defect_obj.save()
+                
+                # Создаем записи браков для каждого единицы брака
+                for _ in range(defect_quantity):
+                    Defect.objects.create(
+                        employee_task=instance,
+                        product=instance.stage.order_item.product if instance.stage.order_item else None,
+                        user=instance.employee,
+                        status='pending'  # Ожидает подтверждения мастера
+                    )
         except EmployeeTask.DoesNotExist:
             instance._delta_completed_quantity = 0
     else:

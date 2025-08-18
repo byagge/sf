@@ -10,10 +10,24 @@ class Product(models.Model):
         ("door", "Дверь"),
         # Можно добавить другие типы позже
     ]
+    
+    GLASS_TYPES = [
+        ("sandblasted", "Пескоструйный"),
+        ("uv", "УФ"),
+    ]
+    
     name = models.CharField('Наименование', max_length=255)
     type = models.CharField('Тип', max_length=50, choices=PRODUCT_TYPES, default="door")
     description = models.TextField('Описание', blank=True)
     is_glass = models.BooleanField('Стеклянный', default=False)
+    glass_type = models.CharField(
+        'Тип стекла', 
+        max_length=20, 
+        choices=GLASS_TYPES, 
+        null=True, 
+        blank=True,
+        help_text='Указывается только для стеклянных изделий'
+    )
     img = models.ImageField('Изображение', upload_to='products/', blank=True, null=True)
     services = models.ManyToManyField(Service, related_name="products", verbose_name="Услуги для продукта")
     price = models.DecimalField('Цена за продукт', max_digits=12, decimal_places=2, default=0)

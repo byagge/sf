@@ -23,36 +23,36 @@ def materials_page(request):
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_materials_list(request):
-    """API для получения списка материалов"""
-    try:
-        materials = RawMaterial.objects.all()
-        materials_data = []
-        
-        for material in materials:
-            materials_data.append({
-                'id': material.id,
-                'name': material.name,
-                'code': material.code,
-                'size': material.size,
-                'unit': material.unit,
-                'quantity': float(material.quantity),
-                'min_quantity': float(material.min_quantity),
-                'price': float(material.price),
-                'total_value': float(material.total_value),
-                'description': material.description,
-                'created_at': material.created_at.isoformat(),
-                'updated_at': material.updated_at.isoformat()
-            })
-        
-        return JsonResponse({
-            'status': 'success',
-            'data': materials_data
-        })
-    except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        }, status=500)
+	"""API для получения списка материалов"""
+	try:
+		materials = RawMaterial.objects.all().order_by('name', 'id')[:100]  # Ограничиваем количество
+		materials_data = []
+		
+		for material in materials:
+			materials_data.append({
+				'id': material.id,
+				'name': material.name,
+				'code': material.code,
+				'size': material.size,
+				'unit': material.unit,
+				'quantity': float(material.quantity),
+				'min_quantity': float(material.min_quantity),
+				'price': float(material.price),
+				'total_value': float(material.total_value),
+				'description': material.description,
+				'created_at': material.created_at.isoformat(),
+				'updated_at': material.updated_at.isoformat()
+			})
+		
+		return JsonResponse({
+			'status': 'success',
+			'data': materials_data
+		})
+	except Exception as e:
+		return JsonResponse({
+			'status': 'error',
+			'message': str(e)
+		}, status=500)
 
 @csrf_exempt
 @require_http_methods(["POST"])

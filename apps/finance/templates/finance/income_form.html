@@ -1,0 +1,262 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Редактирование дохода{% else %}Новый доход{% endif %} - Финансовая система{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex justify-between items-center mb-8">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+            {% if form.instance.pk %}Редактирование дохода{% else %}Новый доход{% endif %}
+        </h1>
+        <p class="text-gray-600">
+            {% if form.instance.pk %}
+                Измените информацию о доходе
+            {% else %}
+                Создайте новый доход для предприятия
+            {% endif %}
+        </p>
+    </div>
+    <a href="{% url 'finance:incomes' %}" class="btn btn-secondary flex items-center space-x-2">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        <span>Назад к доходам</span>
+    </a>
+</div>
+
+<!-- Статистика -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="trending-up" class="w-8 h-8 text-green-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900" id="totalIncome">0 сом</h4>
+        <p class="text-gray-600">Общие доходы за месяц</p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="shopping-cart" class="w-8 h-8 text-blue-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900" id="salesIncome">0 сом</h4>
+        <p class="text-gray-600">Доходы от продаж</p>
+    </div>
+    <div class="bg-white rounded-xl p-6 border border-gray-200 text-center shadow-sm">
+        <i data-lucide="gift" class="w-8 h-8 text-purple-600 mx-auto mb-2"></i>
+        <h4 class="text-2xl font-bold text-gray-900" id="otherIncome">0 сом</h4>
+        <p class="text-gray-600">Прочие доходы</p>
+    </div>
+</div>
+
+<!-- Форма дохода -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+        <h3 class="text-lg font-semibold text-gray-900 flex items-center">
+            <i data-lucide="file-text" class="w-5 h-5 mr-2 text-blue-600"></i>
+            {% if form.instance.pk %}Редактирование дохода{% else %}Создание дохода{% endif %}
+        </h3>
+    </div>
+    
+    <form method="post" class="p-6 space-y-6">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Сумма -->
+            <div class="form-group">
+                <label for="{{ form.amount.id_for_label }}" class="form-label">
+                    Сумма дохода *
+                </label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                        сом
+                    </span>
+                    {{ form.amount }}
+                </div>
+                {% if form.amount.errors %}
+                    <p class="errorlist">{{ form.amount.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Дата -->
+            <div class="form-group">
+                <label for="{{ form.date.id_for_label }}" class="form-label">
+                    Дата дохода *
+                </label>
+                {{ form.date }}
+                {% if form.date.errors %}
+                    <p class="errorlist">{{ form.date.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Тип дохода -->
+            <div class="form-group">
+                <label for="{{ form.income_type.id_for_label }}" class="form-label">
+                    Тип дохода *
+                </label>
+                {{ form.income_type }}
+                {% if form.income_type.errors %}
+                    <p class="errorlist">{{ form.income_type.errors.0 }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Заказ -->
+            <div id="orderReferenceField" class="form-group">
+                <label for="{{ form.order_reference.id_for_label }}" class="form-label">
+                    Номер заказа
+                </label>
+                {{ form.order_reference }}
+                {% if form.order_reference.errors %}
+                    <p class="errorlist">{{ form.order_reference.errors.0 }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Описание -->
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}" class="form-label">
+                Описание дохода *
+            </label>
+            {{ form.description }}
+            <p class="form-help">Максимум 500 символов</p>
+            {% if form.description.errors %}
+                <p class="errorlist">{{ form.description.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Кнопки -->
+        <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+            <a href="{% url 'finance:incomes' %}" class="btn btn-secondary">
+                Отмена
+            </a>
+            <button type="submit" class="btn btn-success">
+                {% if form.instance.pk %}Сохранить изменения{% else %}Создать доход{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const amountField = document.getElementById('{{ form.amount.id_for_label }}');
+    const incomeTypeSelect = document.getElementById('{{ form.income_type.id_for_label }}');
+    const orderReferenceField = document.getElementById('{{ form.order_reference.id_for_label }}');
+    const dateField = document.getElementById('{{ form.date.id_for_label }}');
+    
+    // Загружаем статистику доходов
+    loadIncomeStats();
+    
+    // Устанавливаем текущую дату для новых доходов
+    if (dateField && !dateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateField.value = today;
+    }
+    
+    // Валидация суммы
+    if (amountField) {
+        amountField.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            if (value <= 0) {
+                this.setCustomValidity('Сумма должна быть больше нуля');
+                showWarning('Сумма должна быть больше нуля');
+            } else {
+                this.setCustomValidity('');
+                hideWarning();
+            }
+        });
+    }
+    
+    // Показ/скрытие поля заказа в зависимости от типа дохода
+    if (incomeTypeSelect && orderReferenceField) {
+        function toggleOrderField() {
+            const incomeType = incomeTypeSelect.value;
+            const orderFieldContainer = orderReferenceField.closest('.form-group');
+            
+            if (incomeType === 'sales') {
+                orderFieldContainer.style.display = 'block';
+                orderReferenceField.required = true;
+            } else {
+                orderFieldContainer.style.display = 'none';
+                orderReferenceField.required = false;
+                orderReferenceField.value = '';
+            }
+        }
+        
+        incomeTypeSelect.addEventListener('change', toggleOrderField);
+        toggleOrderField(); // Инициализация при загрузке
+    }
+    
+    // Ограничение длины описания
+    const descriptionField = document.getElementById('{{ form.description.id_for_label }}');
+    if (descriptionField) {
+        descriptionField.addEventListener('input', function() {
+            if (this.value.length > 500) {
+                this.value = this.value.substring(0, 500);
+                showWarning('Описание не должно превышать 500 символов');
+            } else {
+                hideWarning();
+            }
+        });
+    }
+    
+    function loadIncomeStats() {
+        // Убрано для улучшения производительности
+        // Загружаем статистику только при необходимости
+        const totalIncomeElement = document.getElementById('totalIncome');
+        const salesIncomeElement = document.getElementById('salesIncome');
+        const otherIncomeElement = document.getElementById('otherIncome');
+        
+        // Показываем статические данные вместо API запроса
+        if (totalIncomeElement) {
+            totalIncomeElement.textContent = '0 сом';
+        }
+        
+        if (salesIncomeElement) {
+            salesIncomeElement.textContent = '0 сом';
+        }
+        
+        if (otherIncomeElement) {
+            otherIncomeElement.textContent = '0 сом';
+        }
+    }
+    
+    // Функция показа предупреждений
+    function showWarning(message) {
+        // Удаляем существующие предупреждения
+        const existingWarning = document.querySelector('.warning-alert');
+        if (existingWarning) {
+            existingWarning.remove();
+        }
+        
+        // Создаем новое предупреждение
+        const warning = document.createElement('div');
+        warning.className = 'warning-alert alert alert-warning flex items-center space-x-2';
+        warning.innerHTML = `
+            <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            <span>${message}</span>
+        `;
+        
+        // Вставляем перед формой
+        const form = document.querySelector('form');
+        form.parentNode.insertBefore(warning, form);
+        
+        // Автоматически скрываем через 5 секунд
+        setTimeout(() => {
+            if (warning.parentNode) {
+                warning.remove();
+            }
+        }, 5000);
+        
+        // Инициализируем иконки
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+    
+    // Функция скрытия предупреждений
+    function hideWarning() {
+        const warning = document.querySelector('.warning-alert');
+        if (warning) {
+            warning.remove();
+        }
+    }
+});
+</script>
+{% endblock %} 

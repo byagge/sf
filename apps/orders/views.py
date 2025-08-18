@@ -23,12 +23,69 @@ class OrderCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     @method_decorator(csrf_exempt)
     def post(self, request):
-        serializer = OrderSerializer(data=request.data)
-        if serializer.is_valid():
-            order = serializer.save()
+        try:
+            data = request.data
+            name = data.get('name')
+            client_id = data.get('client_id')
+            items_data = data.get('items_data', [])
+            
+            if not name or not client_id or not items_data:
+                return Response({
+                    'error': 'Необходимо указать название заказа, клиента и товары'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            from apps.clients.models import Client
+            client = get_object_or_404(Client, pk=client_id)
+            
+            # Создаем заказ
+            order = Order.objects.create(
+                name=name,
+                client=client,
+                status='production'
+            )
+            
+            # Создаем позиции заказа
+            for item_data in items_data:
+                product_id = item_data.get('product_id')
+                quantity = item_data.get('quantity', 1)
+                size = item_data.get('size', '')
+                color = item_data.get('color', '')
+                glass_type = item_data.get('glass_type', '')
+                paint_type = item_data.get('paint_type', '')
+                paint_color = item_data.get('paint_color', '')
+                cnc_specs = item_data.get('cnc_specs', '')
+                cutting_specs = item_data.get('cutting_specs', '')
+                packaging_notes = item_data.get('packaging_notes', '')
+                
+                from apps.products.models import Product
+                product = get_object_or_404(Product, pk=product_id)
+                
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    quantity=quantity,
+                    size=size,
+                    color=color,
+                    glass_type=glass_type,
+                    paint_type=paint_type,
+                    paint_color=paint_color,
+                    cnc_specs=cnc_specs,
+                    cutting_specs=cutting_specs,
+                    packaging_notes=packaging_notes
+                )
+            
+            # Автоматически создаем этапы заказа
+            from .models import create_order_stages
+            create_order_stages(order)
+            
+            # Возвращаем созданный заказ с полной информацией
             return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
-        print('ORDER CREATE ERROR:', serializer.errors, 'DATA:', request.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        except Exception as e:
+            print('ORDER CREATE ERROR:', str(e))
+            return Response({
+                'error': f'Ошибка создания заказа: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class OrderPageView(View):
     def get(self, request):

@@ -37,6 +37,7 @@ urlpatterns = [
     path('finished_goods/', include('apps.finished_goods.urls')),
     path('attendance/', include('apps.attendance.urls')),
     path('employee_tasks/', include('apps.employee_tasks.urls')),
+    path('finance/', include('apps.finance.urls')),
     path('api/workshops/', include('apps.workshops.urls')),  # Прямой маршрут для API
     path('admin/', admin.site.urls),
     path('stats/', TemplateView.as_view(template_name='stats_master.html'), name='stats-master'),

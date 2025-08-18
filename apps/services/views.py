@@ -1,23 +1,27 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
-from .models import Service, ServiceMaterial, RawMaterial, Workshop
-from django.views.decorators.http import require_POST
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-import json
-from django.forms.models import model_to_dict
-from django.db.models import Sum, Count, Avg
+from django.core.paginator import Paginator
+from .models import Service
+from apps.operations.workshops.models import Workshop
 from apps.inventory.models import RawMaterial
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.db.models import Sum, Count, Avg
 
 
 def service_list(request):
     query = request.GET.get('q', '')
-    services = Service.objects.all()
+    services_qs = Service.objects.select_related('workshop').all().order_by('name', 'id')
+    
     if query:
-        services = services.filter(
+        services_qs = services_qs.filter(
             Q(name__icontains=query) | Q(code__icontains=query) | Q(description__icontains=query)
         )
+    
+    # Добавляем пагинацию
+    paginator = Paginator(services_qs, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
     
     # Определение мобильного устройства по User-Agent
     user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
@@ -30,7 +34,9 @@ def service_list(request):
     template = 'services_mobile.html' if is_mobile else 'services.html'
     
     return render(request, template, {
-        'services': services,
+        'services': page_obj.object_list,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.paginator.num_pages > 1,
         'query': query,
     })
 

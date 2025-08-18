@@ -1,0 +1,86 @@
+<div class="bg-white rounded-lg p-6">
+    <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-semibold text-gray-900">Детали операции</h3>
+        <span class="badge {% if movement.movement_type == 'deposit' %}bg-success{% else %}bg-danger{% endif %} text-white px-3 py-1 rounded-full">
+            {% if movement.movement_type == 'deposit' %}+{% else %}-{% endif %}{{ movement.amount|floatformat:2 }} сом
+        </span>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <h4 class="font-medium text-gray-900 mb-3">Основная информация</h4>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Тип операции</label>
+                    <p class="text-gray-900">
+                        {% if movement.movement_type == 'deposit' %}
+                            <span class="badge bg-success">Пополнение</span>
+                        {% else %}
+                            <span class="badge bg-danger">Снятие</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Сумма</label>
+                    <p class="text-lg font-semibold {% if movement.movement_type == 'deposit' %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ movement.amount|floatformat:2 }} сом
+                    </p>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Дата</label>
+                    <p class="text-gray-900">{{ movement.date|date:"d.m.Y H:i" }}</p>
+                </div>
+                {% if movement.description %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Описание</label>
+                    <p class="text-gray-900">{{ movement.description }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div>
+            <h4 class="font-medium text-gray-900 mb-3">Дополнительная информация</h4>
+            <div class="space-y-3">
+                {% if movement.reference_number %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Номер операции</label>
+                    <p class="text-gray-900">{{ movement.reference_number }}</p>
+                </div>
+                {% endif %}
+                {% if movement.payment_method %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Способ оплаты</label>
+                    <p class="text-gray-900">{{ movement.get_payment_method_display }}</p>
+                </div>
+                {% endif %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Создано</label>
+                    <p class="text-gray-900">{{ movement.created_at|date:"d.m.Y H:i" }}</p>
+                </div>
+                {% if movement.user %}
+                <div>
+                    <label class="text-sm font-medium text-gray-500">Пользователь</label>
+                    <p class="text-gray-900">{{ movement.user.get_full_name|default:movement.user.username }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    {% if movement.attachments.all %}
+    <div class="mt-6">
+        <h4 class="font-medium text-gray-900 mb-3">Прикрепленные файлы</h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {% for attachment in movement.attachments.all %}
+            <div class="border border-gray-200 rounded-lg p-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="file" class="w-4 h-4 text-gray-400"></i>
+                    <span class="text-sm text-gray-900">{{ attachment.filename }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div> 
