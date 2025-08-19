@@ -279,64 +279,12 @@
             <i data-lucide="archive" class="w-5 h-5"></i>
             <span class="text-xs">Склад</span>
         </a>
-        <button @click="openMoreMenu()" class="flex flex-col items-center text-gray-500 focus:outline-none">
+        <a href="/menu/" class="flex flex-col items-center text-gray-500 focus:outline-none">
             <i data-lucide="menu" class="w-5 h-5"></i>
             <span class="text-xs">Другое</span>
-        </button>
+        </a>
     </nav>
-    <!-- Модальное окно "Другое" -->
-    <div x-show="showMoreMenu" x-transition.opacity class="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-40" @click.self="closeMoreMenu()">
-        <div class="w-full max-w-md bg-white rounded-t-2xl p-6 pb-8 shadow-xl animate-fade-in" @click.stop>
-            <div class="flex justify-between items-center mb-4">
-                <span class="text-lg font-semibold text-gray-900">Меню</span>
-                <button @click="closeMoreMenu()" class="text-gray-400 hover:text-gray-700">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-            </div>
-            <nav class="grid grid-cols-2 gap-4">
-                <a href="/dashboard/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="home" class="w-6 h-6 text-blue-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Главная</span>
-                </a>
-                <a href="/employees/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="users" class="w-6 h-6 text-blue-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Сотрудники</span>
-                </a>
-                <a href="/clients/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="user-plus" class="w-6 h-6 text-green-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Клиенты</span>
-                </a>
-                <a href="/warehouse/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="archive" class="w-6 h-6 text-gray-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Склад</span>
-                </a>
-                <a href="/services/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="scissors" class="w-6 h-6 text-yellow-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Услуги</span>
-                </a>
-                <a href="/schedules/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="calendar" class="w-6 h-6 text-purple-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Записи</span>
-                </a>
-                <a href="/order-history/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="history" class="w-6 h-6 text-gray-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">История заявок</span>
-                </a>
-                <a href="/finished-products/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="package-check" class="w-6 h-6 text-gray-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Готовые товары</span>
-                </a>
-                <a href="/workshops/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="factory" class="w-6 h-6 text-gray-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Цехи</span>
-                </a>
-                <a href="/settings/" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50">
-                    <i data-lucide="settings" class="w-6 h-6 text-red-600 mb-1"></i>
-                    <span class="text-xs font-semibold text-gray-900">Настройки</span>
-                </a>
-            </nav>
-        </div>
-    </div>
+    <!-- Removed legacy More Menu modal -->
     <template x-if="showCreateModal">
         <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg">
             <div class="bg-white rounded-t-2xl w-full max-w-md p-6 overflow-y-auto animate-slide-up" x-init="$nextTick(() => lucide.createIcons())" x-effect="$nextTick(() => lucide.createIcons())" style="max-height: 90vh; max-height: 90dvh; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;">
@@ -470,7 +418,7 @@
             clientForm: { name: '', phone: '', email: '', company: '', address: '' },
             newOrder: { name: '', client_id: '', items: [ { product_id: '', quantity: 1, size: '', color: '' } ] },
             showSuccess: false,
-            showMoreMenu: false,
+            // removed showMoreMenu and its handlers
             openOrderModal(order) {
                 this.selectedOrder = order;
                 this.showOrderModal = true;
@@ -646,18 +594,7 @@
                     }
                 }
             },
-            openMoreMenu() {
-                this.showMoreMenu = true;
-                this.$nextTick(() => {
-                    lucide.createIcons();
-                });
-            },
-            closeMoreMenu() {
-                this.showMoreMenu = false;
-                this.$nextTick(() => {
-                    lucide.createIcons();
-                });
-            }
+            // removed openMoreMenu and closeMoreMenu
         }
     }
         document.addEventListener('DOMContentLoaded', function() {

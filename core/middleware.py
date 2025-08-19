@@ -40,7 +40,7 @@ class RoleBasedRedirectMiddleware:
             User.Role.FOUNDER: '/dashboard/',  # Учредитель -> дашборд
             User.Role.DIRECTOR: '/dashboard/',  # Директор -> дашборд
             User.Role.ADMIN: '/dashboard/',  # Администратор -> дашборд
-            User.Role.ACCOUNTANT: '/dashboard/',  # Бухгалтер -> дашборд
+            User.Role.ACCOUNTANT: '/finance/',  # Бухгалтер -> финансы
             User.Role.MASTER: '/dashboard/',  # Мастер -> дашборд
             User.Role.WORKER: '/employee_tasks/tasks/',  # Рабочий -> задачи сотрудника
         }

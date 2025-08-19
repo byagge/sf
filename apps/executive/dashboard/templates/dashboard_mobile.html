@@ -337,6 +337,12 @@
                     if (this.revenueChart) this.revenueChart.destroy();
                     const ctx = document.getElementById('revenueChartMobile');
                     if (ctx) {
+                        if (!window.Chart) {
+                            for (let i = 0; i < 60; i++) {
+                                await new Promise(r => setTimeout(r, 50));
+                                if (window.Chart) break;
+                            }
+                        }
                         this.revenueChart = new Chart(ctx, {
                             type: 'line',
                             data: {

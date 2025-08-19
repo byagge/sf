@@ -25,31 +25,11 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
 <div x-data="attendanceDashboard()" x-init="init()">
-    <!-- Header -->
-    <header class="bg-white shadow-sm border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center">
-                    <a href="/dashboard/" class="mr-4 p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                        <i data-lucide="arrow-left" class="w-5 h-5 text-gray-600"></i>
-                    </a>
-                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
-                        <span class="text-white font-bold text-xl">S</span>
-                    </div>
-                    <h1 class="text-2xl font-bold text-gray-900">Посещаемость</h1>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <button @click="refreshData()" class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
-                        Обновить
-                    </button>
-                </div>
-            </div>
-        </div>
-    </header>
+    {% include 'partials/app_header.html' %}
+    {% include 'partials/app_sidebar.html' %}
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 ml-64 pt-28">
         <!-- Page Title -->
         <div class="mb-8">
             <h2 class="text-3xl font-bold text-gray-900">Управление посещаемостью</h2>

@@ -8,7 +8,7 @@ from apps.employee_tasks.models import EmployeeTask
 class ProductShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'name', 'code']
+        fields = ['id', 'name']
 
 class UserShortSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()

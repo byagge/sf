@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'apps.employee_tasks',  # задачи сотрудника
     'apps.plans',  # система планирования
     'apps.finance',  # финансы
+    'apps.director',
 ]
 
 MIDDLEWARE = [

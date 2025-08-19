@@ -15,104 +15,10 @@
     </style>
 </head>
 <body class="min-h-screen bg-gray-50">
-    <!-- Боковая панель -->
-    <aside class="w-64 bg-white border-r border-gray-200 p-4 space-y-6 fixed left-0 top-20 bottom-0 overflow-y-auto scrollbar-none z-20" style="scrollbar-width: none; -ms-overflow-style: none;">
-        <!-- Навигация -->
-        <div>
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Навигация</h3>
-            <nav class="space-y-1">
-                <a href="/dashboard/" class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-blue-50 text-blue-600">
-                    <i data-lucide="home" class="w-5 h-5"></i>
-                    <span>Главная</span>
-                </a>
-                <a href="/employees/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="users" class="w-5 h-5"></i>
-                    <span>Сотрудники</span>
-                </a>
-                <a href="/inventory/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="archive" class="w-5 h-5"></i>
-                    <span>Склад</span>
-                </a>
-                <a href="/services/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="scissors" class="w-5 h-5"></i>
-                    <span>Услуги</span>
-                </a>
-                <a href="/clients/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="user-plus" class="w-5 h-5"></i>
-                    <span>Клиенты</span>
-                </a>
-                <a href="/finished_goods/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="package-check" class="w-5 h-5"></i>
-                    <span>Готовые товары на складе</span>
-                </a>
-                <a href="/workshops/" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="factory" class="w-5 h-5"></i>
-                    <span>Цехи</span>
-                </a>
-            </nav>
-        </div>
-
-        <!-- Статистика -->
-        <div>
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Статистика</h3>
-            <div class="space-y-3">
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-sm text-gray-600">Записей сегодня</span>
-                        <span class="text-sm font-medium text-gray-900" x-text="overview.appointments_today || '0'"></span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-1.5">
-                        <div class="bg-blue-600 h-1.5 rounded-full" :style="`width: ${Math.min((overview.appointments_today || 0) / 40 * 100, 100)}%`"></div>
-                    </div>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-sm text-gray-600">Всего клиентов</span>
-                        <span class="text-sm font-medium text-gray-900" x-text="overview.total_clients || '0'"></span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-1.5">
-                        <div class="bg-green-600 h-1.5 rounded-full" :style="`width: ${Math.min((overview.total_clients || 0) / 200 * 100, 100)}%`"></div>
-                    </div>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-sm text-gray-600">Сотрудников</span>
-                        <span class="text-sm font-medium text-gray-900" x-text="overview.total_employees || '0'"></span>
-                    </div>
-                    <div class="w-full bg-purple-600 h-1.5 rounded-full" :style="`width: ${Math.min((overview.total_employees || 0) / 20 * 100, 100)}%`"></div>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-sm text-gray-600">Услуг</span>
-                        <span class="text-sm font-medium text-gray-900" x-text="overview.total_services || '0'"></span>
-                    </div>
-                    <div class="w-full bg-yellow-600 h-1.5 rounded-full" :style="`width: ${Math.min((overview.total_services || 0) / 50 * 100, 100)}%`"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Фильтры -->
-        <div>
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Фильтры</h3>
-            <div class="space-y-2">
-                <a href="/schedules/" class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="filter" class="w-4 h-4"></i>
-                    <span>Все записи</span>
-                </a>
-                <button class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="clock" class="w-4 h-4"></i>
-                    <span>Сегодня</span>
-                </button>
-                <button class="w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
-                    <i data-lucide="calendar" class="w-4 h-4"></i>
-                    <span>На неделю</span>
-                </button>
-            </div>
-        </div>
-    </aside>
-
+    {% include 'partials/app_header.html' %}
+    {% include 'partials/app_sidebar.html' %}
     <!-- Основное содержимое -->
-    <div class="ml-64 p-8" x-data="employeesPage()" x-init="console.log('Alpine.js initialized'); loadEmployees(); loadWorkshops(); loadEmployeeStats(); loadTotals()">
+    <div class="ml-64 p-8 pt-28" x-data="employeesPage()" x-init="console.log('Alpine.js initialized'); loadEmployees(); loadWorkshops(); loadEmployeeStats(); loadTotals()">
         <!-- Заголовок -->
         <div class="flex items-center justify-between mb-8">
             <div class="flex items-center space-x-4">

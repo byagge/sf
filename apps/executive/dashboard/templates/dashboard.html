@@ -515,8 +515,23 @@
 
                 async init() {
                     await this.loadDashboardData();
+                    await this.$nextTick();
                     await this.initChart();
-                    lucide.createIcons();
+                    if (window.lucide) lucide.createIcons();
+                },
+
+                async ensureChartJs() {
+                    if (window.Chart) return;
+                    await new Promise((resolve) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                        s.onload = resolve;
+                        s.onerror = resolve;
+                        document.head.appendChild(s);
+                    });
+                    for (let i = 0; i < 60 && !window.Chart; i++) {
+                        await new Promise(r => setTimeout(r, 50));
+                    }
                 },
 
                 async loadDashboardData() {
@@ -616,155 +631,63 @@
                         if (currentRequestId !== this.chartRequestId) return;
                         if (chartResponse.ok) {
                             const responseData = await chartResponse.json();
-                            if (responseData.labels && responseData.revenue) {
-                                chartData = {
-                                    labels: responseData.labels,
-                                    revenue: responseData.revenue,
-                                    bookings: responseData.bookings,
-                                    clients: responseData.clients
-                                };
+                            if (responseData && Array.isArray(responseData.labels)) {
+                                chartData.labels = responseData.labels;
+                                chartData.revenue = Array.isArray(responseData.revenue) ? responseData.revenue : [];
+                                chartData.bookings = Array.isArray(responseData.bookings) ? responseData.bookings : [];
+                                chartData.clients = Array.isArray(responseData.clients) ? responseData.clients : [];
                             }
-                        } else {
-                            // Ошибка, но всё равно создаём пустой график
-                            console.error('Ошибка загрузки данных графика:', chartResponse.status);
                         }
                     } catch (error) {
                         if (currentRequestId !== this.chartRequestId) return;
-                        console.error('Ошибка создания графика:', error);
-                        // Даже при ошибке создаём пустой график
                     } finally {
                         if (currentRequestId === this.chartRequestId) {
-                            // Уничтожаем только если график существует
+                            // Normalize labels and datasets to safe defaults and same length
+                            if (!Array.isArray(chartData.labels) || chartData.labels.length === 0) {
+                                const days = this.period === 'month' ? 30 : this.period === 'year' ? 365 : 7;
+                                const labels = [];
+                                for (let i = days - 1; i >= 0; i--) {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() - i);
+                                    labels.push(('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2));
+                                }
+                                chartData.labels = labels;
+                            }
+                            ['revenue','bookings','clients'].forEach(key => {
+                                if (!Array.isArray(chartData[key]) || chartData[key].length !== chartData.labels.length) {
+                                    chartData[key] = new Array(chartData.labels.length).fill(0);
+                                }
+                                chartData[key] = chartData[key].map(Number);
+                            });
+                            // Destroy previous chart
                             if (this.revenueChart) {
                                 this.revenueChart.destroy();
                             }
-                            const ctx = document.getElementById('revenueChart');
+                            // Ensure canvas exists (retry once after nextTick)
+                            let ctxEl = document.getElementById('revenueChart');
+                            if (!ctxEl) {
+                                await this.$nextTick();
+                                ctxEl = document.getElementById('revenueChart');
+                            }
+                            const ctx = ctxEl && ctxEl.getContext ? ctxEl.getContext('2d') : ctxEl;
                             if (ctx) {
+                                await this.ensureChartJs();
                                 this.revenueChart = new Chart(ctx, {
                                     type: 'line',
                                     data: {
                                         labels: chartData.labels,
                                         datasets: [
-                                            {
-                                                label: 'Доход (⃀)',
-                                                data: chartData.revenue,
-                                                borderColor: '#3B82F6',
-                                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                                borderWidth: 2,
-                                                tension: 0.4,
-                                                fill: false,
-                                                yAxisID: 'y',
-                                                pointBackgroundColor: '#3B82F6',
-                                                pointBorderColor: '#ffffff',
-                                                pointBorderWidth: 2,
-                                                pointRadius: 4,
-                                                pointHoverRadius: 6
-                                            },
-                                            {
-                                                label: 'Записи',
-                                                data: chartData.bookings,
-                                                borderColor: '#10B981',
-                                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                                                borderWidth: 2,
-                                                tension: 0.4,
-                                                fill: false,
-                                                yAxisID: 'y1',
-                                                pointBackgroundColor: '#10B981',
-                                                pointBorderColor: '#ffffff',
-                                                pointBorderWidth: 2,
-                                                pointRadius: 4,
-                                                pointHoverRadius: 6
-                                            },
-                                            {
-                                                label: 'Новые клиенты',
-                                                data: chartData.clients,
-                                                borderColor: '#F59E0B',
-                                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                                                borderWidth: 2,
-                                                tension: 0.4,
-                                                fill: false,
-                                                yAxisID: 'y1',
-                                                pointBackgroundColor: '#F59E0B',
-                                                pointBorderColor: '#ffffff',
-                                                pointBorderWidth: 2,
-                                                pointRadius: 4,
-                                                pointHoverRadius: 6
-                                            }
+                                            { label: 'Доход (⃀)', data: chartData.revenue, borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 2, tension: 0.4, fill: false, yAxisID: 'y', pointBackgroundColor: '#3B82F6', pointBorderColor: '#ffffff', pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6 },
+                                            { label: 'Записи', data: chartData.bookings, borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderWidth: 2, tension: 0.4, fill: false, yAxisID: 'y1', pointBackgroundColor: '#10B981', pointBorderColor: '#ffffff', pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6 },
+                                            { label: 'Новые клиенты', data: chartData.clients, borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 2, tension: 0.4, fill: false, yAxisID: 'y1', pointBackgroundColor: '#F59E0B', pointBorderColor: '#ffffff', pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6 }
                                         ]
                                     },
                                     options: {
                                         responsive: true,
                                         maintainAspectRatio: false,
-                                        interaction: {
-                                            mode: 'index',
-                                            intersect: false,
-                                        },
-                                        plugins: {
-                                            legend: {
-                                                display: true,
-                                                position: 'top',
-                                                labels: {
-                                                    usePointStyle: true,
-                                                    padding: 20
-                                                }
-                                            },
-                                            tooltip: {
-                                                callbacks: {
-                                                    label: function(context) {
-                                                        if (context.dataset.label === 'Доход (⃀)') {
-                                                            return 'Доход: ⃀' + context.parsed.y.toLocaleString('ru-RU');
-                                                        } else if (context.dataset.label === 'Записи') {
-                                                            return 'Записи: ' + context.parsed.y + ' шт.';
-                                                        } else {
-                                                            return 'Новые клиенты: ' + context.parsed.y + ' чел.';
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        scales: {
-                                            x: {
-                                                grid: {
-                                                    display: false
-                                                }
-                                            },
-                                            y: {
-                                                type: 'linear',
-                                                display: true,
-                                                position: 'left',
-                                                title: {
-                                                    display: true,
-                                                    text: 'Доход (⃀)'
-                                                },
-                                                grid: {
-                                                    display: true,
-                                                    drawBorder: false,
-                                                    color: 'rgba(0, 0, 0, 0.1)'
-                                                },
-                                                ticks: {
-                                                    callback: function(value) {
-                                                        return '⃀' + value.toLocaleString('ru-RU');
-                                                    }
-                                                }
-                                            },
-                                            y1: {
-                                                type: 'linear',
-                                                display: true,
-                                                position: 'right',
-                                                title: {
-                                                    display: true,
-                                                    text: 'Количество'
-                                                },
-                                                grid: {
-                                                    drawOnChartArea: false,
-                                                },
-                                                ticks: {
-                                                    callback: function(value) {
-                                                        return value + ' шт.';
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        interaction: { mode: 'index', intersect: false },
+                                        plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 20 } }, tooltip: { callbacks: { label: function(context) { if (context.dataset.label === 'Доход (⃀)') { return 'Доход: ⃀' + context.parsed.y.toLocaleString('ru-RU'); } else if (context.dataset.label === 'Записи') { return 'Записи: ' + context.parsed.y + ' шт.'; } else { return 'Новые клиенты: ' + context.parsed.y + ' чел.'; } } } } },
+                                        scales: { x: { grid: { display: false } }, y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Доход (⃀)' }, grid: { display: true, drawBorder: false, color: 'rgba(0, 0, 0, 0.1)' }, ticks: { callback: function(value) { return '⃀' + value.toLocaleString('ru-RU'); } } }, y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Количество' }, grid: { drawOnChartArea: false }, ticks: { callback: function(value) { return value + ' шт.'; } } } }
                                     }
                                 });
                             }

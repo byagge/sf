@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.generics import get_object_or_404
+from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Count, F
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
@@ -197,7 +197,7 @@ class DashboardRevenueChartAPIView(APIView):
             'revenue': revenue,
             'defects': defects,
             'orders_count': orders_count,
-            'sales': sales,
+            'sales': sales
         })
 
 class StageViewSet(viewsets.ReadOnlyModelViewSet):
