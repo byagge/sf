@@ -141,6 +141,17 @@
         setTimeout(() => { toast.style.display = 'none'; }, 300);
       }, 2500);
     }
+    async function getUserMediaSafe(constraints) {
+      const mediaDevices = navigator.mediaDevices;
+      if (mediaDevices && typeof mediaDevices.getUserMedia === 'function') {
+        return mediaDevices.getUserMedia(constraints);
+      }
+      const legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+      if (legacy) {
+        return new Promise((resolve, reject) => legacy.call(navigator, constraints, resolve, reject));
+      }
+      throw new Error('Доступ к камере недоступен. Откройте страницу по HTTPS или с localhost.');
+    }
     async function onScanSuccess(qrText){
       if(busy) return;
       busy=true;
@@ -206,9 +217,9 @@
           : { video: { facingMode: { ideal: 'environment' } }, audio: false };
         let stream;
         try {
-          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          stream = await getUserMediaSafe(constraints);
         } catch (errPrimary) {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+          stream = await getUserMediaSafe({ video: { facingMode: 'user' }, audio: false });
         }
         video.srcObject = stream;
         await new Promise(resolve => {
@@ -237,9 +248,7 @@
       let devices = [];
       try {
         // Request a minimal permission first to ensure labels populate
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          try { await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); } catch(_) {}
-        }
+        try { await getUserMediaSafe({ video: true, audio: false }); } catch(_) {}
         devices = await QrScanner.listCameras(true);
       } catch (e) {
         statusEl.innerHTML = '<span class="text-red-600">Ошибка получения списка камер</span>';
