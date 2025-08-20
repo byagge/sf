@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, F
 from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -17,6 +17,8 @@ from .forms import (
     ExpenseCategoryForm, SupplierForm, SupplierItemForm,
     MoneyMovementForm, ExpenseForm, IncomeForm, FactoryAssetForm, FinancialReportForm
 )
+from .forms import DebtForm, DebtPaymentForm
+from .models import Debt, DebtPayment
 
 # Главная страница финансовой системы
 @login_required
@@ -173,6 +175,14 @@ def supplier_detail(request, pk):
 	"""Детальная информация о поставщике"""
 	supplier = get_object_or_404(Supplier, pk=pk)
 	items_qs = SupplierItem.objects.filter(supplier=supplier).order_by('-next_purchase_date', '-id')
+	# Статистика по расходам по поставщику
+	expenses_qs = Expense.objects.filter(supplier=supplier)
+	total_expenses = expenses_qs.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+	expenses_count = expenses_qs.count()
+	avg_expense = expenses_qs.aggregate(s=Sum('amount'))['s'] / expenses_count if expenses_count else Decimal('0.00')
+	last_expense_date = expenses_qs.order_by('-date').values_list('date', flat=True).first()
+	items_count = items_qs.count()
+	recent_expenses = expenses_qs.order_by('-date', '-id')[:10]
 	paginator = Paginator(items_qs, 20)
 	page_obj = paginator.get_page(request.GET.get('page'))
 	return render(request, 'finance/supplier_detail.html', {
@@ -180,19 +190,67 @@ def supplier_detail(request, pk):
 		'items': page_obj.object_list,
 		'page_obj': page_obj,
 		'is_paginated': page_obj.paginator.num_pages > 1,
+		'total_expenses': total_expenses,
+		'expenses_count': expenses_count,
+		'avg_expense': avg_expense,
+		'last_expense_date': last_expense_date,
+		'items_count': items_count,
+		'recent_expenses': recent_expenses,
 	})
+
+@login_required
+def supplier_delete(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == 'POST':
+        supplier.delete()
+        messages.success(request, 'Поставщик удален')
+        return redirect('finance:suppliers')
+    return render(request, 'finance/confirm_delete.html', {'object': supplier, 'title': 'Удалить поставщика'})
 
 # ==================== ТОВАРЫ ПОСТАВЩИКОВ ====================
 @login_required
 def supplier_items(request):
 	"""Список товаров поставщиков"""
 	items_qs = SupplierItem.objects.select_related('supplier').all().order_by('-next_purchase_date', '-id')
+	# Фильтры
+	supplier_id = request.GET.get('supplier')
+	search = request.GET.get('search')
+	price_min = request.GET.get('price_min')
+	price_max = request.GET.get('price_max')
+	if supplier_id:
+		items_qs = items_qs.filter(supplier_id=supplier_id)
+	if search:
+		items_qs = items_qs.filter(Q(name__icontains=search) | Q(description__icontains=search))
+	if price_min:
+		try:
+			items_qs = items_qs.filter(unit_price__gte=Decimal(price_min))
+		except Exception:
+			pass
+	if price_max:
+		try:
+			items_qs = items_qs.filter(unit_price__lte=Decimal(price_max))
+		except Exception:
+			pass
+	# Даты для индикации
+	today = timezone.now().date()
+	week_from_now = today + timedelta(days=7)
+	# Статистика по отфильтрованным данным
+	upcoming_items = items_qs.filter(next_purchase_date__gt=today, next_purchase_date__lte=week_from_now).count()
+	overdue_items = items_qs.filter(next_purchase_date__lt=today).count()
+	total_value = items_qs.aggregate(s=Sum('unit_price'))['s'] or Decimal('0.00')
 	paginator = Paginator(items_qs, 25)
 	page_obj = paginator.get_page(request.GET.get('page'))
+	suppliers = Supplier.objects.all().order_by('name')
 	return render(request, 'finance/supplier_items.html', {
 		'items': page_obj.object_list,
 		'page_obj': page_obj,
 		'is_paginated': page_obj.paginator.num_pages > 1,
+		'suppliers': suppliers,
+		'today': today,
+		'week_from_now': week_from_now,
+		'upcoming_items': upcoming_items,
+		'overdue_items': overdue_items,
+		'total_value': total_value,
 	})
 
 @login_required
@@ -641,7 +699,35 @@ def money_movement_details(request, pk):
 def supplier_item_details(request, pk):
 	"""Детальная информация о товаре поставщика"""
 	item = get_object_or_404(SupplierItem, pk=pk)
-	return render(request, 'finance/supplier_item_details.html', {'item': item})
+	today = timezone.now().date()
+	week_from_now = today + timedelta(days=7)
+	return render(request, 'finance/supplier_item_details.html', {
+		'item': item,
+		'today': today,
+		'week_from_now': week_from_now,
+	})
+
+@login_required
+def supplier_item_edit(request, pk):
+	item = get_object_or_404(SupplierItem, pk=pk)
+	if request.method == 'POST':
+		form = SupplierItemForm(request.POST, instance=item)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Товар обновлен')
+			return redirect('finance:supplier_items')
+	else:
+		form = SupplierItemForm(instance=item)
+	return render(request, 'finance/supplier_item_form.html', {'form': form, 'title': 'Редактирование товара'})
+
+@login_required
+def supplier_item_delete(request, pk):
+	item = get_object_or_404(SupplierItem, pk=pk)
+	if request.method == 'POST':
+		item.delete()
+		messages.success(request, 'Товар удален')
+		return redirect('finance:supplier_items')
+	return render(request, 'finance/confirm_delete.html', {'object': item, 'title': 'Удалить товар'})
 
 @login_required
 def dashboard_stats(request):
@@ -679,3 +765,76 @@ def dashboard_stats(request):
 	}
 	
 	return JsonResponse(data)
+
+# ==================== ДОЛГИ ====================
+@login_required
+def debts(request):
+    """Список долгов"""
+    debts_qs = Debt.objects.select_related('supplier', 'created_by').all().order_by('-created_at', '-id')
+    direction = request.GET.get('direction')
+    status = request.GET.get('status')
+    if direction in {'payable', 'receivable'}:
+        debts_qs = debts_qs.filter(direction=direction)
+    if status in {'open', 'partial', 'closed'}:
+        if status == 'open':
+            debts_qs = debts_qs.filter(amount_paid=Decimal('0.00'))
+        elif status == 'partial':
+            debts_qs = debts_qs.filter(amount_paid__gt=Decimal('0.00')).exclude(amount_paid__gte=F('original_amount'))
+        else:
+            debts_qs = debts_qs.filter(amount_paid__gte=F('original_amount'))
+    paginator = Paginator(debts_qs, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    return render(request, 'finance/debts.html', {
+        'debts': page_obj.object_list,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.paginator.num_pages > 1,
+    })
+
+@login_required
+def debt_create(request):
+    """Создание нового долга"""
+    if request.method == 'POST':
+        form = DebtForm(request.POST)
+        if form.is_valid():
+            debt = form.save(commit=False)
+            debt.created_by = request.user
+            debt.save()
+            messages.success(request, 'Долг успешно создан!')
+            return redirect('finance:debts')
+    else:
+        form = DebtForm()
+    return render(request, 'finance/debt_form.html', {'form': form, 'title': 'Новый долг'})
+
+@login_required
+def debt_detail(request, pk):
+    debt = get_object_or_404(Debt, pk=pk)
+    payments = debt.payments.select_related('created_by').all().order_by('-date', '-id')
+    payment_form = DebtPaymentForm()
+    return render(request, 'finance/debt_detail.html', {'debt': debt, 'payments': payments, 'payment_form': payment_form})
+
+@login_required
+def debt_add_payment(request, pk):
+    debt = get_object_or_404(Debt, pk=pk)
+    if request.method == 'POST':
+        form = DebtPaymentForm(request.POST)
+        if form.is_valid():
+            payment = form.save(commit=False)
+            payment.debt = debt
+            payment.created_by = request.user
+            # Валидация: нельзя оплатить больше остатка
+            if payment.amount > debt.outstanding_amount:
+                messages.error(request, 'Сумма оплаты превышает остаток долга')
+            else:
+                payment.save()
+                messages.success(request, 'Оплата добавлена!')
+                return redirect('finance:debt_detail', pk=debt.pk)
+    return redirect('finance:debt_detail', pk=debt.pk)
+
+@login_required
+def debt_delete(request, pk):
+    debt = get_object_or_404(Debt, pk=pk)
+    if request.method == 'POST':
+        debt.delete()
+        messages.success(request, 'Долг удален')
+        return redirect('finance:debts')
+    return render(request, 'finance/confirm_delete.html', {'object': debt, 'title': 'Удалить долг'})

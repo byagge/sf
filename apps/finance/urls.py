@@ -17,12 +17,15 @@ urlpatterns = [
     path('suppliers/', views.suppliers, name='suppliers'),
     path('suppliers/create/', views.supplier_create, name='supplier_create'),
     path('suppliers/<int:pk>/edit/', views.supplier_edit, name='supplier_edit'),
+    path('suppliers/<int:pk>/delete/', views.supplier_delete, name='supplier_delete'),
     path('suppliers/<int:pk>/', views.supplier_detail, name='supplier_detail'),
     
     # Товары поставщиков
     path('supplier-items/', views.supplier_items, name='supplier_items'),
     path('supplier-items/create/', views.supplier_item_create, name='supplier_item_create'),
     path('supplier-items/<int:pk>/details/', views.supplier_item_details, name='supplier_item_details'),
+    path('supplier-items/<int:pk>/edit/', views.supplier_item_edit, name='supplier_item_edit'),
+    path('supplier-items/<int:pk>/delete/', views.supplier_item_delete, name='supplier_item_delete'),
     
     # Движение денег
     path('money-movements/', views.money_movements, name='money_movements'),
@@ -60,4 +63,11 @@ urlpatterns = [
     path('api/expense-categories/', views.get_expense_categories, name='api_expense_categories'),
     path('api/suppliers/', views.get_suppliers, name='api_suppliers'),
     path('api/dashboard-stats/', views.dashboard_stats, name='api_dashboard_stats'),
+
+    # Долги
+    path('debts/', views.debts, name='debts'),
+    path('debts/create/', views.debt_create, name='debt_create'),
+    path('debts/<int:pk>/', views.debt_detail, name='debt_detail'),
+    path('debts/<int:pk>/add-payment/', views.debt_add_payment, name='debt_add_payment'),
+    path('debts/<int:pk>/delete/', views.debt_delete, name='debt_delete'),
 ]

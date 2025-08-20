@@ -1,0 +1,139 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}Долги - Финансовая система{% endblock %}
+
+{% block content %}
+<div>
+	<div class="flex justify-between items-center mb-8">
+		<div>
+			<h1 class="text-3xl font-bold text-gray-900 mb-2">Долги</h1>
+			<p class="text-gray-600">Управление дебиторской и кредиторской задолженностью</p>
+		</div>
+		<a href="{% url 'finance:debt_create' %}" class="btn btn-success flex items-center space-x-2">
+			<i data-lucide="plus" class="w-4 h-4"></i>
+			<span>Новый долг</span>
+		</a>
+	</div>
+
+	<div class="bg-white rounded-xl p-6 border border-gray-200 mb-6 shadow-sm">
+		<form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+			<div class="form-group">
+				<label class="form-label">Направление</label>
+				<select name="direction" class="form-control">
+					<option value="">Все</option>
+					<option value="payable" {% if request.GET.direction == 'payable' %}selected{% endif %}>Мы должны</option>
+					<option value="receivable" {% if request.GET.direction == 'receivable' %}selected{% endif %}>Нам должны</option>
+				</select>
+			</div>
+			<div class="form-group">
+				<label class="form-label">Статус</label>
+				<select name="status" class="form-control">
+					<option value="">Все</option>
+					<option value="open" {% if request.GET.status == 'open' %}selected{% endif %}>Открыт</option>
+					<option value="partial" {% if request.GET.status == 'partial' %}selected{% endif %}>Частично оплачен</option>
+					<option value="closed" {% if request.GET.status == 'closed' %}selected{% endif %}>Закрыт</option>
+				</select>
+			</div>
+			<div class="flex items-end space-x-2">
+				<button type="submit" class="btn btn-primary flex items-center space-x-2">
+					<i data-lucide="search" class="w-4 h-4"></i>
+					<span>Фильтр</span>
+				</button>
+				<a href="{% url 'finance:debts' %}" class="btn btn-secondary flex items-center space-x-2">
+					<i data-lucide="x" class="w-4 h-4"></i>
+					<span>Сброс</span>
+				</a>
+			</div>
+		</form>
+	</div>
+
+	<div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+		<div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+			<h3 class="text-lg font-semibold text-gray-900 flex items-center">
+				<i data-lucide="wallet" class="w-5 h-5 mr-2 text-blue-600"></i>
+				Список долгов
+			</h3>
+		</div>
+		<div class="card-body p-0">
+			{% if debts %}
+			<div class="table-responsive">
+				<table class="table table-hover mb-0">
+					<thead>
+						<tr>
+							<th>Назначение</th>
+							<th>Контрагент</th>
+							<th>Направление</th>
+							<th>Сумма</th>
+							<th>Оплачено</th>
+							<th>Остаток</th>
+							<th>Срок</th>
+							<th>Действия</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for d in debts %}
+						<tr>
+							<td class="font-medium text-gray-900">
+								<a href="{% url 'finance:debt_detail' d.pk %}" class="text-blue-600 hover:underline">{{ d.title }}</a>
+							</td>
+							<td>
+								{% if d.supplier %}
+									<span class="badge bg-info">{{ d.supplier.name }}</span>
+								{% else %}
+									{{ d.counterparty_name|default:'-' }}
+								{% endif %}
+							</td>
+							<td>
+								{% if d.direction == 'payable' %}
+									<span class="badge bg-warning">Мы должны</span>
+								{% else %}
+									<span class="badge bg-success">Нам должны</span>
+								{% endif %}
+							</td>
+							<td>{{ d.original_amount }}</td>
+							<td>{{ d.amount_paid }}</td>
+							<td class="font-medium">{{ d.outstanding_amount }}</td>
+							<td>{% if d.due_date %}{{ d.due_date|date:"d.m.Y" }}{% else %}-{% endif %}</td>
+							<td>
+								<div class="btn-group" role="group">
+									<a href="{% url 'finance:debt_detail' d.pk %}" class="btn btn-sm btn-outline-info" title="Просмотр"><i data-lucide="eye" class="w-4 h-4"></i></a>
+									<form action="{% url 'finance:debt_delete' d.pk %}" method="post" style="display:inline;">
+										{% csrf_token %}
+										<button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+									</form>
+								</div>
+							</td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+			{% if is_paginated %}
+			<div class="card-footer">
+				<nav aria-label="Навигация по страницам">
+					<ul class="pagination justify-content-center mb-0">
+						{% if page_obj.has_previous %}
+						<li class="page-item"><a class="page-link" href="?page=1">&laquo; Первая</a></li>
+						<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Предыдущая</a></li>
+						{% endif %}
+						<li class="page-item active"><span class="page-link">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span></li>
+						{% if page_obj.has_next %}
+						<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Следующая</a></li>
+						<li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Последняя &raquo;</a></li>
+						{% endif %}
+					</ul>
+				</nav>
+			</div>
+			{% endif %}
+			{% else %}
+				<div class="text-center py-12">
+					<i data-lucide="wallet" class="w-12 h-12 text-gray-400 mb-3"></i>
+					<h5 class="text-gray-700">Долгов нет</h5>
+					<p class="text-gray-500">Создайте первый долг</p>
+					<a href="{% url 'finance:debt_create' %}" class="btn btn-success"><i data-lucide="plus" class="w-4 h-4 mr-1"></i>Создать долг</a>
+				</div>
+			{% endif %}
+		</div>
+	</div>
+</div>
+{% endblock %} 

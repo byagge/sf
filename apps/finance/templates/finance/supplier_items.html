@@ -3,7 +3,7 @@
 {% block title %}Товары поставщиков - Финансовая система{% endblock %}
 
 {% block content %}
-<div x-data="{ showItemModal: false, itemId: null }">
+<div x-data="itemModal()">
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
         <div>
@@ -90,7 +90,7 @@
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-box me-2 text-primary"></i>
+                                        <i data-lucide="package" class="w-5 h-5 mr-2 text-blue-600"></i>
                                         <div>
                                             <strong>{{ item.name }}</strong>
                                             {% if item.description %}
@@ -101,7 +101,7 @@
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-truck me-2 text-info"></i>
+                                        <i data-lucide="truck" class="w-5 h-5 mr-2 text-blue-500"></i>
                                         <span class="badge bg-info">{{ item.supplier.name }}</span>
                                     </div>
                                 </td>
@@ -137,15 +137,20 @@
                                 <td>
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-sm btn-outline-info" 
-                                                @click="itemId = {{ item.pk }}; showItemModal = true" title="Просмотр">
-                                            <i class="fas fa-eye"></i>
+                                                @click="itemId = {{ item.pk }}; showItemModal = true; loadItemDetails();" title="Просмотр">
+                                            <i data-lucide="eye" class="w-4 h-4"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" title="Редактировать">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" title="Удалить">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                        <a href="{% url 'finance:supplier_item_edit' 0 %}" class="hidden"></a>
+                                        <a href="{% url 'finance:supplier_item_delete' 0 %}" class="hidden"></a>
+                                        <a href="{% url 'finance:supplier_item_edit' 12345 %}" class="btn btn-sm btn-outline-primary" title="Редактировать" onclick="this.href=this.href.replace('12345','{{ item.pk }}')">
+                                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                                        </a>
+                                        <form action="{% url 'finance:supplier_item_delete' 12345 %}" method="post" style="display:inline;" onsubmit="this.action=this.action.replace('12345','{{ item.pk }}')">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </td>
                             </tr>
@@ -188,11 +193,11 @@
                 {% endif %}
             {% else %}
                 <div class="text-center py-5">
-                    <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                    <i data-lucide="info" class="w-12 h-12 text-gray-400 mb-3"></i>
                     <h5 class="text-muted">Товары не найдены</h5>
                     <p class="text-muted">Создайте первый товар, нажав кнопку "Новый товар"</p>
                     <a href="{% url 'finance:supplier_item_create' %}" class="btn btn-success">
-                        <i class="fas fa-plus me-1"></i>Создать товар
+                        <i data-lucide="plus" class="w-4 h-4 mr-1"></i>Создать товар
                     </a>
                 </div>
             {% endif %}
@@ -205,7 +210,7 @@
         <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
-                    <i class="fas fa-boxes fa-2x text-primary mb-2"></i>
+                    <i data-lucide="boxes" class="w-8 h-8 text-blue-600 mb-2"></i>
                     <h4>{{ items.count }}</h4>
                     <p class="mb-0">Всего товаров</p>
                 </div>
@@ -214,7 +219,7 @@
         <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
-                    <i class="fas fa-calendar-check fa-2x text-success mb-2"></i>
+                    <i data-lucide="calendar-check" class="w-8 h-8 text-green-600 mb-2"></i>
                     <h4>{{ upcoming_items|default:0 }}</h4>
                     <p class="mb-0">Предстоящих закупок</p>
                 </div>
@@ -223,7 +228,7 @@
         <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
-                    <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                    <i data-lucide="triangle-alert" class="w-8 h-8 text-yellow-600 mb-2"></i>
                     <h4>{{ overdue_items|default:0 }}</h4>
                     <p class="mb-0">Просроченных закупок</p>
                 </div>
@@ -232,7 +237,7 @@
         <div class="col-md-3">
             <div class="card">
                 <div class="card-body text-center">
-                    <i class="fas fa-money-bill-wave fa-2x text-info mb-2"></i>
+                    <i data-lucide="coins" class="w-8 h-8 text-blue-500 mb-2"></i>
                     <h4>{{ total_value|default:0|floatformat:0 }}</h4>
                     <p class="mb-0">Общая стоимость (сом)</p>
                 </div>
@@ -265,31 +270,26 @@
 
 {% block extra_js %}
 <script>
-// Обработчик для загрузки деталей товара
-document.addEventListener('alpine:init', () => {
-    Alpine.data('itemModal', () => ({
-        showItemModal: false,
-        itemId: null,
-        
-        async loadItemDetails() {
-            if (!this.itemId) return;
-            
-            const content = document.getElementById('itemDetailsContent');
-            
-            // Показываем индикатор загрузки
-            content.innerHTML = '<div class="text-center"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i><p>Загрузка...</p></div>';
-            
-            try {
-                // Загружаем детали товара
-                const response = await fetch(`/finance/supplier-items/${this.itemId}/details/`);
-                const html = await response.text();
-                content.innerHTML = html;
-            } catch (error) {
-                content.innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных</div>';
-            }
-        }
-    }));
-});
+// Компонент модального окна для деталей товара
+window.itemModal = function() {
+	return {
+		showItemModal: false,
+		itemId: null,
+		async loadItemDetails() {
+			if (!this.itemId) return;
+			const content = document.getElementById('itemDetailsContent');
+			content.innerHTML = '<div class="text-center"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i><p>Загрузка...</p></div>';
+			try {
+				const response = await fetch(`/finance/supplier-items/${this.itemId}/details/`);
+				const html = await response.text();
+				content.innerHTML = html;
+				if (typeof lucide !== 'undefined') { try { lucide.createIcons(); } catch(e){} }
+			} catch (error) {
+				content.innerHTML = '<div class="alert alert-danger">Ошибка загрузки данных</div>';
+			}
+		}
+	}
+}
 
 // Автоматическое обновление фильтров при изменении
 document.addEventListener('DOMContentLoaded', function() {

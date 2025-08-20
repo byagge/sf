@@ -106,3 +106,29 @@ class FinancialReportForm(ModelForm):
         widgets = {
             'report_type': forms.Select(attrs={'placeholder': 'Выберите тип отчета'}),
         }
+
+class DebtForm(ModelForm):
+    class Meta:
+        from .models import Debt
+        model = Debt
+        fields = ['direction', 'supplier', 'counterparty_name', 'title', 'description', 'original_amount', 'due_date']
+        widgets = {
+            'direction': forms.Select(),
+            'supplier': forms.Select(),
+            'counterparty_name': forms.TextInput(attrs={'placeholder': 'Название контрагента'}),
+            'title': forms.TextInput(attrs={'placeholder': 'Назначение долга'}),
+            'description': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Описание'}),
+            'original_amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0.01', 'placeholder': '0.00'}),
+            'due_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+class DebtPaymentForm(ModelForm):
+    class Meta:
+        from .models import DebtPayment
+        model = DebtPayment
+        fields = ['amount', 'date', 'comment']
+        widgets = {
+            'amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0.01', 'placeholder': '0.00'}),
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'comment': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Комментарий'}),
+        }

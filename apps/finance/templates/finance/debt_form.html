@@ -1,0 +1,29 @@
+{% extends 'finance/base.html' %}
+
+{% block title %}Новый долг - Финансовая система{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+	<div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+		<h1 class="text-2xl font-semibold mb-4">{{ title|default:'Новый долг' }}</h1>
+		<form method="post" class="space-y-4">
+			{% csrf_token %}
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div class="form-group">{{ form.direction.label_tag }}{{ form.direction }}</div>
+				<div class="form-group">{{ form.supplier.label_tag }}{{ form.supplier }}</div>
+			</div>
+			<div class="form-group">{{ form.counterparty_name.label_tag }}{{ form.counterparty_name }}</div>
+			<div class="form-group">{{ form.title.label_tag }}{{ form.title }}</div>
+			<div class="form-group">{{ form.description.label_tag }}{{ form.description }}</div>
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div class="form-group">{{ form.original_amount.label_tag }}{{ form.original_amount }}</div>
+				<div class="form-group">{{ form.due_date.label_tag }}{{ form.due_date }}</div>
+			</div>
+			<div class="flex items-center gap-2">
+				<a href="{% url 'finance:debts' %}" class="btn btn-secondary">Отмена</a>
+				<button type="submit" class="btn btn-primary">Сохранить</button>
+			</div>
+		</form>
+	</div>
+</div>
+{% endblock %} 

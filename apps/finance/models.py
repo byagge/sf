@@ -187,6 +187,78 @@ class Income(models.Model):
             account.save()
         super().save(*args, **kwargs)
 
+# Система долгов
+class Debt(models.Model):
+    DIRECTION_CHOICES = [
+        ('payable', 'Мы должны (поставщикам)') ,
+        ('receivable', 'Нам должны (клиенты)') ,
+    ]
+
+    direction = models.CharField(max_length=20, choices=DIRECTION_CHOICES, verbose_name="Направление")
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Поставщик")
+    counterparty_name = models.CharField(max_length=200, blank=True, verbose_name="Контрагент (если не поставщик)")
+    title = models.CharField(max_length=200, verbose_name="Назначение долга")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    original_amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name="Сумма долга")
+    amount_paid = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), verbose_name="Оплачено")
+    due_date = models.DateField(null=True, blank=True, verbose_name="Срок оплаты")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Создал")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Долг"
+        verbose_name_plural = "Долги"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.original_amount} сом"
+
+    @property
+    def outstanding_amount(self) -> Decimal:
+        return (self.original_amount or Decimal('0.00')) - (self.amount_paid or Decimal('0.00'))
+
+    @property
+    def status(self) -> str:
+        if self.amount_paid >= self.original_amount:
+            return 'closed'
+        if self.amount_paid > 0:
+            return 'partial'
+        return 'open'
+
+
+class DebtPayment(models.Model):
+    debt = models.ForeignKey(Debt, on_delete=models.CASCADE, related_name='payments', verbose_name="Долг")
+    amount = models.DecimalField(max_digits=15, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))], verbose_name="Сумма оплаты")
+    date = models.DateField(verbose_name="Дата оплаты")
+    comment = models.TextField(blank=True, verbose_name="Комментарий")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Создал")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Оплата долга"
+        verbose_name_plural = "Оплаты долгов"
+        ordering = ['-date', '-id']
+
+    def __str__(self):
+        return f"Оплата {self.amount} сом по: {self.debt.title}"
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        if is_new:
+            # Обновляем сумму оплат по долгу
+            Debt.objects.filter(pk=self.debt_id).update(amount_paid=models.F('amount_paid') + self.amount)
+            # Двигаем баланс основного счета
+            account = MainBankAccount.get_main_account()
+            if self.debt.direction == 'payable':
+                # Платим поставщику -> уменьшаем баланс
+                account.balance -= self.amount
+            else:
+                # Получили оплату от клиента -> увеличиваем баланс
+                account.balance += self.amount
+            account.save()
+
 # Состояние имущества завода
 class FactoryAsset(models.Model):
     ASSET_TYPES = [
