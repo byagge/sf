@@ -106,6 +106,7 @@
     </a>
   </nav>
   <script type="module">
+    const isSecure = window.isSecureContext;
     const waitForQrScanner = async () => {
       while (!window.QrScanner) await new Promise(r => setTimeout(r, 50));
       return window.QrScanner;
@@ -191,18 +192,31 @@
     }
     async function startScanner(deviceId) {
       const QrScanner = await waitForQrScanner();
-      if(scanner) { try { await scanner.stop(); } catch(e) {} scanner.destroy(); }
+      if (scanner) { try { await scanner.stop(); } catch(e) {} scanner.destroy(); }
+      if (video.srcObject) {
+        try { video.srcObject.getTracks().forEach(t => t.stop()); } catch(e) {}
+        video.srcObject = null;
+      }
+      if (!isSecure) {
+        statusEl.innerHTML = '<span class="text-red-600">Не защищенный контекст. Откройте страницу по HTTPS или с localhost.</span>';
+      }
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: deviceId ? { exact: deviceId } : undefined }
-        });
+        const constraints = deviceId
+          ? { video: { deviceId: { exact: deviceId } }, audio: false }
+          : { video: { facingMode: { ideal: 'environment' } }, audio: false };
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (errPrimary) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+        }
         video.srcObject = stream;
         await new Promise(resolve => {
           if (video.readyState >= 3) return resolve();
           video.oncanplay = () => resolve();
         });
         scanner = new QrScanner(video, result => {
-          if(result) {
+          if (result) {
             scanner.stop();
             onScanSuccess(result.data);
           }
@@ -215,13 +229,17 @@
         await scanner.start();
         showToast('Камера запущена', 'success');
       } catch (err) {
-        statusEl.innerHTML = `<span class="text-red-600">Ошибка запуска камеры:<br>${err.message}</span>`;
+        statusEl.innerHTML = `<span class=\"text-red-600\">Ошибка запуска камеры:<br>${err.message}</span>`;
       }
     }
     async function updateCameraList() {
       const QrScanner = await waitForQrScanner();
       let devices = [];
       try {
+        // Request a minimal permission first to ensure labels populate
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          try { await navigator.mediaDevices.getUserMedia({ video: true, audio: false }); } catch(_) {}
+        }
         devices = await QrScanner.listCameras(true);
       } catch (e) {
         statusEl.innerHTML = '<span class="text-red-600">Ошибка получения списка камер</span>';
@@ -234,12 +252,16 @@
         opt.textContent = dev.label || `Камера ${i+1}`;
         cameraSelect.appendChild(opt);
       });
-      if(devices.length) {
-        currentDeviceId = devices[0].id;
+      if (devices.length) {
+        // Prefer a device that looks like rear camera
+        const envIndex = devices.findIndex(d => /back|rear|environment|back\s*camera/i.test(d.label || ''));
+        currentDeviceId = (envIndex >= 0 ? devices[envIndex].id : devices[0].id);
         cameraSelect.value = currentDeviceId;
         startScanner(currentDeviceId);
       } else {
-        statusEl.innerHTML = '<span class="text-red-600">Камеры не найдены</span>';
+        statusEl.innerHTML = '<span class="text-red-600">Камеры не найдены. Убедитесь, что страница открыта по HTTPS и дано разрешение на камеру.</span>';
+        // Fallback: try to start with facingMode if enumeration failed
+        startScanner(null);
       }
     }
     cameraSelect.addEventListener('change', e => {
@@ -262,16 +284,16 @@
         const data = await resp.json();
         if (resp.ok && data.success) {
           showToast('Штрафы пересчитаны!', 'success');
-          statusEl.innerHTML = `<div class="flex flex-col items-center text-green-600">
-            <i data-lucide="check-circle" class="w-8 h-8"></i>
-            <span class="font-semibold">Штрафы пересчитаны!</span>
-            <span class="text-xs text-gray-500">${data.message}</span>
+          statusEl.innerHTML = `<div class=\"flex flex-col items-center text-green-600\">
+            <i data-lucide=\"check-circle\" class=\"w-8 h-8\"></i>
+            <span class=\"font-semibold\">Штрафы пересчитаны!</span>
+            <span class=\"text-xs text-gray-500\">${data.message}</span>
           </div>`;
         } else {
           throw new Error(data.error || data.detail || 'Ошибка пересчета штрафов');
         }
       } catch (e) {
-        statusEl.innerHTML = `<div class="flex flex-col items-center text-red-600"><i data-lucide="x-circle" class="w-8 h-8"></i><span class="font-semibold">Ошибка</span><span class="text-xs text-gray-500">${e.message}</span></div>`;
+        statusEl.innerHTML = `<div class=\"flex flex-col items-center text-red-600\"><i data-lucide=\"x-circle\" class=\"w-8 h-8\"></i><span class=\"font-semibold\">Ошибка</span><span class=\"text-xs text-gray-500\">${e.message}</span></div>`;
         showToast(e.message || 'Ошибка пересчета штрафов', 'error');
       } finally {
         setTimeout(() => {
@@ -283,6 +305,9 @@
     });
     window.onload = async () => {
       if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+      if (!isSecure) {
+        showToast('Откройте страницу по HTTPS, иначе камера может не работать', 'error');
+      }
       statusEl.innerHTML='<span class="text-gray-500 text-sm">Наведите камеру на QR‑код</span>';
       await updateCameraList();
     };
