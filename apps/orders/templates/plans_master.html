@@ -725,10 +725,8 @@
                 return new Date().getHours();
             },
             canAssign(stage) {
-                // Можно ли показывать кнопку "Распределить"
-                if (stage.done_count >= stage.plan_quantity) return false;
-                if (this.nowHour < 15) return true;
-                return false;
+                // Кнопка "Распределить" доступна, если этап ещё не выполнен
+                return stage.done_count < stage.plan_quantity;
             },
             canTransfer(stage) {
                 // Можно ли показывать кнопку "Перевести дальше"
