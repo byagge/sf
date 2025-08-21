@@ -11,6 +11,7 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     title = serializers.CharField(read_only=True)
     plan_quantity = serializers.IntegerField(read_only=True)
     started_at = serializers.DateTimeField(read_only=True)
+    order = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = EmployeeTask
@@ -18,7 +19,7 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
             'id', 'stage', 'employee', 'employee_name', 'quantity', 'completed_quantity', 
             'defective_quantity', 'done_quantity', 'stage_name', 'order_item', 'workshop_info',
             'created_at', 'completed_at', 'earnings', 'penalties', 'net_earnings',
-            'is_completed', 'title', 'plan_quantity', 'started_at'
+            'is_completed', 'title', 'plan_quantity', 'started_at', 'order'
         ]
 
     def get_done_quantity(self, obj):
@@ -106,6 +107,24 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
         
         logger.info("Returning None for order_item")
         return None
+    
+    def get_order(self, obj):
+        stage_obj = obj.stage
+        o = getattr(stage_obj, 'order', None)
+        if not o:
+            return None
+        return {
+            'id': o.id,
+            'name': getattr(o, 'name', None),
+            'status': getattr(o, 'status', None),
+            'status_display': o.get_status_display() if hasattr(o, 'get_status_display') else getattr(o, 'status', None),
+            'created_at': o.created_at.isoformat() if getattr(o, 'created_at', None) else None,
+            'comment': getattr(o, 'comment', ''),
+            'client': ({
+                'id': getattr(o.client, 'id', None),
+                'name': getattr(o.client, 'name', None)
+            } if getattr(o, 'client', None) else None)
+        }
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
