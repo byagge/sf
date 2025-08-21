@@ -8,17 +8,14 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     order_item = serializers.SerializerMethodField()
     workshop_info = serializers.SerializerMethodField()
     is_completed = serializers.BooleanField(read_only=True)
-    title = serializers.SerializerMethodField()
+    title = serializers.CharField(read_only=True)
     plan_quantity = serializers.IntegerField(read_only=True)
     started_at = serializers.DateTimeField(read_only=True)
-    
-    # Поле stage для записи, stage_detail для чтения детальной информации
-    stage_detail = serializers.SerializerMethodField()
     
     class Meta:
         model = EmployeeTask
         fields = [
-            'id', 'stage', 'stage_detail', 'employee', 'employee_name', 'quantity', 'completed_quantity', 
+            'id', 'stage', 'employee', 'employee_name', 'quantity', 'completed_quantity', 
             'defective_quantity', 'done_quantity', 'stage_name', 'order_item', 'workshop_info',
             'created_at', 'completed_at', 'earnings', 'penalties', 'net_earnings',
             'is_completed', 'title', 'plan_quantity', 'started_at'
@@ -51,17 +48,4 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
-        return obj.stage.get_workshop_info() if obj.stage else {}
-    
-    def get_title(self, obj):
-        """Возвращает название задачи на основе этапа"""
-        if obj.stage:
-            return f"{obj.stage.operation} - {obj.stage.order.name if obj.stage.order else 'Заказ'}"
-        return f"Задача #{obj.id}"
-    
-    def get_stage_detail(self, obj):
-        """Возвращает детальную информацию о stage для чтения"""
-        if obj.stage:
-            from apps.orders.serializers import OrderStageSerializer
-            return OrderStageSerializer(obj.stage).data
-        return None 
+        return obj.stage.get_workshop_info() if obj.stage else {} 

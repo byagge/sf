@@ -31,7 +31,6 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductFullSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True, source='product')
     glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
-    # Убираем поле order - сотруднику не нужна эта информация
 
     class Meta:
         model = OrderItem
@@ -44,9 +43,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
-    # Убираем assigned для избежания циклических зависимостей
+    assigned = EmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
     order_name = serializers.CharField(source='order.name', read_only=True)
-    # Убираем поле order - сотруднику не нужна эта информация
     order_item = OrderItemSerializer(read_only=True)
     done_count = serializers.IntegerField(read_only=True)
     defective_count = serializers.IntegerField(read_only=True)
@@ -58,7 +56,7 @@ class OrderStageSerializer(serializers.ModelSerializer):
             'id', 'workshop', 'order_name', 'order_item', 'operation', 'sequence', 
             'parallel_group', 'plan_quantity', 'completed_quantity', 'done_count', 
             'defective_count', 'deadline', 'status', 'in_progress', 'defective', 
-            'completed', 'date', 'comment', 'workshop_info'
+            'completed', 'date', 'comment', 'assigned', 'workshop_info'
         ]
     
     def get_workshop_info(self, obj):

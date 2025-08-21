@@ -110,7 +110,7 @@
                 </div>
                 
                 <!-- Product Information -->
-                <template x-if="task.order_item || (task.stage_detail && task.stage_detail.order_item)">
+                <template x-if="task.order_item">
                     <div class="card bg-white rounded-lg p-4">
                         <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
                             <i data-lucide="package" class="w-5 h-5 mr-2 text-blue-600"></i>
@@ -118,37 +118,66 @@
                         </h2>
                         
                         <!-- Product Image -->
-                        <template x-if="(task.order_item && task.order_item.product && task.order_item.product.img) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.img)">
+                        <template x-if="task.order_item.product && task.order_item.product.img">
                             <div class="mb-4">
-                                <img :src="(task.order_item && task.order_item.product && task.order_item.product.img) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.img)" 
-                                     :alt="(task.order_item && task.order_item.product && task.order_item.product.name) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.name)" 
+                                <img :src="task.order_item.product.img" :alt="task.order_item.product.name" 
                                      class="w-full h-48 rounded-lg product-image bg-gray-100">
                             </div>
                         </template>
                         
-                        <!-- Product Details - только основная информация -->
+                        <!-- Product Details -->
                         <div class="space-y-3">
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-600">Товар:</span>
-                                <span class="font-semibold text-gray-900" x-text="(task.order_item && task.order_item.product && task.order_item.product.name) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.name) || 'Не указан'"></span>
+                                <span class="font-semibold text-gray-900" x-text="task.order_item.product ? task.order_item.product.name : 'Не указан'"></span>
                             </div>
                             
-                            <template x-if="(task.order_item && task.order_item.size) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.size)">
+                            <template x-if="task.order_item.size">
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-600">Размер:</span>
                                     <div class="flex items-center space-x-1">
                                         <i data-lucide="ruler" class="w-4 h-4 text-blue-600"></i>
-                                        <span class="font-medium text-gray-900" x-text="(task.order_item && task.order_item.size) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.size)"></span>
+                                        <span class="font-medium text-gray-900" x-text="task.order_item.size"></span>
                                     </div>
                                 </div>
                             </template>
                             
-                            <template x-if="(task.order_item && task.order_item.color) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.color)">
+                            <template x-if="task.order_item.color">
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-600">Цвет:</span>
                                     <div class="flex items-center space-x-1">
                                         <i data-lucide="palette" class="w-4 h-4 text-purple-600"></i>
-                                        <span class="font-medium text-gray-900" x-text="(task.order_item && task.order_item.color) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.color)"></span>
+                                        <span class="font-medium text-gray-900" x-text="task.order_item.color"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="task.order_item.product && task.order_item.product.is_glass">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Тип стекла:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="droplets" class="w-4 h-4 text-cyan-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="task.order_item.glass_type_display || 'Не указан'"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="task.order_item.paint_type">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Тип краски:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="brush" class="w-4 h-4 text-orange-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="task.order_item.paint_type"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="task.order_item.paint_color">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Цвет краски:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="droplet" class="w-4 h-4 text-red-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="task.order_item.paint_color"></span>
                                     </div>
                                 </div>
                             </template>
@@ -156,10 +185,37 @@
                     </div>
                 </template>
                 
-                <!-- Order Information - убираем, сотруднику не нужна эта информация -->
+                <!-- Order Information -->
+                <template x-if="task.order_item && task.order_item.order">
+                    <div class="card bg-white rounded-lg p-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i data-lucide="file-text" class="w-5 h-5 mr-2 text-green-600"></i>
+                            Информация о заказе
+                        </h2>
+                        
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Номер заказа:</span>
+                                <span class="font-medium text-gray-900" x-text="task.order_item.order.id"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Клиент:</span>
+                                <span class="font-medium text-gray-900" x-text="task.order_item.order.client ? task.order_item.order.client.name : 'Не указан'"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Статус заказа:</span>
+                                <span class="font-medium text-gray-900" x-text="task.order_item.order.status_display || task.order_item.order.status"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Дата создания:</span>
+                                <span class="font-medium text-gray-900" x-text="new Date(task.order_item.order.created_at).toLocaleDateString('ru-RU')"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
                 
                 <!-- Workshop Information -->
-                <template x-if="task.workshop_info || (task.stage_detail && task.stage_detail.workshop)">
+                <template x-if="task.workshop_info">
                     <div class="card bg-white rounded-lg p-4">
                         <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
                             <i data-lucide="settings" class="w-5 h-5 mr-2 text-purple-600"></i>
@@ -167,22 +223,16 @@
                         </h2>
                         
                         <div class="space-y-2 text-sm">
-                            <template x-if="(task.workshop_info && task.workshop_info.cutting_specs) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.cutting_specs)">
+                            <template x-if="task.workshop_info.cutting_specs">
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-600">Распил:</span>
-                                    <span class="font-medium text-gray-900" x-text="(task.workshop_info && task.workshop_info.cutting_specs) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.cutting_specs)"></span>
+                                    <span class="font-medium text-gray-900" x-text="task.workshop_info.cutting_specs"></span>
                                 </div>
                             </template>
-                            <template x-if="(task.workshop_info && task.workshop_info.cnc_specs) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.cnc_specs)">
+                            <template x-if="task.workshop_info.cnc_specs">
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-600">ЧПУ:</span>
-                                    <span class="font-medium text-gray-900" x-text="(task.workshop_info && task.workshop_info.cnc_specs) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.cnc_specs)"></span>
-                                </div>
-                            </template>
-                            <template x-if="task.stage_detail && task.stage_detail.workshop">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-gray-600">Цех:</span>
-                                    <span class="font-medium text-gray-900" x-text="task.stage_detail.workshop.name"></span>
+                                    <span class="font-medium text-gray-900" x-text="task.workshop_info.cnc_specs"></span>
                                 </div>
                             </template>
                         </div>
@@ -383,19 +433,6 @@
                         // Проверяем, что задача принадлежит текущему пользователю
                         if (String(this.task.employee) !== String(this.userId)) {
                             this.task = null;
-                        } else {
-                            // Отладочная информация
-                            console.log('Loaded task:', this.task);
-                            console.log('Task stage_detail:', this.task.stage_detail);
-                            console.log('Task order_item:', this.task.order_item);
-                            if (this.task.order_item) {
-                                console.log('Order item product:', this.task.order_item.product);
-                            }
-                            if (this.task.stage_detail) {
-                                console.log('Stage detail order_item:', this.task.stage_detail.order_item);
-                                console.log('Stage detail workshop:', this.task.stage_detail.workshop);
-                            }
-                            console.log('Workshop info:', this.task.workshop_info);
                         }
                     } else {
                         this.task = null;
