@@ -116,43 +116,43 @@ def employee_earnings_stats(request, employee_id):
 def workshop_earnings_stats(request, workshop_id):
     """Статистика заработка по цеху"""
     try:
-		from apps.operations.workshops.models import Workshop
+        from apps.operations.workshops.models import Workshop
         workshop = Workshop.objects.get(id=workshop_id)
         
-		# Базовый queryset по цеху
+        # Базовый queryset по цеху
         tasks = EmployeeTask.objects.filter(stage__workshop=workshop)
-		stored_total = tasks.aggregate(s=Coalesce(Sum('earnings'), 0))['s'] or 0
-		
-		if stored_total and stored_total > 0:
-			total_earnings = stored_total
-			total_penalties = tasks.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
-			total_net_earnings = tasks.aggregate(s=Coalesce(Sum('net_earnings'), 0))['s'] or (total_earnings - total_penalties)
-        employee_stats = tasks.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
-				total_earnings=Coalesce(Sum('earnings'), 0),
-				total_penalties=Coalesce(Sum('penalties'), 0),
-				total_net=Coalesce(Sum('net_earnings'), 0),
-				task_count=Count('id')
-			)
-		else:
-			service_price_sq = Subquery(
-				Service.objects.filter(workshop=OuterRef('stage__workshop'), is_active=True)
-				.values('service_price')[:1]
-			)
-			annotated = tasks.annotate(
-				calc_earnings=ExpressionWrapper(
-					F('completed_quantity') * Coalesce(service_price_sq, 0),
-					output_field=DecimalField(max_digits=14, decimal_places=2)
-				)
-			)
-			total_earnings = annotated.aggregate(s=Coalesce(Sum('calc_earnings'), 0))['s'] or 0
-			total_penalties = annotated.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
-			total_net_earnings = total_earnings - total_penalties
-			employee_stats = annotated.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
-				total_earnings=Coalesce(Sum('calc_earnings'), 0),
-				total_penalties=Coalesce(Sum('penalties'), 0),
-				total_net=Coalesce(Sum('calc_earnings'), 0) - Coalesce(Sum('penalties'), 0),
-            task_count=Count('id')
-        )
+        stored_total = tasks.aggregate(s=Coalesce(Sum('earnings'), 0))['s'] or 0
+        
+        if stored_total and stored_total > 0:
+            total_earnings = stored_total
+            total_penalties = tasks.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
+            total_net_earnings = tasks.aggregate(s=Coalesce(Sum('net_earnings'), 0))['s'] or (total_earnings - total_penalties)
+            employee_stats = tasks.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
+                total_earnings=Coalesce(Sum('earnings'), 0),
+                total_penalties=Coalesce(Sum('penalties'), 0),
+                total_net=Coalesce(Sum('net_earnings'), 0),
+                task_count=Count('id')
+            )
+        else:
+            service_price_sq = Subquery(
+                Service.objects.filter(workshop=OuterRef('stage__workshop'), is_active=True)
+                .values('service_price')[:1]
+            )
+            annotated = tasks.annotate(
+                calc_earnings=ExpressionWrapper(
+                    F('completed_quantity') * Coalesce(service_price_sq, 0),
+                    output_field=DecimalField(max_digits=14, decimal_places=2)
+                )
+            )
+            total_earnings = annotated.aggregate(s=Coalesce(Sum('calc_earnings'), 0))['s'] or 0
+            total_penalties = annotated.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
+            total_net_earnings = total_earnings - total_penalties
+            employee_stats = annotated.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
+                total_earnings=Coalesce(Sum('calc_earnings'), 0),
+                total_penalties=Coalesce(Sum('penalties'), 0),
+                total_net=Coalesce(Sum('calc_earnings'), 0) - Coalesce(Sum('penalties'), 0),
+                task_count=Count('id')
+            )
         
         # Получаем услугу цеха
         try:
@@ -471,7 +471,7 @@ def approve_defects_by_order(request, order_id: int):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def replenish_defects_by_order(request, order_id: int):
-	"""Пополнить браки по заказу: перевести pending_review количество в план первого этапа"""
+    """Пополнить браки по заказу: перевести pending_review количество в план первого этапа"""
     try:
         from apps.orders.models import Order, OrderDefect
         from django.db.models import Sum
@@ -491,7 +491,7 @@ def replenish_defects_by_order(request, order_id: int):
         OrderDefect.objects.filter(order_id=order_id, status='pending_review').delete()
         return Response({'success': True, 'added': int(total)})
     except Order.DoesNotExist:
-        return Response({'error': 'Заказ не найден'}, status=404)
+        return Response({'error': 'Сотрудник не найден'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
