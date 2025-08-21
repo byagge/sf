@@ -21,6 +21,55 @@
         .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
         .modal-bg { background: rgba(0,0,0,0.35); }
         .product-image { object-fit: cover; }
+        
+        /* Image Modal Styles */
+        .image-modal-enter { opacity: 0; transform: scale(0.9); }
+        .image-modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.2s ease-out; }
+        .image-modal-exit { opacity: 1; transform: scale(1); }
+        .image-modal-exit-active { opacity: 0; transform: scale(0.9); transition: all 0.2s ease-in; }
+        
+        /* Zoom Styles */
+        .image-zoomed { 
+            transform: scale(1.5); 
+            transition: transform 0.3s ease-out;
+        }
+        .image-normal { 
+            transform: scale(1); 
+            transition: transform 0.3s ease-out;
+        }
+        
+        /* Dynamic zoom based on currentScale */
+        .image-dynamic-zoom {
+            transition: transform 0.1s ease-out;
+        }
+        
+        /* Touch-friendly controls */
+        .zoom-control {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Prevent text selection */
+        .image-modal img {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        /* Smooth transitions for all interactive elements */
+        .image-modal * {
+            transition: all 0.2s ease-out;
+        }
+        
+        /* Hover effects for controls */
+        .zoom-control:hover {
+            transform: scale(1.1);
+        }
+        
+        .zoom-control:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;">
@@ -121,7 +170,8 @@
                         <template x-if="task.order_item.product && task.order_item.product.img">
                             <div class="mb-4">
                                 <img :src="task.order_item.product.img" :alt="task.order_item.product.name" 
-                                     class="w-full h-48 rounded-lg product-image bg-gray-100">
+                                     class="w-full h-48 rounded-lg product-image bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity duration-200"
+                                     @click="openImageModal(task.order_item.product.img, task.order_item.product.name)">
                             </div>
                         </template>
                         
@@ -474,6 +524,78 @@
         </div>
     </template>
     
+    <!-- Image Modal -->
+    <template x-if="showImageModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg p-3" 
+             x-show="showImageModal"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 scale-100"
+             x-transition:leave-end="opacity-0 scale-95"
+             @click="closeImageModal()">
+            <div class="relative w-full h-full flex items-center justify-center">
+                <!-- Close Button -->
+                <button @click="closeImageModal()" 
+                        class="absolute top-4 right-4 z-10 w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors duration-200 backdrop-blur zoom-control">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+                
+                <!-- Image Container -->
+                <div class="relative max-w-full max-h-full" @click.stop>
+                    <img :src="selectedImage.src" :alt="selectedImage.alt" 
+                         class="max-w-full max-h-full object-contain rounded-lg shadow-2xl image-dynamic-zoom"
+                         :style="`transform: scale(${currentScale})`"
+                         @click="toggleImageZoom()"
+                         @dblclick="toggleImageZoom()"
+                         @touchstart="handleTouchStart"
+                         @touchmove="handleTouchMove"
+                         @touchend="handleTouchEnd">
+                    
+                    <!-- Zoom Controls -->
+                    <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                        <button @click="resetImageZoom()" 
+                                class="w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors duration-200 backdrop-blur zoom-control"
+                                title="Сбросить масштаб">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                        <button @click="toggleImageZoom()" 
+                                class="w-10 h-10 bg-black/50 hover:bg-black/70 text-white rounded-full flex items-center justify-center transition-colors duration-200 backdrop-blur zoom-control"
+                                :title="imageZoomed ? 'Уменьшить' : 'Увеличить'">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Image Info -->
+                <div class="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-2 rounded-lg backdrop-blur text-sm">
+                    <div class="font-medium" x-text="selectedImage.alt"></div>
+                    <div class="text-xs opacity-75">
+                        <span x-show="currentScale <= 1.1">Нажмите для увеличения</span>
+                        <span x-show="currentScale > 1.1">Масштаб: <span x-text="Math.round(currentScale * 100)"></span>%</span>
+                    </div>
+                </div>
+                
+                <!-- Gesture Hint -->
+                <div class="absolute top-4 left-4 bg-black/50 text-white px-3 py-2 rounded-lg backdrop-blur text-sm">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="smartphone" class="w-4 h-4"></i>
+                        <span>Двойной тап или pinch для масштабирования</span>
+                    </div>
+                </div>
+                
+                <!-- Zoom Level Indicator -->
+                <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-2 rounded-lg backdrop-blur text-sm">
+                    <div class="text-center">
+                        <div class="text-xs opacity-75">Масштаб</div>
+                        <div class="font-bold" x-text="`${Math.round(currentScale * 100)}%`"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+    
     <!-- Bottom Navigation -->
     <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40 w-full">
         <a href="/employee_tasks/tasks/" class="flex flex-col items-center nav-active">
@@ -507,6 +629,14 @@
             defectiveInput: 0,
             userId: null,
             taskId: null,
+            showImageModal: false,
+            selectedImage: { src: '', alt: '' },
+            imageZoomed: false,
+            startX: 0,
+            startY: 0,
+            currentScale: 1,
+            startDistance: 0,
+            startScale: 1,
             
             async init() {
                 this.userId = window.user_id || null;
@@ -519,6 +649,9 @@
                 console.log('Task ID type:', typeof this.taskId);
                 console.log('Window user_id:', window.user_id);
                 console.log('Window task_id:', window.task_id);
+                
+                // Add keyboard event listeners
+                document.addEventListener('keydown', this.handleKeyDown.bind(this));
                 
                 await this.loadTask();
                 lucide.createIcons();
@@ -815,6 +948,112 @@
                 }
                 console.log('No CSRF token found in cookies');
                 return '';
+            },
+
+            openImageModal(src, alt) {
+                this.selectedImage = { src, alt };
+                this.showImageModal = true;
+                this.imageZoomed = false; // Reset zoom on open
+                this.currentScale = 1; // Reset scale on open
+                this.startX = 0;
+                this.startY = 0;
+                this.startDistance = 0;
+                this.startScale = 1;
+            },
+
+            closeImageModal() {
+                this.showImageModal = false;
+                this.selectedImage = { src: '', alt: '' };
+                this.imageZoomed = false;
+                this.currentScale = 1;
+                this.startX = 0;
+                this.startY = 0;
+                this.startDistance = 0;
+                this.startScale = 1;
+            },
+
+            toggleImageZoom() {
+                if (this.imageZoomed) {
+                    this.currentScale = 1;
+                } else {
+                    this.currentScale = 1.5;
+                }
+                this.imageZoomed = !this.imageZoomed;
+            },
+
+            resetImageZoom() {
+                this.currentScale = 1;
+                this.imageZoomed = false;
+            },
+
+            handleTouchStart(event) {
+                if (event.touches.length === 1) {
+                    this.startX = event.touches[0].clientX;
+                    this.startY = event.touches[0].clientY;
+                } else if (event.touches.length === 2) {
+                    // Pinch to zoom
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    this.startDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    this.startScale = this.currentScale;
+                }
+            },
+ 
+            handleTouchMove(event) {
+                if (event.touches.length === 1) {
+                    const deltaX = event.touches[0].clientX - this.startX;
+                    const deltaY = event.touches[0].clientY - this.startY;
+ 
+                    // Only handle significant movements
+                    if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+                        this.currentScale += deltaY * 0.001; // Scale based on vertical movement
+                        this.currentScale = Math.max(1, Math.min(this.currentScale, 3)); // Limit scale
+                        
+                        if (this.currentScale > 1.1) {
+                            this.imageZoomed = true;
+                        } else {
+                            this.imageZoomed = false;
+                        }
+                    }
+ 
+                    this.startX = event.touches[0].clientX;
+                    this.startY = event.touches[0].clientY;
+                } else if (event.touches.length === 2) {
+                    // Pinch to zoom
+                    const touch1 = event.touches[0];
+                    const touch2 = event.touches[1];
+                    const currentDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    
+                    if (this.startDistance > 0) {
+                        const scale = currentDistance / this.startDistance;
+                        this.currentScale = Math.max(1, Math.min(this.startScale * scale, 3));
+                        
+                        if (this.currentScale > 1.1) {
+                            this.imageZoomed = true;
+                        } else {
+                            this.imageZoomed = false;
+                        }
+                    }
+                }
+            },
+ 
+            handleTouchEnd() {
+                this.startX = 0;
+                this.startY = 0;
+                this.startDistance = 0;
+                this.startScale = 1;
+            },
+
+            handleKeyDown(event) {
+                if (event.key === 'Escape') {
+                    this.closeImageModal();
+                }
             }
         }
     }
