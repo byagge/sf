@@ -1,107 +1,48 @@
-import logging
-from django.http import HttpResponse
-from django.shortcuts import render
-from django.utils import timezone
+from django.shortcuts import redirect
+from django.urls import reverse
+from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.conf import settings
+from apps.users.models import User
 
-logger = logging.getLogger(__name__)
 
-class ErrorHandlingMiddleware:
-    """Middleware для обработки ошибок и их логирования"""
+class RoleBasedRedirectMiddleware:
+    """
+    Middleware для редиректа пользователей на соответствующие страницы
+    на основе их ролей при посещении корневого URL (/)
+    """
     
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
+        # Проверяем, является ли это запрос к корневому URL
+        if request.path == '/' and request.user.is_authenticated:
+            # Получаем роль пользователя
+            user_role = getattr(request.user, 'role', None)
+            
+            # Определяем URL для редиректа на основе роли
+            redirect_url = self.get_redirect_url_by_role(user_role)
+            
+            if redirect_url and redirect_url != request.path:
+                return redirect(redirect_url)
+        
         response = self.get_response(request)
         return response
 
-    def process_exception(self, request, exception):
-        """Обработка исключений"""
-        # Логируем ошибку
-        logger.error(
-            f"Exception in {request.path}: {str(exception)}",
-            extra={
-                'request': request,
-                'exception': exception,
-                'timestamp': timezone.now().isoformat(),
-            }
-        )
-        
-        # Определяем тип ошибки и возвращаем соответствующую страницу
-        if hasattr(exception, 'status_code'):
-            status_code = exception.status_code
-        else:
-            status_code = 500
+    def get_redirect_url_by_role(self, role):
+        """
+        Возвращает URL для редиректа на основе роли пользователя
+        """
+        if not role:
+            return None
             
-        # Выбираем шаблон в зависимости от статуса
-        if status_code == 404:
-            template = '404.html'
-        elif status_code == 500:
-            template = '500.html'
-        elif status_code == 400:
-            template = '400.html'
-        elif status_code == 401:
-            template = '401.html'
-        elif status_code == 403:
-            template = '403.html'
-        else:
-            template = 'error.html'
-            
-        context = {
-            'error_code': status_code,
-            'error_title': getattr(exception, 'default_detail', 'Ошибка'),
-            'error_message': str(exception),
-            'timestamp': timezone.now().strftime('%Y%m%d-%H%M%S'),
+        role_redirects = {
+            User.Role.FOUNDER: '/dashboard/',  # Учредитель -> дашборд
+            User.Role.DIRECTOR: '/dashboard/',  # Директор -> дашборд
+            User.Role.ADMIN: '/dashboard/',  # Администратор -> дашборд
+            User.Role.ACCOUNTANT: '/finance/',  # Бухгалтер -> финансы
+            User.Role.MASTER: '/dashboard/',  # Мастер -> дашборд
+            User.Role.WORKER: '/employee_tasks/tasks/',  # Рабочий -> задачи сотрудника
         }
         
-        return render(request, template, context, status=status_code)
-
-class RequestLoggingMiddleware:
-    """Middleware для логирования запросов"""
-    
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        # Логируем входящий запрос
-        logger.info(
-            f"Request: {request.method} {request.path}",
-            extra={
-                'request': request,
-                'timestamp': timezone.now().isoformat(),
-            }
-        )
-        
-        response = self.get_response(request)
-        
-        # Логируем ответ
-        logger.info(
-            f"Response: {response.status_code} for {request.method} {request.path}",
-            extra={
-                'request': request,
-                'response': response,
-                'timestamp': timezone.now().isoformat(),
-            }
-        )
-        
-        return response
-
-class SecurityHeadersMiddleware:
-    """Middleware для добавления заголовков безопасности"""
-    
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        response = self.get_response(request)
-        
-        # Добавляем заголовки безопасности
-        response['X-Content-Type-Options'] = 'nosniff'
-        response['X-Frame-Options'] = 'DENY'
-        response['X-XSS-Protection'] = '1; mode=block'
-        
-        # Добавляем заголовок для PWA
-        response['X-Theme-Color'] = '#2563eb'
-        
-        return response 
+        return role_redirects.get(role, None) 
