@@ -10,6 +10,7 @@ from django.db.models import Q, Count
 from datetime import datetime, timedelta
 import json
 from django.views.decorators.csrf import ensure_csrf_cookie
+from core.utils import is_mobile_device
 
 User = get_user_model()
 
@@ -277,5 +278,7 @@ def qr_scanner_page(request):
     return render(request, 'qr_scanner.html')
 
 def attendance_page(request):
-    """Основная страница посещаемости"""
+    """Основная страница посещаемости с автоматическим определением устройства"""
+    if is_mobile_device(request):
+        return render(request, 'attendance/attendance_mobile.html')
     return render(request, 'attendance/attendance.html')

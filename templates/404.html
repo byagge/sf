@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <title>Smart Factory — Страница не найдена</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
+        .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center px-4" style="font-family: system-ui, -apple-system, sans-serif;">
+    <!-- Main Content -->
+    <div class="text-center max-w-md w-full">
+        <!-- Logo -->
+        <div class="mb-8">
+            <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span class="text-white font-bold text-4xl">S</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900">Smart Factory</h1>
+        </div>
+
+        <!-- Error Card -->
+        <div class="card bg-white rounded-2xl p-8 mb-6">
+            <!-- Error Icon -->
+            <div class="w-24 h-24 bg-gradient-to-r from-red-400 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="search-x" class="w-12 h-12 text-white"></i>
+            </div>
+
+            <!-- Error Title -->
+            <h2 class="text-3xl font-bold text-gray-900 mb-3">404</h2>
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">Страница не найдена</h3>
+            
+            <!-- Error Description -->
+            <p class="text-gray-600 mb-6 leading-relaxed">
+                К сожалению, запрашиваемая страница не существует или была перемещена. 
+                Проверьте правильность ссылки или вернитесь на главную.
+            </p>
+
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <button onclick="history.back()" class="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    <span>Назад</span>
+                </button>
+                <a href="/" class="w-full px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:border-blue-500 hover:text-blue-600 transition-all duration-200 flex items-center justify-center space-x-2">
+                    <i data-lucide="home" class="w-5 h-5"></i>
+                    <span>На главную</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="card bg-white rounded-2xl p-6">
+            <h4 class="font-semibold text-gray-900 mb-4 flex items-center justify-center space-x-2">
+                <i data-lucide="help-circle" class="w-5 h-5 text-blue-600"></i>
+                <span>Нужна помощь?</span>
+            </h4>
+            <div class="space-y-3 text-sm text-gray-600">
+                <div class="flex items-center space-x-3">
+                    <i data-lucide="mail" class="w-4 h-4 text-gray-400"></i>
+                    <span>support@smartfactory.com</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <i data-lucide="phone" class="w-4 h-4 text-gray-400"></i>
+                    <span>+7 (800) 123-45-67</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html> 

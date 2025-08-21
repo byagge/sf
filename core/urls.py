@@ -16,36 +16,60 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import TemplateView, RedirectView
-from .views import HomeView
 from django.conf import settings
 from django.conf.urls.static import static
+from .views import (
+    home, handler404, handler500, handler400, 
+    handler401, handler403, handler_error, api_test
+)
 
 urlpatterns = [
-	path('', HomeView.as_view(), name='home'),  # Корневой URL с проверкой ролей
-	path('accounts/', include('users.urls')),
-	path('settings/', RedirectView.as_view(url='/accounts/profile/', permanent=False), name='settings'),  # Редирект на профиль
-	path('clients/', include('clients.urls')),  # Изменяем с '' на 'clients/'
-	path('workshops/', include('apps.operations.workshops.urls')),
-	path('dashboard/', include('apps.odashboard.urls')),
-	path('employees/', include('apps.employees.urls')),
-	path('inventory/', include('apps.inventory.urls')),
-	path('services/', include('apps.services.urls')),
-	path('products/', include('apps.products.urls')),
-	path('defects/', include('apps.defects.urls')),
-	path('orders/', include('apps.orders.urls')),
-	path('finished_goods/', include('apps.finished_goods.urls')),
-	path('attendance/', include('apps.attendance.urls')),
-	path('employee_tasks/', include('apps.employee_tasks.urls')),
-	path('finance/', include('apps.finance.urls')),
-	path('director/', include('apps.director.urls')),
-	path('api/workshops/', include('apps.workshops.urls')),  # Прямой маршрут для API
-	path('admin/', admin.site.urls),
-	path('stats/', TemplateView.as_view(template_name='stats_master.html'), name='stats-master'),
-	path('notifications/', TemplateView.as_view(template_name='coming_soon.html'), name='coming_soon'),
-	path('menu/', TemplateView.as_view(template_name='mobile/menu.html'), name='mobile-menu'),
+    path('admin/', admin.site.urls),
+    path('', home, name='home'),
+    path('api/test/', api_test, name='api_test'),
+    
+    # Apps URLs
+    path('employees/', include('apps.employees.urls')),
+    path('clients/', include('apps.clients.urls')),
+    path('defects/', include('apps.defects.urls')),
+    path('director/', include('apps.director.urls')),
+    path('employee-tasks/', include('apps.employee_tasks.urls')),
+    path('executive/', include('apps.executive.dashboard.urls')),
+    path('finance/', include('apps.finance.urls')),
+    path('finished-goods/', include('apps.finished_goods.urls')),
+    path('inventory/', include('apps.inventory.urls')),
+    path('notifications/', include('apps.notifications.urls')),
+    path('odashboard/', include('apps.odashboard.urls')),
+    path('operations/', include('apps.operations.workshops.urls')),
+    path('orders/', include('apps.orders.urls')),
+    path('plans/', include('apps.plans.urls')),
+    path('products/', include('apps.products.urls')),
+    path('services/', include('apps.services.urls')),
+    path('users/', include('apps.users.urls')),
+    path('workshops/', include('apps.workshops.urls')),
+    path('attendance/', include('apps.attendance.urls')),
 ]
 
+# Error handlers
+handler404 = 'core.views.handler404'
+handler500 = 'core.views.handler500'
+handler400 = 'core.views.handler400'
+handler401 = 'core.views.handler401'
+handler403 = 'core.views.handler403'
+
+# Custom error URLs for testing
 if settings.DEBUG:
-	urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        path('error/400/', handler400, name='error_400'),
+        path('error/401/', handler401, name='error_401'),
+        path('error/403/', handler403, name='error_403'),
+        path('error/404/', handler404, name='error_404'),
+        path('error/500/', handler500, name='error_500'),
+        path('error/custom/', handler_error, name='error_custom'),
+    ]
+
+# Static and media files
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 

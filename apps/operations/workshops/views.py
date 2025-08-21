@@ -9,7 +9,7 @@ from .serializers import WorkshopSerializer
 # Create your views here.
 
 class WorkshopViewSet(viewsets.ModelViewSet):
-	queryset = Workshop.objects.all()
+	queryset = Workshop.objects.all().order_by('name', 'id')
 	serializer_class = WorkshopSerializer
 	permission_classes = [permissions.IsAuthenticated]
 	filter_backends = [filters.SearchFilter, filters.OrderingFilter]

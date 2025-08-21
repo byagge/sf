@@ -5,7 +5,7 @@ from .models import Product
 from .serializers import ProductSerializer
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().prefetch_related('services')
+    queryset = Product.objects.all().prefetch_related('services').order_by('name', 'id')
     serializer_class = ProductSerializer
 
 class ProductsPageView(View):

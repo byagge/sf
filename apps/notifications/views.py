@@ -168,7 +168,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberPagination
     
     def get_queryset(self):
-        return Notification.objects.filter(recipient=self.request.user)
+        return Notification.objects.filter(recipient=self.request.user).order_by('-created_at', 'id')
     
     @action(detail=False, methods=['get'])
     def unread(self, request):
@@ -259,7 +259,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
 class NotificationTypeViewSet(viewsets.ModelViewSet):
     """API для типов уведомлений"""
-    queryset = NotificationType.objects.filter(is_active=True)
+    queryset = NotificationType.objects.filter(is_active=True).order_by('name', 'id')
     serializer_class = NotificationTypeSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -269,7 +269,7 @@ class NotificationTypeViewSet(viewsets.ModelViewSet):
 
 class NotificationTemplateViewSet(viewsets.ModelViewSet):
     """API для шаблонов уведомлений"""
-    queryset = NotificationTemplate.objects.filter(is_active=True)
+    queryset = NotificationTemplate.objects.filter(is_active=True).order_by('name', 'id')
     serializer_class = NotificationTemplateSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -279,7 +279,7 @@ class NotificationTemplateViewSet(viewsets.ModelViewSet):
 
 class NotificationGroupViewSet(viewsets.ModelViewSet):
     """API для групп уведомлений"""
-    queryset = NotificationGroup.objects.filter(is_active=True)
+    queryset = NotificationGroup.objects.filter(is_active=True).order_by('name', 'id')
     serializer_class = NotificationGroupSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -293,7 +293,7 @@ class NotificationPreferenceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return NotificationPreference.objects.filter(user=self.request.user)
+        return NotificationPreference.objects.filter(user=self.request.user).order_by('-created_at', 'id')
     
     def get_object(self):
         obj, created = NotificationPreference.objects.get_or_create(

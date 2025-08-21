@@ -11,7 +11,7 @@ from .serializers import EmployeeTaskSerializer
 User = get_user_model()
  
 class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
-    queryset = EmployeeTask.objects.all()
+    queryset = EmployeeTask.objects.all().order_by('-created_at', 'id')
     serializer_class = EmployeeTaskSerializer 
 
 @api_view(['GET'])

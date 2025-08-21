@@ -8,13 +8,16 @@ from django.utils import timezone
 from .models import Defect
 from .serializers import DefectSerializer, DefectConfirmationSerializer
 from apps.operations.workshops.models import Workshop
+from core.utils import is_mobile_device
 
 def defects_page(request):
-    """Страница списка браков"""
+    """Страница списка браков с автоматическим определением устройства"""
+    if is_mobile_device(request):
+        return render(request, 'defects_mobile.html')
     return render(request, 'defects.html')
 
 def defects_mobile_page(request):
-    """Мобильная страница списка браков"""
+    """Мобильная страница списка браков (для прямого доступа)"""
     return render(request, 'defects_mobile.html')
 
 class DefectViewSet(viewsets.ModelViewSet):
