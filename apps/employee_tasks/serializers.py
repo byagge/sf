@@ -41,56 +41,82 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     
     def get_order_item(self, obj):
         """Возвращает сериализованный order_item с полной информацией о товаре"""
-        print(f"=== DEBUG SERIALIZER: get_order_item for EmployeeTask {obj.id} ===")
-        print(f"Stage: {obj.stage}")
-        print(f"Stage order_item: {getattr(obj.stage, 'order_item', None) if obj.stage else None}")
-        print(f"Stage order: {getattr(obj.stage, 'order', None) if obj.stage else None}")
+        import logging
+        logger = logging.getLogger(__name__)
         
-        if obj.stage and obj.stage.order_item:
+        logger.info(f"=== DEBUG SERIALIZER: get_order_item for EmployeeTask {obj.id} ===")
+        
+        # Получаем объект stage, если это ID
+        stage_obj = obj.stage
+        if hasattr(stage_obj, 'id') and not hasattr(stage_obj, 'order_item'):
+            # Если stage это ID, нужно получить объект
+            from apps.orders.models import OrderStage
+            try:
+                stage_obj = OrderStage.objects.select_related('order_item__product', 'order__client').get(id=stage_obj)
+                logger.info(f"Retrieved stage object: {stage_obj}")
+            except OrderStage.DoesNotExist:
+                logger.error(f"Stage with ID {stage_obj} not found")
+                return None
+        
+        logger.info(f"Stage object: {stage_obj}")
+        logger.info(f"Stage order_item: {getattr(stage_obj, 'order_item', None) if stage_obj else None}")
+        logger.info(f"Stage order: {getattr(stage_obj, 'order', None) if stage_obj else None}")
+        
+        if stage_obj and stage_obj.order_item:
             # Если есть прямая связь с order_item
-            print("Using direct order_item connection")
+            logger.info("Using direct order_item connection")
             from apps.orders.serializers import OrderItemSerializer
-            result = OrderItemSerializer(obj.stage.order_item).data
-            print(f"Direct order_item data: {result}")
+            result = OrderItemSerializer(stage_obj.order_item).data
+            logger.info(f"Direct order_item data: {result}")
             return result
-        elif obj.stage and obj.stage.order:
+        elif stage_obj and stage_obj.order:
             # Fallback: если order_item равен null, пытаемся получить данные через заказ
-            print("Using fallback through order")
+            logger.info("Using fallback through order")
             from apps.orders.models import OrderItem
             from apps.orders.serializers import OrderItemSerializer
             
             # Ищем позиции заказа для этого заказа
-            order_items = OrderItem.objects.filter(order=obj.stage.order)
-            print(f"Found {order_items.count()} order items for order {obj.stage.order.id}")
+            order_items = OrderItem.objects.filter(order=stage_obj.order)
+            logger.info(f"Found {order_items.count()} order items for order {stage_obj.order.id}")
             
             if order_items.exists():
                 # Берем первую позицию (обычно их одна для простых заказов)
                 first_item = order_items.first()
-                print(f"Using first order item: {first_item}")
+                logger.info(f"Using first order item: {first_item}")
                 item_data = OrderItemSerializer(first_item).data
                 
                 # Добавляем информацию о заказе
                 item_data['order'] = {
-                    'id': obj.stage.order.id,
-                    'name': obj.stage.order.name,
-                    'status': obj.stage.order.status,
-                    'status_display': obj.stage.order.get_status_display(),
-                    'created_at': obj.stage.order.created_at.isoformat() if obj.stage.order.created_at else None,
+                    'id': stage_obj.order.id,
+                    'name': stage_obj.order.name,
+                    'status': stage_obj.order.status,
+                    'status_display': stage_obj.order.get_status_display(),
+                    'created_at': stage_obj.order.created_at.isoformat() if stage_obj.order.created_at else None,
                     'client': {
-                        'name': obj.stage.order.client.name if obj.stage.order.client else 'Не указан'
-                    } if obj.stage.order.client else None
+                        'name': stage_obj.order.client.name if stage_obj.order.client else 'Не указан'
+                    } if stage_obj.order.client else None
                 }
                 
-                print(f"Fallback order_item data: {item_data}")
+                logger.info(f"Fallback order_item data: {item_data}")
                 return item_data
             else:
-                print("No order items found for this order")
+                logger.info("No order items found for this order")
         else:
-            print("No stage or order available")
+            logger.info("No stage or order available")
         
-        print("Returning None for order_item")
+        logger.info("Returning None for order_item")
         return None
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
-        return obj.stage.get_workshop_info() if obj.stage else {} 
+        # Получаем объект stage, если это ID
+        stage_obj = obj.stage
+        if hasattr(stage_obj, 'id') and not hasattr(stage_obj, 'get_workshop_info'):
+            # Если stage это ID, нужно получить объект
+            from apps.orders.models import OrderStage
+            try:
+                stage_obj = OrderStage.objects.select_related('workshop').get(id=stage_obj)
+            except OrderStage.DoesNotExist:
+                return {}
+        
+        return stage_obj.get_workshop_info() if stage_obj else {} 

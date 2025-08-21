@@ -186,7 +186,7 @@
                 </template>
                 
                 <!-- Fallback Product Information (when order_item is null) -->
-                <template x-if="!task.order_item && task.stage">
+                <template x-if="!task.order_item">
                     <div class="card bg-white rounded-lg p-4">
                         <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
                             <i data-lucide="package" class="w-5 h-5 mr-2 text-blue-600"></i>
@@ -201,7 +201,7 @@
                             
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-600">Цех:</span>
-                                <span class="font-medium text-gray-900" x-text="task.workshop_info ? task.workshop_info.workshop_name : 'Не указан'"></span>
+                                <span class="font-medium text-gray-900" x-text="task.workshop_info && task.workshop_info.workshop_name ? task.workshop_info.workshop_name : 'Не указан'"></span>
                             </div>
                             
                             <div class="flex items-center justify-between">
@@ -250,7 +250,7 @@
                 </template>
                 
                 <!-- Fallback Order Information (when order_item is null) -->
-                <template x-if="!task.order_item && task.stage">
+                <template x-if="!task.order_item">
                     <div class="card bg-white rounded-lg p-4">
                         <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
                             <i data-lucide="file-text" class="w-5 h-5 mr-2 text-green-600"></i>
@@ -582,6 +582,18 @@
                         console.log('Task earnings:', this.task.earnings);
                         console.log('Task workshop_info:', this.task.workshop_info);
                         
+                        // Проверяем, изменился ли order_item после исправления сериализатора
+                        console.log('=== DEBUG: ORDER_ITEM CHECK AFTER FIX ===');
+                        console.log('order_item after serializer fix:', this.task.order_item);
+                        console.log('order_item type after fix:', typeof this.task.order_item);
+                        console.log('order_item is null after fix:', this.task.order_item === null);
+                        
+                        if (this.task.order_item) {
+                            console.log('✅ SUCCESS: order_item is now available!');
+                        } else {
+                            console.log('❌ STILL NULL: order_item is still null after fix');
+                        }
+                        
                         // Подробная проверка order_item
                         console.log('=== DEBUG: ORDER_ITEM ANALYSIS ===');
                         console.log('Raw order_item:', this.task.order_item);
@@ -639,12 +651,33 @@
                             if (this.task.stage) {
                                 console.log('Stage data:', this.task.stage);
                                 console.log('Stage keys:', Object.keys(this.task.stage));
+                                console.log('Stage type:', typeof this.task.stage);
+                                
+                                // Проверяем, является ли stage числом или объектом
+                                if (typeof this.task.stage === 'number') {
+                                    console.log('Stage is a number (ID), not an object');
+                                    console.log('This means we need to fetch stage data separately');
+                                } else if (typeof this.task.stage === 'object') {
+                                    console.log('Stage is an object, checking for order and order_item');
+                                    console.log('Stage order:', this.task.stage.order);
+                                    console.log('Stage order_item:', this.task.stage.order_item);
+                                }
                             }
                             
                             // Проверяем workshop_info
                             console.log('Workshop info:', this.task.workshop_info);
                             console.log('Workshop info type:', typeof this.task.workshop_info);
                             console.log('Workshop info keys:', this.task.workshop_info ? Object.keys(this.task.workshop_info) : 'null');
+                            
+                            // Проверяем title для получения информации о заказе
+                            if (this.task.title) {
+                                console.log('Task title:', this.task.title);
+                                // Title содержит "Резка - №45-6789", где №45-6789 это номер заказа
+                                const orderMatch = this.task.title.match(/№([^-]+)/);
+                                if (orderMatch) {
+                                    console.log('Order number from title:', orderMatch[1]);
+                                }
+                            }
                         }
                     } else {
                         console.log('=== DEBUG: API ERROR ===');
