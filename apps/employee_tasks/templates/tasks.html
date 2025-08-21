@@ -102,9 +102,9 @@
                                 <template x-if="task.order_item">
                                     <div class="mb-2">
                                         <!-- Product Image -->
-                                        <template x-if="task.order_item.product && (task.order_item.product.img || task.order_item.product.img_url)">
+                                        <template x-if="task.order_item.product && task.order_item.product.img">
                                             <div class="mb-2">
-                                                <img :src="task.order_item.product.img_url || task.order_item.product.img" :alt="task.order_item.product.name" 
+                                                <img :src="task.order_item.product.img" :alt="task.order_item.product.name" 
                                                      class="w-full h-20 rounded-lg product-image bg-gray-100">
                                             </div>
                                         </template>
@@ -152,33 +152,6 @@
                                                     </template>
                                                 </div>
                                             </template>
-                                            
-                                            <!-- Workshop Specifications -->
-                                            <template x-if="task.order_item.cnc_specs || task.order_item.cutting_specs || task.order_item.packaging_notes">
-                                                <div class="mt-2 pt-2 border-t border-gray-200">
-                                                    <div class="text-xs text-gray-600 font-medium mb-1">Спецификации цеха:</div>
-                                                    <div class="flex flex-wrap gap-1">
-                                                        <template x-if="task.order_item.cutting_specs">
-                                                            <div class="flex items-center space-x-1 bg-green-100 px-1.5 py-0.5 rounded-full">
-                                                                <i data-lucide="scissors" class="w-2.5 h-2.5 text-green-600"></i>
-                                                                <span class="text-xs text-green-700 font-medium">Распил</span>
-                                                            </div>
-                                                        </template>
-                                                        <template x-if="task.order_item.cnc_specs">
-                                                            <div class="flex items-center space-x-1 bg-orange-100 px-1.5 py-0.5 rounded-full">
-                                                                <i data-lucide="cpu" class="w-2.5 h-2.5 text-orange-600"></i>
-                                                                <span class="text-xs text-orange-700 font-medium">ЧПУ</span>
-                                                            </div>
-                                                        </template>
-                                                        <template x-if="task.order_item.packaging_notes">
-                                                            <div class="flex items-center space-x-1 bg-purple-100 px-1.5 py-0.5 rounded-full">
-                                                                <i data-lucide="package" class="w-2.5 h-2.5 text-purple-600"></i>
-                                                                <span class="text-xs text-purple-700 font-medium">Упаковка</span>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </template>
                                         </div>
                                     </div>
                                 </template>
@@ -188,70 +161,7 @@
                                     <div class="mb-2 bg-yellow-50 p-2 rounded-lg">
                                         <div class="text-xs text-yellow-800">
                                             <i data-lucide="alert-triangle" class="w-3 h-3 inline mr-1"></i>
-                                            Нет детальной информации о товаре
-                                        </div>
-                                    </div>
-                                </template>
-                                
-                                <!-- Basic Product Info (when order_item is missing) -->
-                                <template x-if="!task.order_item && task.workshop_info">
-                                    <div class="mb-2 bg-blue-50 p-2 rounded-lg">
-                                        <div class="text-xs text-blue-800 mb-1">
-                                            <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
-                                            Базовая информация о товаре
-                                        </div>
-                                        <div class="text-xs text-blue-700">
-                                            <template x-if="task.workshop_info.photo">
-                                                <div class="mb-2">
-                                                    <img :src="task.workshop_info.photo" alt="Фото товара" 
-                                                         class="w-full h-16 rounded-lg product-image bg-gray-100">
-                                                </div>
-                                            </template>
-                                            <div class="flex flex-wrap gap-1">
-                                                <template x-if="task.workshop_info.size">
-                                                    <div class="flex items-center space-x-1 bg-blue-100 px-1.5 py-0.5 rounded-full">
-                                                        <i data-lucide="ruler" class="w-2.5 h-2.5 text-blue-600"></i>
-                                                        <span class="text-xs text-blue-700 font-medium" x-text="task.workshop_info.size"></span>
-                                                    </div>
-                                                </template>
-                                                <template x-if="task.workshop_info.color">
-                                                    <div class="flex items-center space-x-1 bg-purple-100 px-1.5 py-0.5 rounded-full">
-                                                        <i data-lucide="palette" class="w-2.5 h-2.5 text-purple-600"></i>
-                                                        <span class="text-xs text-purple-700 font-medium" x-text="task.workshop_info.color"></span>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                            
-                                            <!-- Workshop Specifications -->
-                                            <div class="mt-2 pt-2 border-t border-blue-200">
-                                                <div class="text-xs text-blue-600 font-medium mb-1">Спецификации цеха:</div>
-                                                <div class="flex flex-wrap gap-1">
-                                                    <template x-if="task.workshop_info.cutting_specs">
-                                                        <div class="flex items-center space-x-1 bg-green-100 px-1.5 py-0.5 rounded-full">
-                                                            <i data-lucide="scissors" class="w-2.5 h-2.5 text-green-600"></i>
-                                                            <span class="text-xs text-green-700 font-medium">Распил</span>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="task.workshop_info.cnc_specs">
-                                                        <div class="flex items-center space-x-1 bg-orange-100 px-1.5 py-0.5 rounded-full">
-                                                            <i data-lucide="cpu" class="w-2.5 h-2.5 text-orange-600"></i>
-                                                            <span class="text-xs text-orange-700 font-medium">ЧПУ</span>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="task.workshop_info.paint_type">
-                                                        <div class="flex items-center space-x-1 bg-red-100 px-1.5 py-0.5 rounded-full">
-                                                            <i data-lucide="brush" class="w-2.5 h-2.5 text-red-600"></i>
-                                                            <span class="text-xs text-red-700 font-medium">Краска</span>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="task.workshop_info.packaging_notes">
-                                                        <div class="flex items-center space-x-1 bg-purple-100 px-1.5 py-0.5 rounded-full">
-                                                            <i data-lucide="package" class="w-2.5 h-2.5 text-purple-600"></i>
-                                                            <span class="text-xs text-purple-700 font-medium">Упаковка</span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </div>
+                                            Нет информации о товаре
                                         </div>
                                     </div>
                                 </template>
@@ -309,7 +219,7 @@
             <i data-lucide="bar-chart" class="w-5 h-5"></i>
             <span class="text-xs">Статистика</span>
         </a>
-        <a href="/employee_info/" class="flex flex-col items-center">
+        <a href="/accounts/profile/" class="flex flex-col items-center">
             <i data-lucide="user" class="w-5 h-5"></i>
             <span class="text-xs">Профиль</span>
         </a>

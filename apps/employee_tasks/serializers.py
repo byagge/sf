@@ -44,19 +44,8 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
         if obj.stage and obj.stage.order_item:
             from apps.orders.serializers import OrderItemSerializer
             return OrderItemSerializer(obj.stage.order_item).data
-        elif obj.stage and obj.stage.order and obj.stage.order.product:
-            # Если order_item отсутствует, но есть order.product, создаем виртуальный order_item
-            from apps.orders.models import OrderItem
-            virtual_item = OrderItem(
-                order=obj.stage.order,
-                product=obj.stage.order.product,
-                quantity=obj.stage.order.quantity or 1
-            )
-            return OrderItemSerializer(virtual_item).data
         return None
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
-        if obj.stage:
-            return obj.stage.get_workshop_info()
-        return {} 
+        return obj.stage.get_workshop_info() if obj.stage else {} 
