@@ -99,33 +99,33 @@
                                 <div class="font-semibold text-gray-900 text-sm mb-2" x-text="task.stage_name ? task.stage_name : ('Этап №' + task.stage)"></div>
                                 
                                 <!-- Product Info -->
-                                <template x-if="task.order_item || (task.stage && task.stage.order_item)">
+                                <template x-if="task.order_item || (task.stage_detail && task.stage_detail.order_item)">
                                     <div class="mb-2">
                                         <!-- Product Image -->
-                                        <template x-if="(task.order_item && task.order_item.product && task.order_item.product.img) || (task.stage && task.stage.order_item && task.stage.order_item.product && task.stage.order_item.product.img)">
+                                        <template x-if="(task.order_item && task.order_item.product && task.order_item.product.img) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.img)">
                                             <div class="mb-2">
-                                                <img :src="(task.order_item && task.order_item.product && task.order_item.product.img) || (task.stage && task.stage.order_item && task.stage.order_item.product && task.stage.order_item.product.img)" 
-                                                     :alt="(task.order_item && task.order_item.product && task.order_item.product.name) || (task.stage && task.stage.order_item && task.stage.order_item.product && task.stage.order_item.product.name)" 
+                                                <img :src="(task.order_item && task.order_item.product && task.order_item.product.img) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.img)" 
+                                                     :alt="(task.order_item && task.order_item.product && task.order_item.product.name) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.name)" 
                                                      class="w-full h-20 rounded-lg product-image bg-gray-100">
                                             </div>
                                         </template>
                                         
                                         <!-- Product Details -->
                                         <div class="bg-gray-50 rounded-lg p-2 mb-2">
-                                            <div class="font-medium text-gray-900 text-sm mb-1" x-text="(task.order_item && task.order_item.product && task.order_item.product.name) || (task.stage && task.stage.order_item && task.stage.order_item.product && task.stage.order_item.product.name) || 'Товар'"></div>
+                                            <div class="font-medium text-gray-900 text-sm mb-1" x-text="(task.order_item && task.order_item.product && task.order_item.product.name) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.name) || 'Товар'"></div>
                                             
                                             <!-- Tags - только размер и цвет -->
                                             <div class="flex flex-wrap gap-1 mb-1">
-                                                <template x-if="(task.order_item && task.order_item.size) || (task.stage && task.stage.order_item && task.stage.order_item.size)">
+                                                <template x-if="(task.order_item && task.order_item.size) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.size)">
                                                     <div class="flex items-center space-x-1 bg-blue-100 px-1.5 py-0.5 rounded-full">
                                                         <i data-lucide="ruler" class="w-2.5 h-2.5 text-blue-600"></i>
-                                                        <span class="text-xs text-blue-700 font-medium" x-text="(task.order_item && task.order_item.size) || (task.stage && task.stage.order_item && task.stage.order_item.size)"></span>
+                                                        <span class="text-xs text-blue-700 font-medium" x-text="(task.order_item && task.order_item.size) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.size)"></span>
                                                     </div>
                                                 </template>
-                                                <template x-if="(task.order_item && task.order_item.color) || (task.stage && task.stage.order_item && task.stage.order_item.color)">
+                                                <template x-if="(task.order_item && task.order_item.color) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.color)">
                                                     <div class="flex items-center space-x-1 bg-purple-100 px-1.5 py-0.5 rounded-full">
                                                         <i data-lucide="palette" class="w-2.5 h-2.5 text-purple-600"></i>
-                                                        <span class="text-xs text-purple-700 font-medium" x-text="(task.order_item && task.order_item.color) || (task.stage && task.stage.order_item && task.stage.order_item.color)"></span>
+                                                        <span class="text-xs text-purple-700 font-medium" x-text="(task.order_item && task.order_item.color) || (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.color)"></span>
                                                     </div>
                                                 </template>
                                             </div>
@@ -134,7 +134,7 @@
                                 </template>
                                 
                                 <!-- No Product Info -->
-                                <template x-if="!task.order_item && (!task.stage || !task.stage.order_item)">
+                                <template x-if="!task.order_item && (!task.stage_detail || !task.stage_detail.order_item)">
                                     <div class="mb-2 bg-yellow-50 p-2 rounded-lg">
                                         <div class="text-xs text-yellow-800">
                                             <i data-lucide="alert-triangle" class="w-3 h-3 inline mr-1"></i>
@@ -224,14 +224,14 @@
                 console.log('Loaded tasks:', this.tasks);
                 if (this.tasks.length > 0) {
                     console.log('First task:', this.tasks[0]);
-                    console.log('First task stage:', this.tasks[0].stage);
+                    console.log('First task stage_detail:', this.tasks[0].stage_detail);
                     console.log('First task order_item:', this.tasks[0].order_item);
                     if (this.tasks[0].order_item) {
                         console.log('First task product:', this.tasks[0].order_item.product);
                     }
                     // Проверяем альтернативные пути к данным
-                    if (this.tasks[0].stage) {
-                        console.log('Stage order_item:', this.tasks[0].stage.order_item);
+                    if (this.tasks[0].stage_detail) {
+                        console.log('Stage detail order_item:', this.tasks[0].stage_detail.order_item);
                     }
                 }
                 
@@ -247,8 +247,8 @@
                     let productName = '';
                     if (task.order_item && task.order_item.product && task.order_item.product.name) {
                         productName = task.order_item.product.name.toLowerCase();
-                    } else if (task.stage && task.stage.order_item && task.stage.order_item.product && task.stage.order_item.product.name) {
-                        productName = task.stage.order_item.product.name.toLowerCase();
+                    } else if (task.stage_detail && task.stage_detail.order_item && task.stage_detail.order_item.product && task.stage_detail.order_item.product.name) {
+                        productName = task.stage_detail.order_item.product.name.toLowerCase();
                     }
                     
                     return title.includes(term) || stageName.includes(term) || productName.includes(term);
