@@ -185,6 +185,41 @@
                     </div>
                 </template>
                 
+                <!-- Fallback Product Information (when order_item is null) -->
+                <template x-if="!task.order_item && task.stage">
+                    <div class="card bg-white rounded-lg p-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i data-lucide="package" class="w-5 h-5 mr-2 text-blue-600"></i>
+                            Информация о товаре (основная)
+                        </h2>
+                        
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Операция:</span>
+                                <span class="font-semibold text-gray-900" x-text="task.stage_name || 'Не указана'"></span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Цех:</span>
+                                <span class="font-medium text-gray-900" x-text="task.workshop_info ? task.workshop_info.workshop_name : 'Не указан'"></span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Количество:</span>
+                                <span class="font-medium text-gray-900" x-text="task.quantity"></span>
+                            </div>
+                            
+                            <div class="bg-yellow-50 p-3 rounded-lg">
+                                <div class="text-yellow-800 text-sm">
+                                    <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                                    <strong>Примечание:</strong> Детальная информация о товаре временно недоступна. 
+                                    Обратитесь к мастеру для получения дополнительных сведений.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                
                 <!-- Order Information -->
                 <template x-if="task.order_item && task.order_item.order">
                     <div class="card bg-white rounded-lg p-4">
@@ -214,8 +249,37 @@
                     </div>
                 </template>
                 
+                <!-- Fallback Order Information (when order_item is null) -->
+                <template x-if="!task.order_item && task.stage">
+                    <div class="card bg-white rounded-lg p-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i data-lucide="file-text" class="w-5 h-5 mr-2 text-green-600"></i>
+                            Информация о заказе (основная)
+                        </h2>
+                        
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Операция:</span>
+                                <span class="font-medium text-gray-900" x-text="task.stage_name || 'Не указана'"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">План:</span>
+                                <span class="font-medium text-gray-900" x-text="task.quantity"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Выполнено:</span>
+                                <span class="font-medium text-gray-900" x-text="task.completed_quantity"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Брак:</span>
+                                <span class="font-medium text-gray-900" x-text="task.defective_quantity"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                
                 <!-- Workshop Information -->
-                <template x-if="task.workshop_info">
+                <template x-if="task.workshop_info && Object.keys(task.workshop_info).length > 0">
                     <div class="card bg-white rounded-lg p-4">
                         <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
                             <i data-lucide="settings" class="w-5 h-5 mr-2 text-purple-600"></i>
@@ -235,6 +299,38 @@
                                     <span class="font-medium text-gray-900" x-text="task.workshop_info.cnc_specs"></span>
                                 </div>
                             </template>
+                        </div>
+                    </div>
+                </template>
+                
+                <!-- Fallback Workshop Information (when workshop_info is empty) -->
+                <template x-if="!task.workshop_info || Object.keys(task.workshop_info).length === 0">
+                    <div class="card bg-white rounded-lg p-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i data-lucide="settings" class="w-5 h-5 mr-2 text-purple-600"></i>
+                            Информация о цехе
+                        </h2>
+                        
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Операция:</span>
+                                <span class="font-medium text-gray-900" x-text="task.stage_name || 'Не указана'"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">План:</span>
+                                <span class="font-medium text-gray-900" x-text="task.quantity"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Выполнено:</span>
+                                <span class="font-medium text-gray-900" x-text="task.completed_quantity"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-blue-50 p-3 rounded-lg mt-3">
+                            <div class="text-blue-800 text-sm">
+                                <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                                <strong>Информация:</strong> Детальные спецификации цеха будут добавлены мастером.
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -486,6 +582,13 @@
                         console.log('Task earnings:', this.task.earnings);
                         console.log('Task workshop_info:', this.task.workshop_info);
                         
+                        // Подробная проверка order_item
+                        console.log('=== DEBUG: ORDER_ITEM ANALYSIS ===');
+                        console.log('Raw order_item:', this.task.order_item);
+                        console.log('order_item type:', typeof this.task.order_item);
+                        console.log('order_item is null:', this.task.order_item === null);
+                        console.log('order_item is undefined:', this.task.order_item === undefined);
+                        
                         if (this.task.order_item) {
                             console.log('=== DEBUG: ORDER ITEM DATA ===');
                             console.log('Order item ID:', this.task.order_item.id);
@@ -502,6 +605,9 @@
                                 console.log('Product is_glass:', this.task.order_item.product.is_glass);
                                 console.log('Product glass_type:', this.task.order_item.product.glass_type);
                                 console.log('Glass type display:', this.task.order_item.glass_type_display);
+                            } else {
+                                console.log('=== DEBUG: NO PRODUCT DATA ===');
+                                console.log('Product field is missing or null');
                             }
                             
                             if (this.task.order_item.order) {
@@ -514,7 +620,31 @@
                                 if (this.task.order_item.order.client) {
                                     console.log('Client name:', this.task.order_item.order.client.name);
                                 }
+                            } else {
+                                console.log('=== DEBUG: NO ORDER DATA ===');
+                                console.log('Order field is missing or null');
                             }
+                        } else {
+                            console.log('=== DEBUG: ORDER_ITEM IS NULL ===');
+                            console.log('order_item is null - this is the problem!');
+                            console.log('Task stage:', this.task.stage);
+                            console.log('Task stage type:', typeof this.task.stage);
+                            
+                            // Проверяем все доступные данные
+                            console.log('=== DEBUG: ALL AVAILABLE DATA ===');
+                            console.log('Full task object:', JSON.stringify(this.task, null, 2));
+                            console.log('Task keys:', Object.keys(this.task));
+                            
+                            // Проверяем stage данные
+                            if (this.task.stage) {
+                                console.log('Stage data:', this.task.stage);
+                                console.log('Stage keys:', Object.keys(this.task.stage));
+                            }
+                            
+                            // Проверяем workshop_info
+                            console.log('Workshop info:', this.task.workshop_info);
+                            console.log('Workshop info type:', typeof this.task.workshop_info);
+                            console.log('Workshop info keys:', this.task.workshop_info ? Object.keys(this.task.workshop_info) : 'null');
                         }
                     } else {
                         console.log('=== DEBUG: API ERROR ===');

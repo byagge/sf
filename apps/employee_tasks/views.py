@@ -19,7 +19,8 @@ class EmployeeTaskViewSet(viewsets.ModelViewSet):
         'stage__order__client',
         'employee'
     ).prefetch_related(
-        'stage__order_item__product__services'
+        'stage__order_item__product__services',
+        'stage__order__items__product'  # Добавляем для fallback случая
     ).all().order_by('-created_at')
     serializer_class = EmployeeTaskSerializer
     permission_classes = [IsAuthenticated]
