@@ -415,75 +415,226 @@
             async init() {
                 this.userId = window.user_id || null;
                 this.taskId = window.task_id || null;
+                
+                console.log('=== DEBUG: INIT ===');
+                console.log('User ID from window:', this.userId);
+                console.log('Task ID from window:', this.taskId);
+                console.log('User ID type:', typeof this.userId);
+                console.log('Task ID type:', typeof this.taskId);
+                console.log('Window user_id:', window.user_id);
+                console.log('Window task_id:', window.task_id);
+                
                 await this.loadTask();
                 lucide.createIcons();
             },
             
             async loadTask() {
                 if (!this.taskId) {
+                    console.log('=== DEBUG: NO TASK ID ===');
+                    console.log('Task ID is null/undefined, skipping load');
                     this.loading = false;
                     return;
                 }
                 
+                console.log('=== DEBUG: LOADING TASK ===');
+                console.log('Task ID to load:', this.taskId);
+                console.log('User ID:', this.userId);
+                
                 this.loading = true;
                 try {
-                    const resp = await fetch(`/employee_tasks/api/employee-tasks/${this.taskId}/`);
+                    const apiUrl = `/employee_tasks/api/employee-tasks/${this.taskId}/`;
+                    console.log('API URL:', apiUrl);
+                    
+                    const resp = await fetch(apiUrl);
+                    console.log('Response status:', resp.status);
+                    console.log('Response ok:', resp.ok);
+                    console.log('Response headers:', Object.fromEntries(resp.headers.entries()));
+                    
                     if (resp.ok) {
-                        this.task = await resp.json();
+                        const taskData = await resp.json();
+                        console.log('=== DEBUG: TASK DATA RECEIVED ===');
+                        console.log('Raw task data:', taskData);
+                        console.log('Task employee ID:', taskData.employee);
+                        console.log('Task employee type:', typeof taskData.employee);
+                        console.log('Current user ID:', this.userId);
+                        console.log('Current user ID type:', typeof this.userId);
+                        console.log('Employee comparison:', String(taskData.employee) === String(this.userId));
+                        
+                        this.task = taskData;
+                        
                         // Проверяем, что задача принадлежит текущему пользователю
                         if (String(this.task.employee) !== String(this.userId)) {
+                            console.log('=== DEBUG: ACCESS DENIED ===');
+                            console.log('Task employee ID:', this.task.employee);
+                            console.log('Current user ID:', this.userId);
+                            console.log('Access denied - task does not belong to current user');
                             this.task = null;
+                        } else {
+                            console.log('=== DEBUG: ACCESS GRANTED ===');
+                            console.log('User has access to this task');
+                        }
+                        
+                        // Дополнительное логирование всех данных задачи
+                        console.log('=== DEBUG: TASK TEMPLATE DATA ===');
+                        console.log('Task ID:', this.task.id);
+                        console.log('Task stage:', this.task.stage);
+                        console.log('Task stage_name:', this.task.stage_name);
+                        console.log('Task stage_description:', this.task.stage_description);
+                        console.log('Task quantity:', this.task.quantity);
+                        console.log('Task completed_quantity:', this.task.completed_quantity);
+                        console.log('Task defective_quantity:', this.task.defective_quantity);
+                        console.log('Task earnings:', this.task.earnings);
+                        console.log('Task workshop_info:', this.task.workshop_info);
+                        
+                        if (this.task.order_item) {
+                            console.log('=== DEBUG: ORDER ITEM DATA ===');
+                            console.log('Order item ID:', this.task.order_item.id);
+                            console.log('Order item size:', this.task.order_item.size);
+                            console.log('Order item color:', this.task.order_item.color);
+                            console.log('Order item paint_type:', this.task.order_item.paint_type);
+                            console.log('Order item paint_color:', this.task.order_item.paint_color);
+                            
+                            if (this.task.order_item.product) {
+                                console.log('=== DEBUG: PRODUCT DATA ===');
+                                console.log('Product ID:', this.task.order_item.product.id);
+                                console.log('Product name:', this.task.order_item.product.name);
+                                console.log('Product img:', this.task.order_item.product.img);
+                                console.log('Product is_glass:', this.task.order_item.product.is_glass);
+                                console.log('Product glass_type:', this.task.order_item.product.glass_type);
+                                console.log('Glass type display:', this.task.order_item.glass_type_display);
+                            }
+                            
+                            if (this.task.order_item.order) {
+                                console.log('=== DEBUG: ORDER DATA ===');
+                                console.log('Order ID:', this.task.order_item.order.id);
+                                console.log('Order status:', this.task.order_item.order.status);
+                                console.log('Order status_display:', this.task.order_item.order.status_display);
+                                console.log('Order created_at:', this.task.order_item.order.created_at);
+                                
+                                if (this.task.order_item.order.client) {
+                                    console.log('Client name:', this.task.order_item.order.client.name);
+                                }
+                            }
                         }
                     } else {
+                        console.log('=== DEBUG: API ERROR ===');
+                        console.log('Response not ok, status:', resp.status);
+                        try {
+                            const errorText = await resp.text();
+                            console.log('Error response text:', errorText);
+                        } catch (e) {
+                            console.log('Could not read error response:', e);
+                        }
                         this.task = null;
                     }
                 } catch (error) {
+                    console.log('=== DEBUG: FETCH ERROR ===');
                     console.error('Error loading task:', error);
+                    console.log('Error name:', error.name);
+                    console.log('Error message:', error.message);
+                    console.log('Error stack:', error.stack);
                     this.task = null;
                 }
+                
+                console.log('=== DEBUG: LOAD COMPLETE ===');
+                console.log('Final task object:', this.task);
+                console.log('Loading state:', this.loading);
+                
                 this.loading = false;
             },
             
             openCompleteModal() {
-                if (!this.task) return;
+                console.log('=== DEBUG: OPEN COMPLETE MODAL ===');
+                console.log('Task object:', this.task);
+                if (!this.task) {
+                    console.log('No task available, cannot open modal');
+                    return;
+                }
+                
                 this.doneInput = this.task.completed_quantity >= this.task.quantity;
                 this.defectiveInput = this.task.defective_quantity || 0;
+                
+                console.log('Initial doneInput:', this.doneInput);
+                console.log('Initial defectiveInput:', this.defectiveInput);
+                console.log('Task completed_quantity:', this.task.completed_quantity);
+                console.log('Task quantity:', this.task.quantity);
+                console.log('Task defective_quantity:', this.task.defective_quantity);
+                
                 this.showCompleteModal = true;
             },
             
             async submitCompleted() {
-                if (!this.task) return;
+                console.log('=== DEBUG: SUBMIT COMPLETED ===');
+                console.log('Task object:', this.task);
+                if (!this.task) {
+                    console.log('No task available, cannot submit');
+                    return;
+                }
                 
                 const done = !!this.doneInput;
                 const completedQty = done ? (this.task.quantity || 0) : 0;
                 
+                console.log('Submit data:');
+                console.log('- doneInput:', this.doneInput);
+                console.log('- done:', done);
+                console.log('- completedQty:', completedQty);
+                console.log('- defectiveInput:', this.defectiveInput);
+                console.log('- task.quantity:', this.task.quantity);
+                
                 try {
+                    const requestData = {
+                        completed_quantity: completedQty,
+                        defective_quantity: this.defectiveInput
+                    };
+                    console.log('Request payload:', requestData);
+                    
+                    const csrfToken = this.getCsrfToken();
+                    console.log('CSRF Token:', csrfToken);
+                    
                     const resp = await fetch(`/employee_tasks/api/employee-tasks/${this.task.id}/`, {
                         method: 'PATCH',
                         headers: { 
                             'Content-Type': 'application/json', 
-                            'X-CSRFToken': this.getCsrfToken() 
+                            'X-CSRFToken': csrfToken 
                         },
-                        body: JSON.stringify({
-                            completed_quantity: completedQty,
-                            defective_quantity: this.defectiveInput
-                        })
+                        body: JSON.stringify(requestData)
                     });
                     
+                    console.log('Submit response status:', resp.status);
+                    console.log('Submit response ok:', resp.ok);
+                    
                     if (resp.ok) {
+                        console.log('=== DEBUG: SUBMIT SUCCESS ===');
+                        console.log('Task updated successfully');
+                        
                         this.task.completed_quantity = completedQty;
                         this.task.defective_quantity = this.defectiveInput;
                         this.showCompleteModal = false;
                         
+                        console.log('Updated task object:', this.task);
+                        
                         // Показываем уведомление об успехе
                         this.showSuccessMessage();
+                    } else {
+                        console.log('=== DEBUG: SUBMIT ERROR ===');
+                        console.log('Submit failed with status:', resp.status);
+                        try {
+                            const errorText = await resp.text();
+                            console.log('Error response:', errorText);
+                        } catch (e) {
+                            console.log('Could not read error response:', e);
+                        }
                     }
                 } catch (error) {
+                    console.log('=== DEBUG: SUBMIT EXCEPTION ===');
                     console.error('Error updating task:', error);
+                    console.log('Error name:', error.name);
+                    console.log('Error message:', error.message);
                 }
             },
             
             showSuccessMessage() {
+                console.log('=== DEBUG: SHOW SUCCESS MESSAGE ===');
                 // Можно добавить красивое уведомление
                 alert('Задача успешно обновлена!');
             },
@@ -494,9 +645,12 @@
                 for (let cookie of cookies) {
                     cookie = cookie.trim();
                     if (cookie.startsWith(name + '=')) {
-                        return decodeURIComponent(cookie.substring(name.length + 1));
+                        const token = decodeURIComponent(cookie.substring(name.length + 1));
+                        console.log('CSRF Token found:', token);
+                        return token;
                     }
                 }
+                console.log('No CSRF token found in cookies');
                 return '';
             }
         }
