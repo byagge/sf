@@ -141,6 +141,13 @@
                             <template x-if="task.defective_quantity && task.defective_quantity > 0">
                                 <div class="text-xs text-red-600">Брак: <span x-text="task.defective_quantity"></span></div>
                             </template>
+                            
+                            <!-- Кнопка перевести дальше -->
+                            <div class="mt-2">
+                                <button @click.stop="openTransferModal(task.stage)" class="px-3 py-2 rounded-lg bg-green-600 text-white text-xs font-semibold">
+                                    Перевести дальше
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -198,6 +205,24 @@
                                 <div><span class="font-medium">Статус:</span> <span x-text="selectedTask.order_item.order.status_display || 'Не указан'"></span></div>
                                 <template x-if="selectedTask.order_item.order.comment">
                                     <div><span class="font-medium">Комментарий:</span> <span x-text="selectedTask.order_item.order.comment"></span></div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- Fallback если order_item отсутствует или без вложенного order -->
+                    <template x-if="(!selectedTask || !selectedTask.order_item || !selectedTask.order_item.order) && selectedTask.order">
+                        <div class="mt-4 p-3 bg-blue-50 rounded-lg text-left text-sm border-l-4 border-blue-400">
+                            <h4 class="font-semibold text-blue-800 mb-2">Заказ:</h4>
+                            <div class="space-y-1 text-blue-700">
+                                <div><span class="font-medium">Название:</span> <span x-text="selectedTask.order.name || 'Не указано'"></span></div>
+                                <template x-if="selectedTask.order.client">
+                                    <div><span class="font-medium">Клиент:</span> <span x-text="selectedTask.order.client.name || 'Не указан'"></span></div>
+                                </template>
+                                <div><span class="font-medium">Дата создания:</span> <span x-text="selectedTask.order.created_at ? new Date(selectedTask.order.created_at).toLocaleDateString('ru-RU') : 'Не указана'"></span></div>
+                                <div><span class="font-medium">Статус:</span> <span x-text="selectedTask.order.status_display || 'Не указан'"></span></div>
+                                <template x-if="selectedTask.order.comment">
+                                    <div><span class="font-medium">Комментарий:</span> <span x-text="selectedTask.order.comment"></span></div>
                                 </template>
                             </div>
                         </div>
@@ -277,9 +302,11 @@
             showCompleteModal: false,
             selectedTask: null,
             completedInput: 0,
+            workshops: [], // Added for transfer modal
             async init() {
                 await this.loadTasks();
                 lucide.createIcons();
+                await this.loadWorkshops(); // Load workshops on init
             },
             async loadTasks() {
                 this.loading = true;
@@ -287,6 +314,11 @@
                 const data = await resp.json();
                 this.tasks = data.results || data;
                 this.loading = false;
+            },
+            async loadWorkshops() {
+                const resp = await fetch('/workshops/api/workshops/');
+                const data = await resp.json();
+                this.workshops = data.results || data;
             },
             get filteredTasks() {
                 const term = this.searchTerm.toLowerCase();
@@ -350,6 +382,27 @@
                     this.tasks.unshift(created);
                     this.showAddTaskModal = false;
                     this.newTask = { title: '', employee: '', plan_quantity: 1 };
+                }
+            },
+            openTransferModal(currentStage) {
+                this.selectedTask = this.tasks.find(task => task.id === this.selectedTask.id); // Ensure selectedTask is updated
+                this.showTransferModal = true;
+                this.currentTaskStage = currentStage;
+                this.newTaskStage = currentStage; // Default to current stage
+            },
+            async submitTransfer() {
+                if (!this.selectedTask || !this.newTaskStage) return;
+                const resp = await fetch(`/employee_tasks/api/employee-tasks/${this.selectedTask.id}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCsrfToken()
+                    },
+                    body: JSON.stringify({ stage: this.newTaskStage })
+                });
+                if (resp.ok) {
+                    this.selectedTask.stage = this.newTaskStage;
+                    this.showTransferModal = false;
                 }
             },
             getCsrfToken() {
