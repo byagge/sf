@@ -5,7 +5,6 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     done_quantity = serializers.SerializerMethodField()
     stage_name = serializers.CharField(source='stage.operation', read_only=True)
-    order_item = serializers.SerializerMethodField()
     workshop_info = serializers.SerializerMethodField()
     is_completed = serializers.BooleanField(read_only=True)
     title = serializers.CharField(read_only=True)
@@ -17,7 +16,7 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
         model = EmployeeTask
         fields = [
             'id', 'stage', 'employee', 'employee_name', 'quantity', 'completed_quantity', 
-            'defective_quantity', 'done_quantity', 'stage_name', 'order_item', 'workshop_info',
+            'defective_quantity', 'done_quantity', 'stage_name', 'workshop_info',
             'created_at', 'completed_at', 'earnings', 'penalties', 'net_earnings',
             'is_completed', 'title', 'plan_quantity', 'started_at'
         ]
@@ -39,13 +38,6 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
                 return f'{first} {last}'.strip()
             return getattr(obj.employee, 'username', str(obj.employee.pk))
         return ''
-    
-    def get_order_item(self, obj):
-        """Возвращает сериализованный order_item с полной информацией о товаре"""
-        if obj.stage and obj.stage.order_item:
-            from apps.orders.serializers import OrderItemSerializer
-            return OrderItemSerializer(obj.stage.order_item).data
-        return None
     
     def get_stage(self, obj):
         """Возвращает полную информацию о stage с order_item и order"""

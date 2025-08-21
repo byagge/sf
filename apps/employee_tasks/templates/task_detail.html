@@ -57,12 +57,6 @@
         
         <template x-if="!loading && task">
             <div class="space-y-4">
-                <!-- Debug Info (можно убрать после отладки) -->
-                <div class="card bg-gray-100 rounded-lg p-4 text-xs">
-                    <h3 class="font-bold mb-2">Отладочная информация:</h3>
-                    <pre x-text="JSON.stringify(task, null, 2)"></pre>
-                </div>
-                
                 <!-- Task Header -->
                 <div class="card bg-white rounded-lg p-4">
                     <div class="flex items-start justify-between mb-3">
@@ -191,6 +185,42 @@
                     </div>
                 </template>
                 
+                <!-- Fallback Product Info (если нет order_item) -->
+                <template x-if="task.stage && !task.stage.order_item && task.stage.order && task.stage.order.product">
+                    <div class="card bg-white rounded-lg p-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i data-lucide="package" class="w-5 h-5 mr-2 text-blue-600"></i>
+                            Информация о товаре
+                        </h2>
+                        
+                        <!-- Product Image -->
+                        <template x-if="task.stage.order.product.img">
+                            <div class="mb-4">
+                                <img :src="task.stage.order.product.img" :alt="task.stage.order.product.name" 
+                                     class="w-full h-48 rounded-lg product-image bg-gray-100">
+                            </div>
+                        </template>
+                        
+                        <!-- Product Details -->
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Товар:</span>
+                                <span class="font-semibold text-gray-900" x-text="task.stage.order.product ? task.stage.order.product.name : 'Не указан'"></span>
+                            </div>
+                            
+                            <template x-if="task.stage.order.product.is_glass">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Тип стекла:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="droplets" class="w-4 h-4 text-cyan-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="task.stage.order.product.glass_type || 'Не указан'"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                
                 <!-- Order Information -->
                 <template x-if="task.stage && task.stage.order">
                     <div class="card bg-white rounded-lg p-4">
@@ -225,7 +255,7 @@
                 </template>
                 
                 <!-- Workshop Information -->
-                <template x-if="task.workshop_info">
+                <template x-if="task.stage && task.stage.workshop">
                     <div class="card bg-white rounded-lg p-4">
                         <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
                             <i data-lucide="settings" class="w-5 h-5 mr-2 text-purple-600"></i>
@@ -233,16 +263,24 @@
                         </h2>
                         
                         <div class="space-y-2 text-sm">
-                            <template x-if="task.workshop_info.cutting_specs">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Цех:</span>
+                                <span class="font-medium text-gray-900" x-text="task.stage.workshop.name"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Операция:</span>
+                                <span class="font-medium text-gray-900" x-text="task.stage.operation || 'Не указана'"></span>
+                            </div>
+                            <template x-if="task.stage.workshop_info && task.stage.workshop_info.cutting_specs">
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-600">Распил:</span>
-                                    <span class="font-medium text-gray-900" x-text="task.workshop_info.cutting_specs"></span>
+                                    <span class="font-medium text-gray-900" x-text="task.stage.workshop_info.cutting_specs"></span>
                                 </div>
                             </template>
-                            <template x-if="task.workshop_info.cnc_specs">
+                            <template x-if="task.stage.workshop_info && task.stage.workshop_info.cnc_specs">
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-600">ЧПУ:</span>
-                                    <span class="font-medium text-gray-900" x-text="task.workshop_info.cnc_specs"></span>
+                                    <span class="font-medium text-gray-900" x-text="task.stage.workshop_info.cnc_specs"></span>
                                 </div>
                             </template>
                         </div>
