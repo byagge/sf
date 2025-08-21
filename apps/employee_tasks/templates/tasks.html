@@ -257,10 +257,10 @@
                 return this.tasks
                     .filter(task => this.isTaskVisible(task))
                     .filter(task =>
-                        (task.title || '').toLowerCase().includes(term) ||
-                        (task.stage_name || '').toLowerCase().includes(term) ||
-                        (task.order_item && task.order_item.product && task.order_item.product.name ? task.order_item.product.name.toLowerCase().includes(term) : false)
-                    );
+                    (task.title || '').toLowerCase().includes(term) ||
+                    (task.stage_name || '').toLowerCase().includes(term) ||
+                    (task.order_item && task.order_item.product && task.order_item.product.name ? task.order_item.product.name.toLowerCase().includes(term) : false)
+                );
             },
             async toggleTask(task) {
                 const isDone = (Number(task.completed_quantity) || 0) >= (Number(task.quantity) || 0);
@@ -279,7 +279,7 @@
                     const updated = await resp.json();
                     Object.assign(task, updated);
                 } catch (e) {
-                    task.completed_quantity = newCompleted;
+                task.completed_quantity = newCompleted;
                     if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
                     if (newCompleted === 0) task.completed_at = null;
                 }

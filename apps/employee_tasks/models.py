@@ -141,7 +141,7 @@ def create_defect_on_defective_change(sender, instance, **kwargs):
             # Дельта выполненного для последующего списания материалов
             delta_completed = int(instance.completed_quantity) - int(old_instance.completed_quantity)
             instance._delta_completed_quantity = max(delta_completed, 0)
-            
+
             # Управление completed_at
             was_completed = old_instance.completed_quantity >= old_instance.quantity
             is_now_completed = instance.completed_quantity >= instance.quantity
