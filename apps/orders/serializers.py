@@ -12,10 +12,17 @@ class ClientFullSerializer(serializers.ModelSerializer):
 
 class ProductFullSerializer(serializers.ModelSerializer):
     glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
+    img_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
-        fields = ['id', 'name', 'type', 'description', 'is_glass', 'glass_type', 'glass_type_display', 'img', 'price', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'type', 'description', 'is_glass', 'glass_type', 'glass_type_display', 'img', 'img_url', 'price', 'created_at', 'updated_at']
+    
+    def get_img_url(self, obj):
+        """Возвращает URL изображения или None, если изображение отсутствует"""
+        if obj.img:
+            return obj.img.url if hasattr(obj.img, 'url') else str(obj.img)
+        return None
 
 class WorkshopFullSerializer(serializers.ModelSerializer):
     class Meta:

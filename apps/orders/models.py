@@ -191,6 +191,24 @@ class OrderStage(models.Model):
         """Возвращает информацию для цеха на основе связанной позиции заказа"""
         if self.order_item:
             return self.order_item.get_workshop_info(self.workshop.name if self.workshop else '')
+        elif self.order and self.order.product:
+            # Если order_item отсутствует, но есть order.product, создаем базовую информацию
+            info = {
+                'size': '',
+                'color': '',
+                'quantity': self.order.quantity or 1,
+            }
+            
+            if self.workshop:
+                workshop_name = self.workshop.name.lower()
+                if 'чпу' in workshop_name:
+                    info['photo'] = self.order.product.img if self.order.product.img else None
+                elif 'краск' in workshop_name or 'окрасочн' in workshop_name:
+                    info['photo'] = self.order.product.img if self.order.product.img else None
+                elif 'упаковк' in workshop_name:
+                    info['photo'] = self.order.product.img if self.order.product.img else None
+            
+            return info
         return {}
     
     def is_glass_stage(self):
@@ -554,38 +572,38 @@ class OrderItem(models.Model):
     def get_workshop_info(self, workshop_name):
         """Возвращает информацию, необходимую для конкретного цеха"""
         info = {
-            'size': self.size,
-            'color': self.color,
+            'size': self.size or '',
+            'color': self.color or '',
             'quantity': self.quantity,
         }
         
         if 'распил' in workshop_name.lower():
             info.update({
-                'cutting_specs': self.cutting_specs,
-                'size': self.size,
+                'cutting_specs': self.cutting_specs or '',
+                'size': self.size or '',
             })
         elif 'чпу' in workshop_name.lower():
             info.update({
-                'cnc_specs': self.cnc_specs,
-                'size': self.size,
-                'photo': self.product.img if self.product.img else None,
+                'cnc_specs': self.cnc_specs or '',
+                'size': self.size or '',
+                'photo': self.product.img if self.product and self.product.img else None,
             })
         elif 'краск' in workshop_name.lower() or 'окрасочн' in workshop_name.lower():
             info.update({
-                'paint_type': self.paint_type,
-                'paint_color': self.paint_color,
-                'size': self.size,
-                'photo': self.product.img if self.product.img else None,
+                'paint_type': self.paint_type or '',
+                'paint_color': self.paint_color or '',
+                'size': self.size or '',
+                'photo': self.product.img if self.product and self.product.img else None,
             })
         elif 'упаковк' in workshop_name.lower():
             info.update({
-                'size': self.size,
-                'color': self.color,
-                'glass_type': self.glass_type,
-                'paint_type': self.paint_type,
-                'paint_color': self.paint_color,
-                'packaging_notes': self.packaging_notes,
-                'photo': self.product.img if self.product.img else None,
+                'size': self.size or '',
+                'color': self.color or '',
+                'glass_type': self.glass_type or '',
+                'paint_type': self.paint_type or '',
+                'paint_color': self.paint_color or '',
+                'packaging_notes': self.packaging_notes or '',
+                'photo': self.product.img if self.product and self.product.img else None,
             })
         
         return info
@@ -663,23 +681,26 @@ def create_order_stages(order):
         # Если нет позиций, используем старую логику для одиночного продукта
         if not ORDER_WORKFLOW:
             return
-    step = ORDER_WORKFLOW[0]
-    workshop = Workshop.objects.get(pk=step["workshop"])
-    now = timezone.now()
-    deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
-    if now.hour >= 18:
-        deadline_dt += timedelta(days=1)
-    OrderStage.objects.create(
-        order=order,
-        workshop=workshop,
-        operation=step["operation"],
-        sequence=1,
-        stage_type='workshop',
-        plan_quantity=order.total_quantity,
-        deadline=deadline_dt.date(),
-        status='in_progress',
+        
+        # Создаем этап для одиночного продукта
+        step = ORDER_WORKFLOW[0]
+        workshop = Workshop.objects.get(pk=step["workshop"])
+        now = timezone.now()
+        deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
+        if now.hour >= 18:
+            deadline_dt += timedelta(days=1)
+        
+        OrderStage.objects.create(
+            order=order,
+            workshop=workshop,
+            operation=step["operation"],
+            sequence=1,
+            stage_type='workshop',
+            plan_quantity=order.total_quantity,
+            deadline=deadline_dt.date(),
+            status='in_progress',
         )
-    return
+        return
     
     # Создаем этапы для каждой позиции заказа
     for item in order_items:
