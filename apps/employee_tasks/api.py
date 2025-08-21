@@ -2,12 +2,12 @@ from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.db.models import Sum, Count
+from django.db.models import Sum, Count, F, OuterRef, Subquery, DecimalField, ExpressionWrapper
+from django.db.models.functions import ExtractMonth, ExtractYear, Coalesce
 from django.contrib.auth import get_user_model
 from .models import EmployeeTask
 from apps.services.models import Service
 from .serializers import EmployeeTaskSerializer
-from django.db.models.functions import ExtractMonth, ExtractYear
 
 User = get_user_model()
  
@@ -22,37 +22,72 @@ def employee_earnings_stats(request, employee_id):
 	try:
 		employee = User.objects.get(id=employee_id)
 		
-		# Получаем все задачи сотрудника
+		# Базовый queryset задач сотрудника
 		tasks = EmployeeTask.objects.filter(employee=employee)
 		
-		# Общая статистика
-		total_earnings = tasks.aggregate(total=Sum('earnings'))['total'] or 0
-		total_penalties = tasks.aggregate(total=Sum('penalties'))['total'] or 0
-		total_net_earnings = tasks.aggregate(total=Sum('net_earnings'))['total'] or 0
-		total_tasks = tasks.count()
-		completed_tasks = tasks.filter(completed_quantity__gt=0).count()
+		# Пробуем использовать сохранённые значения (если они рассчитаны сигналами)
+		stored_total = tasks.aggregate(s=Coalesce(Sum('earnings'), 0))['s'] or 0
 		
-		# Статистика по цехам/услугам
-		workshop_stats = tasks.values('stage__workshop__name').annotate(
-			total_earnings=Sum('earnings'),
-			total_penalties=Sum('penalties'),
-			total_net=Sum('net_earnings'),
-			task_count=Count('id')
-		)
-		
-		# Статистика по месяцам (кросс-БД)
-		monthly_stats = (
-			tasks
-			.annotate(year=ExtractYear('created_at'), month=ExtractMonth('created_at'))
-			.values('year', 'month')
-			.annotate(
-				total_earnings=Sum('earnings'),
-				total_penalties=Sum('penalties'),
-				total_net=Sum('net_earnings'),
+		if stored_total and stored_total > 0:
+			# Используем сохранённые earnings/net_earnings/penalties
+			total_earnings = stored_total
+			total_penalties = tasks.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
+			total_net_earnings = tasks.aggregate(s=Coalesce(Sum('net_earnings'), 0))['s'] or (total_earnings - total_penalties)
+			total_tasks = tasks.count()
+			completed_tasks = tasks.filter(completed_quantity__gt=0).count()
+			workshop_stats = tasks.values('stage__workshop__name').annotate(
+				total_earnings=Coalesce(Sum('earnings'), 0),
+				total_penalties=Coalesce(Sum('penalties'), 0),
+				total_net=Coalesce(Sum('net_earnings'), 0),
 				task_count=Count('id')
 			)
-			.order_by('year', 'month')
-		)
+			monthly_stats = (
+				tasks
+				.annotate(year=ExtractYear('created_at'), month=ExtractMonth('created_at'))
+				.values('year', 'month')
+				.annotate(
+					total_earnings=Coalesce(Sum('earnings'), 0),
+					total_penalties=Coalesce(Sum('penalties'), 0),
+					total_net=Coalesce(Sum('net_earnings'), 0),
+					task_count=Count('id')
+				)
+				.order_by('year', 'month')
+			)
+		else:
+			# Динамический пересчёт по цене услуги активного цеха
+			service_price_sq = Subquery(
+				Service.objects.filter(workshop=OuterRef('stage__workshop'), is_active=True)
+				.values('service_price')[:1]
+			)
+			annotated = tasks.annotate(
+				calc_earnings=ExpressionWrapper(
+					F('completed_quantity') * Coalesce(service_price_sq, 0),
+					output_field=DecimalField(max_digits=14, decimal_places=2)
+				)
+			)
+			total_earnings = annotated.aggregate(s=Coalesce(Sum('calc_earnings'), 0))['s'] or 0
+			total_penalties = annotated.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
+			total_net_earnings = total_earnings - total_penalties
+			total_tasks = tasks.count()
+			completed_tasks = tasks.filter(completed_quantity__gt=0).count()
+			workshop_stats = annotated.values('stage__workshop__name').annotate(
+				total_earnings=Coalesce(Sum('calc_earnings'), 0),
+				total_penalties=Coalesce(Sum('penalties'), 0),
+				total_net=Coalesce(Sum('calc_earnings'), 0) - Coalesce(Sum('penalties'), 0),
+				task_count=Count('id')
+			)
+			monthly_stats = (
+				annotated
+				.annotate(year=ExtractYear('created_at'), month=ExtractMonth('created_at'))
+				.values('year', 'month')
+				.annotate(
+					total_earnings=Coalesce(Sum('calc_earnings'), 0),
+					total_penalties=Coalesce(Sum('penalties'), 0),
+					total_net=Coalesce(Sum('calc_earnings'), 0) - Coalesce(Sum('penalties'), 0),
+					task_count=Count('id')
+				)
+				.order_by('year', 'month')
+			)
 		
 		return Response({
 			'employee': {
@@ -81,24 +116,43 @@ def employee_earnings_stats(request, employee_id):
 def workshop_earnings_stats(request, workshop_id):
 	"""Статистика заработка по цеху"""
 	try:
-		from apps.operations_workshops.models import Workshop
+		from apps.operations.workshops.models import Workshop
 		workshop = Workshop.objects.get(id=workshop_id)
 		
-		# Получаем все задачи по цеху
+		# Базовый queryset по цеху
 		tasks = EmployeeTask.objects.filter(stage__workshop=workshop)
+		stored_total = tasks.aggregate(s=Coalesce(Sum('earnings'), 0))['s'] or 0
 		
-		# Общая статистика по цеху
-		total_earnings = tasks.aggregate(total=Sum('earnings'))['total'] or 0
-		total_penalties = tasks.aggregate(total=Sum('penalties'))['total'] or 0
-		total_net_earnings = tasks.aggregate(total=Sum('net_earnings'))['total'] or 0
-		
-		# Статистика по сотрудникам
-		employee_stats = tasks.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
-			total_earnings=Sum('earnings'),
-			total_penalties=Sum('penalties'),
-			total_net=Sum('net_earnings'),
-			task_count=Count('id')
-		)
+		if stored_total and stored_total > 0:
+			total_earnings = stored_total
+			total_penalties = tasks.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
+			total_net_earnings = tasks.aggregate(s=Coalesce(Sum('net_earnings'), 0))['s'] or (total_earnings - total_penalties)
+			employee_stats = tasks.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
+				total_earnings=Coalesce(Sum('earnings'), 0),
+				total_penalties=Coalesce(Sum('penalties'), 0),
+				total_net=Coalesce(Sum('net_earnings'), 0),
+				task_count=Count('id')
+			)
+		else:
+			service_price_sq = Subquery(
+				Service.objects.filter(workshop=OuterRef('stage__workshop'), is_active=True)
+				.values('service_price')[:1]
+			)
+			annotated = tasks.annotate(
+				calc_earnings=ExpressionWrapper(
+					F('completed_quantity') * Coalesce(service_price_sq, 0),
+					output_field=DecimalField(max_digits=14, decimal_places=2)
+				)
+			)
+			total_earnings = annotated.aggregate(s=Coalesce(Sum('calc_earnings'), 0))['s'] or 0
+			total_penalties = annotated.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
+			total_net_earnings = total_earnings - total_penalties
+			employee_stats = annotated.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
+				total_earnings=Coalesce(Sum('calc_earnings'), 0),
+				total_penalties=Coalesce(Sum('penalties'), 0),
+				total_net=Coalesce(Sum('calc_earnings'), 0) - Coalesce(Sum('penalties'), 0),
+				task_count=Count('id')
+			)
 		
 		# Получаем услугу цеха
 		try:
