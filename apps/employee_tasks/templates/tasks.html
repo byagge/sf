@@ -114,7 +114,7 @@
                                         <div class="bg-gray-50 rounded-lg p-2 mb-2">
                                             <div class="font-medium text-gray-900 text-sm mb-1" x-text="(task.order_item && task.order_item.product && task.order_item.product.name) || (task.stage && task.stage.order_item && task.stage.order_item.product && task.stage.order_item.product.name) || 'Товар'"></div>
                                             
-                                            <!-- Tags -->
+                                            <!-- Tags - только размер и цвет -->
                                             <div class="flex flex-wrap gap-1 mb-1">
                                                 <template x-if="(task.order_item && task.order_item.size) || (task.stage && task.stage.order_item && task.stage.order_item.size)">
                                                     <div class="flex items-center space-x-1 bg-blue-100 px-1.5 py-0.5 rounded-full">
@@ -128,31 +128,7 @@
                                                         <span class="text-xs text-purple-700 font-medium" x-text="(task.order_item && task.order_item.color) || (task.stage && task.stage.order_item && task.stage.order_item.color)"></span>
                                                     </div>
                                                 </template>
-                                                <template x-if="(task.order_item && task.order_item.product && task.order_item.product.is_glass) || (task.stage && task.stage.order_item && task.stage.order_item.product && task.stage.order_item.product.is_glass)">
-                                                    <div class="flex items-center space-x-1 bg-cyan-100 px-1.5 py-0.5 rounded-full">
-                                                        <i data-lucide="droplets" class="w-2.5 h-2.5 text-cyan-600"></i>
-                                                        <span class="text-xs text-cyan-700 font-medium" x-text="(task.order_item && task.order_item.glass_type_display) || (task.stage && task.stage.order_item && task.stage.order_item.glass_type_display) || 'Стекло'"></span>
-                                                    </div>
-                                                </template>
                                             </div>
-                                            
-                                            <!-- Paint Info -->
-                                            <template x-if="(task.order_item && (task.order_item.paint_type || task.order_item.paint_color)) || (task.stage && task.stage.order_item && (task.stage.order_item.paint_type || task.stage.order_item.paint_color))">
-                                                <div class="flex flex-wrap gap-1">
-                                                    <template x-if="(task.order_item && task.order_item.paint_type) || (task.stage && task.stage.order_item && task.stage.order_item.paint_type)">
-                                                        <div class="flex items-center space-x-1 bg-orange-100 px-1.5 py-0.5 rounded-full">
-                                                            <i data-lucide="brush" class="w-2.5 h-2.5 text-orange-600"></i>
-                                                            <span class="text-xs text-orange-700 font-medium" x-text="(task.order_item && task.order_item.paint_type) || (task.stage && task.stage.order_item && task.stage.order_item.paint_type)"></span>
-                                                        </div>
-                                                    </template>
-                                                    <template x-if="(task.order_item && task.order_item.paint_color) || (task.stage && task.stage.order_item && task.stage.order_item.paint_color)">
-                                                        <div class="flex items-center space-x-1 bg-red-100 px-1.5 py-0.5 rounded-full">
-                                                            <i data-lucide="droplet" class="w-4 h-4 text-red-600"></i>
-                                                            <span class="text-xs text-red-700 font-medium" x-text="(task.order_item && task.order_item.paint_color) || (task.stage && task.stage.order_item && task.stage.order_item.paint_color)"></span>
-                                                        </div>
-                                                    </template>
-                                                </div>
-                                            </template>
                                         </div>
                                     </div>
                                 </template>
@@ -252,12 +228,10 @@
                     console.log('First task order_item:', this.tasks[0].order_item);
                     if (this.tasks[0].order_item) {
                         console.log('First task product:', this.tasks[0].order_item.product);
-                        console.log('First task order:', this.tasks[0].order_item.order);
                     }
                     // Проверяем альтернативные пути к данным
                     if (this.tasks[0].stage) {
                         console.log('Stage order_item:', this.tasks[0].stage.order_item);
-                        console.log('Stage order:', this.tasks[0].stage.order);
                     }
                 }
                 
