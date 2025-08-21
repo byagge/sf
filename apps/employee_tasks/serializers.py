@@ -11,6 +11,7 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     title = serializers.CharField(read_only=True)
     plan_quantity = serializers.IntegerField(read_only=True)
     started_at = serializers.DateTimeField(read_only=True)
+    stage = serializers.SerializerMethodField()
     
     class Meta:
         model = EmployeeTask
@@ -44,6 +45,13 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
         if obj.stage and obj.stage.order_item:
             from apps.orders.serializers import OrderItemSerializer
             return OrderItemSerializer(obj.stage.order_item).data
+        return None
+    
+    def get_stage(self, obj):
+        """Возвращает полную информацию о stage с order_item и order"""
+        if obj.stage:
+            from apps.orders.serializers import OrderStageSerializer
+            return OrderStageSerializer(obj.stage).data
         return None
     
     def get_workshop_info(self, obj):
