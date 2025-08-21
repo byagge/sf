@@ -57,6 +57,12 @@
         
         <template x-if="!loading && task">
             <div class="space-y-4">
+                <!-- Debug Info (можно убрать после отладки) -->
+                <div class="card bg-gray-100 rounded-lg p-4 text-xs">
+                    <h3 class="font-bold mb-2">Отладочная информация:</h3>
+                    <pre x-text="JSON.stringify(task, null, 2)"></pre>
+                </div>
+                
                 <!-- Task Header -->
                 <div class="card bg-white rounded-lg p-4">
                     <div class="flex items-start justify-between mb-3">
@@ -157,7 +163,7 @@
                                     <span class="text-gray-600">Тип стекла:</span>
                                     <div class="flex items-center space-x-1">
                                         <i data-lucide="droplets" class="w-4 h-4 text-cyan-600"></i>
-                                        <span class="font-medium text-gray-900" x-text="task.stage.order_item.glass_type_display || 'Не указан'"></span>
+                                        <span class="font-medium text-gray-900" x-text="task.stage.order_item.glass_type || 'Не указан'"></span>
                                     </div>
                                 </div>
                             </template>

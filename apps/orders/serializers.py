@@ -46,6 +46,7 @@ class OrderStageSerializer(serializers.ModelSerializer):
     assigned = EmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
     order_name = serializers.CharField(source='order.name', read_only=True)
     order_item = OrderItemSerializer(read_only=True)
+    order = serializers.SerializerMethodField()
     done_count = serializers.IntegerField(read_only=True)
     defective_count = serializers.IntegerField(read_only=True)
     workshop_info = serializers.SerializerMethodField()
@@ -53,11 +54,27 @@ class OrderStageSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderStage
         fields = [
-            'id', 'workshop', 'order_name', 'order_item', 'operation', 'sequence', 
+            'id', 'workshop', 'order_name', 'order_item', 'order', 'operation', 'sequence', 
             'parallel_group', 'plan_quantity', 'completed_quantity', 'done_count', 
             'defective_count', 'deadline', 'status', 'in_progress', 'defective', 
             'completed', 'date', 'comment', 'assigned', 'workshop_info'
         ]
+    
+    def get_order(self, obj):
+        """Возвращает информацию о заказе"""
+        if obj.order:
+            return {
+                'id': obj.order.id,
+                'name': obj.order.name,
+                'status': obj.order.status,
+                'status_display': obj.order.status_display,
+                'client': {
+                    'id': obj.order.client.id,
+                    'name': obj.order.client.name
+                } if obj.order.client else None,
+                'created_at': obj.order.created_at.isoformat() if obj.order.created_at else None
+            }
+        return None
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
