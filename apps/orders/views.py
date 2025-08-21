@@ -201,7 +201,14 @@ class DashboardRevenueChartAPIView(APIView):
         })
 
 class StageViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = OrderStage.objects.select_related('workshop', 'order').all().order_by('deadline', 'sequence')
+    queryset = OrderStage.objects.select_related(
+        'workshop', 
+        'order',
+        'order__client',
+        'order_item',
+        'order_item__product',
+        'order_item__order'
+    ).all().order_by('deadline', 'sequence')
     serializer_class = OrderStageSerializer
     permission_classes = [permissions.IsAuthenticated]
 
