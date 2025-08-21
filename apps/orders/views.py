@@ -15,209 +15,255 @@ from rest_framework.decorators import api_view, permission_classes
 # Create your views here.
 
 class OrderViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Order.objects.select_related('client', 'workshop', 'product').prefetch_related('items__product', 'stages__workshop', 'order_defects__workshop').all().order_by('-created_at')
-    serializer_class = OrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
+	queryset = Order.objects.select_related('client', 'workshop', 'product').prefetch_related('items__product', 'stages__workshop', 'order_defects__workshop').all().order_by('-created_at')
+	serializer_class = OrderSerializer
+	permission_classes = [permissions.IsAuthenticated]
 
 class OrderCreateAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    @method_decorator(csrf_exempt)
-    def post(self, request):
-        try:
-            data = request.data
-            name = data.get('name')
-            client_id = data.get('client_id')
-            items_data = data.get('items_data', [])
-            
-            if not name or not client_id or not items_data:
-                return Response({
-                    'error': 'Необходимо указать название заказа, клиента и товары'
-                }, status=status.HTTP_400_BAD_REQUEST)
-            
-            from apps.clients.models import Client
-            client = get_object_or_404(Client, pk=client_id)
-            
-            # Создаем заказ
-            order = Order.objects.create(
-                name=name,
-                client=client,
-                status='production'
-            )
-            
-            # Создаем позиции заказа
-            for item_data in items_data:
-                product_id = item_data.get('product_id')
-                quantity = item_data.get('quantity', 1)
-                size = item_data.get('size', '')
-                color = item_data.get('color', '')
-                glass_type = item_data.get('glass_type', '')
-                paint_type = item_data.get('paint_type', '')
-                paint_color = item_data.get('paint_color', '')
-                cnc_specs = item_data.get('cnc_specs', '')
-                cutting_specs = item_data.get('cutting_specs', '')
-                packaging_notes = item_data.get('packaging_notes', '')
-                
-                from apps.products.models import Product
-                product = get_object_or_404(Product, pk=product_id)
-                
-                OrderItem.objects.create(
-                    order=order,
-                    product=product,
-                    quantity=quantity,
-                    size=size,
-                    color=color,
-                    glass_type=glass_type,
-                    paint_type=paint_type,
-                    paint_color=paint_color,
-                    cnc_specs=cnc_specs,
-                    cutting_specs=cutting_specs,
-                    packaging_notes=packaging_notes
-                )
-            
-            # Автоматически создаем этапы заказа
-            from .models import create_order_stages
-            create_order_stages(order)
-            
-            # Возвращаем созданный заказ с полной информацией
-            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
-            
-        except Exception as e:
-            print('ORDER CREATE ERROR:', str(e))
-            return Response({
-                'error': f'Ошибка создания заказа: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+	permission_classes = [permissions.IsAuthenticated]
+	@method_decorator(csrf_exempt)
+	def post(self, request):
+		try:
+			data = request.data
+			name = data.get('name')
+			client_id = data.get('client_id')
+			items_data = data.get('items_data', [])
+			
+			if not name or not client_id or not items_data:
+				return Response({
+					'error': 'Необходимо указать название заказа, клиента и товары'
+				}, status=status.HTTP_400_BAD_REQUEST)
+			
+			from apps.clients.models import Client
+			client = get_object_or_404(Client, pk=client_id)
+			
+			# Создаем заказ
+			order = Order.objects.create(
+				name=name,
+				client=client,
+				status='production'
+			)
+			
+			# Создаем позиции заказа
+			for item_data in items_data:
+				product_id = item_data.get('product_id')
+				quantity = item_data.get('quantity', 1)
+				size = item_data.get('size', '')
+				color = item_data.get('color', '')
+				glass_type = item_data.get('glass_type', '')
+				paint_type = item_data.get('paint_type', '')
+				paint_color = item_data.get('paint_color', '')
+				cnc_specs = item_data.get('cnc_specs', '')
+				cutting_specs = item_data.get('cutting_specs', '')
+				packaging_notes = item_data.get('packaging_notes', '')
+				
+				from apps.products.models import Product
+				product = get_object_or_404(Product, pk=product_id)
+				
+				OrderItem.objects.create(
+					order=order,
+					product=product,
+					quantity=quantity,
+					size=size,
+					color=color,
+					glass_type=glass_type,
+					paint_type=paint_type,
+					paint_color=paint_color,
+					cnc_specs=cnc_specs,
+					cutting_specs=cutting_specs,
+					packaging_notes=packaging_notes
+				)
+			
+			# Автоматически создаем этапы заказа
+			from .models import create_order_stages
+			create_order_stages(order)
+			
+			# Возвращаем созданный заказ с полной информацией
+			return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+			
+		except Exception as e:
+			print('ORDER CREATE ERROR:', str(e))
+			return Response({
+				'error': f'Ошибка создания заказа: {str(e)}'
+			}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class OrderPageView(View):
-    def get(self, request):
-        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
-        is_mobile = any(m in user_agent for m in ['android', 'iphone', 'ipad', 'mobile'])
-        template = 'orders_mobile.html' if is_mobile else 'orders.html'
-        show_create = request.GET.get('create') == 'True' or request.GET.get('create') == 'true' or request.GET.get('create') == '1'
-        return render(request, template, {'show_create': show_create})
+	def get(self, request):
+		user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+		is_mobile = any(m in user_agent for m in ['android', 'iphone', 'ipad', 'mobile'])
+		template = 'orders_mobile.html' if is_mobile else 'orders.html'
+		show_create = request.GET.get('create') == 'True' or request.GET.get('create') == 'true' or request.GET.get('create') == '1'
+		return render(request, template, {'show_create': show_create})
 
 class OrderStageConfirmAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    def patch(self, request, stage_id):
-        stage = get_object_or_404(OrderStage, pk=stage_id)
-        serializer = OrderStageConfirmSerializer(data=request.data)
-        if serializer.is_valid():
-            completed_qty = serializer.validated_data['completed_quantity']
-            stage.confirm_stage(completed_qty)
-            return Response({'status': 'ok', 'stage': stage.id, 'completed_quantity': completed_qty})
-        return Response(serializer.errors, status=400)
+	permission_classes = [permissions.IsAuthenticated]
+	def patch(self, request, stage_id):
+		stage = get_object_or_404(OrderStage, pk=stage_id)
+		serializer = OrderStageConfirmSerializer(data=request.data)
+		if serializer.is_valid():
+			completed_qty = serializer.validated_data['completed_quantity']
+			stage.confirm_stage(completed_qty)
+			return Response({'status': 'ok', 'stage': stage.id, 'completed_quantity': completed_qty})
+		return Response(serializer.errors, status=400)
 
 class OrderStageTransferAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    def post(self, request, stage_id):
-        stage = get_object_or_404(OrderStage, pk=stage_id)
-        # Перевести этап дальше: считаем, что всё выполнено
-        stage.confirm_stage(stage.plan_quantity)
-        return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred'})
+	permission_classes = [permissions.IsAuthenticated]
+	def post(self, request, stage_id):
+		stage = get_object_or_404(OrderStage, pk=stage_id)
+		# Поддержка явного выбора цеха и количества, без жёсткого workflow
+		target_workshop_id = request.data.get('target_workshop_id')
+		completed_qty = request.data.get('completed_quantity')
+		try:
+			completed_qty = int(completed_qty) if completed_qty is not None else stage.plan_quantity
+		except (TypeError, ValueError):
+			completed_qty = stage.plan_quantity
+		if completed_qty < 0:
+			completed_qty = 0
+		if completed_qty > stage.plan_quantity:
+			completed_qty = stage.plan_quantity
+		
+		if target_workshop_id:
+			# Завершаем текущий этап на указанное количество (частично или полностью)
+			stage.confirm_stage(completed_qty)
+			# Явно создаём/активируем этап в выбранном цехе
+			from apps.operations.workshops.models import Workshop
+			workshop = get_object_or_404(Workshop, pk=target_workshop_id)
+			# Ищем следующий этап по заказу и позиции в выбранном цехе (без учёта sequence)
+			next_stage = OrderStage.objects.filter(
+				order=stage.order,
+				order_item=stage.order_item,
+				workshop=workshop,
+				stage_type='workshop',
+				parallel_group=stage.parallel_group,
+			).order_by('sequence').first()
+			if next_stage:
+				next_stage.plan_quantity += completed_qty
+				next_stage.status = 'in_progress'
+				next_stage.save()
+			else:
+				# Создаём новый этап в выбранном цехе
+				OrderStage.objects.create(
+					order=stage.order,
+					order_item=stage.order_item,
+					sequence=stage.sequence + 1,
+					stage_type='workshop',
+					workshop=workshop,
+					operation=f"Передано из: {stage.workshop.name if stage.workshop else ''}",
+					plan_quantity=completed_qty,
+					deadline=timezone.now().date(),
+					status='in_progress',
+					parallel_group=stage.parallel_group,
+				)
+			return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': int(target_workshop_id), 'completed_quantity': completed_qty})
+		
+		# Fallback: прежнее поведение — перевод по workflow всего плана
+		stage.confirm_stage(stage.plan_quantity)
+		return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred'})
 
 class OrderStagePostponeAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    def post(self, request, stage_id):
-        stage = get_object_or_404(OrderStage, pk=stage_id)
-        # Переносим дедлайн на следующий рабочий день (просто +1 день)
-        if stage.deadline:
-            from datetime import timedelta
-            stage.deadline = stage.deadline + timedelta(days=1)
-            stage.save()
-            return Response({'status': 'ok', 'stage': stage.id, 'new_deadline': stage.deadline, 'action': 'postponed'})
-        return Response({'status': 'error', 'error': 'No deadline set'}, status=400)
+	permission_classes = [permissions.IsAuthenticated]
+	def post(self, request, stage_id):
+		stage = get_object_or_404(OrderStage, pk=stage_id)
+		# Переносим дедлайн на следующий рабочий день (просто +1 день)
+		if stage.deadline:
+			from datetime import timedelta
+			stage.deadline = stage.deadline + timedelta(days=1)
+			stage.save()
+			return Response({'status': 'ok', 'stage': stage.id, 'new_deadline': stage.deadline, 'action': 'postponed'})
+		return Response({'status': 'error', 'error': 'No deadline set'}, status=400)
 
 class OrderStageNoTransferAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    def post(self, request, stage_id):
-        stage = get_object_or_404(OrderStage, pk=stage_id)
-        # Фиксируем этап как "не переводить" (например, статус waiting)
-        stage.status = 'waiting'
-        stage.save()
-        return Response({'status': 'ok', 'stage': stage.id, 'action': 'no_transfer'})
+	permission_classes = [permissions.IsAuthenticated]
+	def post(self, request, stage_id):
+		stage = get_object_or_404(OrderStage, pk=stage_id)
+		# Фиксируем этап как "не переводить" (например, статус waiting)
+		stage.status = 'waiting'
+		stage.save()
+		return Response({'status': 'ok', 'stage': stage.id, 'action': 'no_transfer'})
 
 class DashboardOverviewAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    def get(self, request):
-        # Доход — сумма (цена продукта * количество) по всем позициям заявок
-        total_income = OrderItem.objects.aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
-        # Продажи — сумма quantity по всем позициям
-        product_sales = OrderItem.objects.aggregate(total=Sum('quantity'))['total'] or 0
-        # Брак — сумма quantity по всем OrderDefect + сумма defective_quantity по всем EmployeeTask
-        from apps.employee_tasks.models import EmployeeTask
-        order_defects_total = OrderDefect.objects.aggregate(total=Sum('quantity'))['total'] or 0
-        employee_tasks_defects_total = EmployeeTask.objects.aggregate(total=Sum('defective_quantity'))['total'] or 0
-        defective_products = order_defects_total + employee_tasks_defects_total
-        # Сотрудники — всего
-        from apps.employees.models import User
-        total_employees = User.objects.count()
-        return Response({
-            'total_income': total_income,
-            'product_sales': product_sales,
-            'defective_products': defective_products,
-            'total_employees': total_employees,
-            'user_name': request.user.get_full_name() or request.user.username,
-        })
+	permission_classes = [permissions.IsAuthenticated]
+	def get(self, request):
+		# Доход — сумма (цена продукта * количество) по всем позициям заявок
+		total_income = OrderItem.objects.aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
+		# Продажи — сумма quantity по всем позициям
+		product_sales = OrderItem.objects.aggregate(total=Sum('quantity'))['total'] or 0
+		# Брак — сумма quantity по всем OrderDefect + сумма defective_quantity по всем EmployeeTask
+		from apps.employee_tasks.models import EmployeeTask
+		order_defects_total = OrderDefect.objects.aggregate(total=Sum('quantity'))['total'] or 0
+		employee_tasks_defects_total = EmployeeTask.objects.aggregate(total=Sum('defective_quantity'))['total'] or 0
+		defective_products = order_defects_total + employee_tasks_defects_total
+		# Сотрудники — всего
+		from apps.employees.models import User
+		total_employees = User.objects.count()
+		return Response({
+			'total_income': total_income,
+			'product_sales': product_sales,
+			'defective_products': defective_products,
+			'total_employees': total_employees,
+			'user_name': request.user.get_full_name() or request.user.username,
+		})
 
 class DashboardRevenueChartAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-    def get(self, request):
-        period = request.GET.get('period', 'week')
-        now = timezone.now()
-        if period == 'month':
-            days = 30
-        elif period == 'year':
-            days = 365
-        else:
-            days = 7
-        labels = []
-        revenue = []
-        defects = []
-        orders_count = []
-        sales = []
-        for i in range(days):
-            day = now - timezone.timedelta(days=days - i - 1)
-            day_orders = Order.objects.filter(created_at__date=day.date())
-            # Доход за день — по позициям, относящимся к заказам этого дня
-            day_income = OrderItem.objects.filter(order__in=day_orders).aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
-            # Брак: сумма из OrderDefect + сумма defective_quantity из EmployeeTask за этот день
-            from apps.employee_tasks.models import EmployeeTask
-            day_order_defects = OrderDefect.objects.filter(date__date=day.date()).aggregate(total=Sum('quantity'))['total'] or 0
-            day_employee_defects = EmployeeTask.objects.filter(created_at__date=day.date()).aggregate(total=Sum('defective_quantity'))['total'] or 0
-            day_defects = day_order_defects + day_employee_defects
-            day_orders_num = day_orders.count()
-            # Продажи — сумма quantities по позициям заказов этого дня
-            day_sales = OrderItem.objects.filter(order__in=day_orders).aggregate(total=Sum('quantity'))['total'] or 0
-            labels.append(day.strftime('%d.%m'))
-            revenue.append(day_income)
-            defects.append(day_defects)
-            orders_count.append(day_orders_num)
-            sales.append(day_sales)
-        return Response({
-            'labels': labels,
-            'revenue': revenue,
-            'defects': defects,
-            'orders_count': orders_count,
-            'sales': sales
-        })
+	permission_classes = [permissions.IsAuthenticated]
+	def get(self, request):
+		period = request.GET.get('period', 'week')
+		now = timezone.now()
+		if period == 'month':
+			days = 30
+		elif period == 'year':
+			days = 365
+		else:
+			days = 7
+		labels = []
+		revenue = []
+		defects = []
+		orders_count = []
+		sales = []
+		for i in range(days):
+			day = now - timezone.timedelta(days=days - i - 1)
+			day_orders = Order.objects.filter(created_at__date=day.date())
+			# Доход за день — по позициям, относящимся к заказам этого дня
+			day_income = OrderItem.objects.filter(order__in=day_orders).aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
+			# Брак: сумма из OrderDefect + сумма defective_quantity из EmployeeTask за этот день
+			from apps.employee_tasks.models import EmployeeTask
+			day_order_defects = OrderDefect.objects.filter(date__date=day.date()).aggregate(total=Sum('quantity'))['total'] or 0
+			day_employee_defects = EmployeeTask.objects.filter(created_at__date=day.date()).aggregate(total=Sum('defective_quantity'))['total'] or 0
+			day_defects = day_order_defects + day_employee_defects
+			day_orders_num = day_orders.count()
+			# Продажи — сумма quantities по позициям заказов этого дня
+			day_sales = OrderItem.objects.filter(order__in=day_orders).aggregate(total=Sum('quantity'))['total'] or 0
+			labels.append(day.strftime('%d.%m'))
+			revenue.append(day_income)
+			defects.append(day_defects)
+			orders_count.append(day_orders_num)
+			sales.append(day_sales)
+		return Response({
+			'labels': labels,
+			'revenue': revenue,
+			'defects': defects,
+			'orders_count': orders_count,
+			'sales': sales
+		})
 
 class StageViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = OrderStage.objects.select_related(
-        'workshop', 
-        'order',
-        'order__client',
-        'order_item',
-        'order_item__product',
-        'order_item__order'
-    ).all().order_by('deadline', 'sequence')
-    serializer_class = OrderStageSerializer
-    permission_classes = [permissions.IsAuthenticated]
+	queryset = OrderStage.objects.select_related(
+		'workshop', 
+		'order',
+		'order__client',
+		'order_item',
+		'order_item__product',
+		'order_item__order'
+	).all().order_by('deadline', 'sequence')
+	serializer_class = OrderStageSerializer
+	permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        qs = super().get_queryset()
-        status_param = self.request.query_params.get('status')
-        if status_param:
-            qs = qs.filter(status=status_param)
-        workshop_param = self.request.query_params.get('workshop')
-        if workshop_param:
-            qs = qs.filter(workshop_id=workshop_param)
-        return qs
+	def get_queryset(self):
+		qs = super().get_queryset()
+		status_param = self.request.query_params.get('status')
+		if status_param:
+			qs = qs.filter(status=status_param)
+		workshop_param = self.request.query_params.get('workshop')
+		if workshop_param:
+			qs = qs.filter(workshop_id=workshop_param)
+		return qs

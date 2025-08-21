@@ -461,12 +461,46 @@
                 </div>
                 <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
                     <button type="button" @click="cancelTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base" :disabled="loadingAction === 'transfer'">Нет, отменить</button>
-                    <button type="button" @click="confirmTransferFinal()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 text-white font-semibold text-base flex items-center justify-center" :disabled="loadingAction === 'transfer'">
-                        <template x-if="loadingAction === 'transfer'">
-                            <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
-                        </template>
-                        <span x-text="loadingAction === 'transfer' ? 'Выполняется...' : 'Да, уверен'"></span>
+                    <button type="button" @click="openTransferDestination()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 bg-blue-600 text-white font-semibold text-base flex items-center justify-center" :disabled="loadingAction === 'transfer'">
+                        <span>Да, я уверен</span>
                     </button>
+                </div>
+            </div>
+        </div>
+    </template>
+    <!-- Выбор целевого цеха для перевода -->
+    <template x-if="showTransferDestinationModal">
+        <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showTransferDestinationModal = false">
+            <div class="modal-content bg-white rounded-t-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">В какой цех переводим?</h2>
+                    <button @click="showTransferDestinationModal = false" class="text-gray-400 hover:text-gray-600">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Цех <span class="text-red-500">*</span></label>
+                        <select x-model.number="transferTargetWorkshopId" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" disabled>Выберите цех</option>
+                            <template x-for="ws in allWorkshops" :key="ws.id">
+                                <option :value="ws.id" x-text="ws.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Сколько передаём</label>
+                        <div class="flex items-center space-x-2">
+                            <button type="button" @click="transferQuantity = Math.max(0, transferQuantity - 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">-</button>
+                            <input type="number" x-model.number="transferQuantity" class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold" :max="transferMaxQuantity" min="0" @input="transferQuantity = Math.max(0, Math.min(transferQuantity, transferMaxQuantity))">
+                            <button type="button" @click="transferQuantity = Math.min(transferMaxQuantity, transferQuantity + 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">+</button>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">Доступно к передаче: <span x-text="transferMaxQuantity"></span></div>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" @click="showTransferDestinationModal = false" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
+                    <button type="button" @click="confirmTransferFinal()" class="px-6 py-3 bg-green-600 text-white rounded-lg" :disabled="!transferTargetWorkshopId || transferQuantity < 1">Перевести</button>
                 </div>
             </div>
         </div>
@@ -554,7 +588,7 @@
                 </div>
                 <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
                     <button type="button" @click="cancelNoTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base">Отмена</button>
-                    <button type="button" @click="confirmNoTransferFirst()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white font-semibold text-base">Не переводить</button>
+                    <button type="button" @click="confirmNoTransferFirst" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white font-semibold text-base">Не переводить</button>
                 </div>
             </div>
         </div>
@@ -632,11 +666,20 @@
             editAssignForm: { id: null, stage_id: null, employee_id: '', employee_name: '', quantity: 1 },
             showTransferModal: false,
             showTransferConfirmModal: false,
+            showTransferDestinationModal: false,
+            transferStageId: null,
+            transferTargetWorkshopId: null,
+            transferQuantity: 0,
+            get transferMaxQuantity() {
+                const s = this.stages.find(x => x.id === this.transferStageId);
+                if (!s) return 0;
+                return Math.max(0, s.done_count);
+            },
+            allWorkshops: [],
             showPostponeModal: false,
             showPostponeConfirmModal: false,
             showNoTransferModal: false,
             showNoTransferConfirmModal: false,
-            transferStageId: null,
             postponeStageId: null,
             noTransferStageId: null,
             toast: { show: false, message: '', type: 'success', timeout: null },
@@ -666,12 +709,16 @@
                 this.loading = true;
                 const resp = await fetch('/api/workshops/api/my-workshops/');
                 this.workshops = await resp.json();
-                console.log('workshops:', this.workshops); // debug
                 if (this.workshops.length > 0) {
-                    this.selectedWorkshopIdx = 0; // явно установить индекс
+                    this.selectedWorkshopIdx = 0;
                     await this.loadStages();
                 }
                 this.loading = false;
+            },
+            async loadAllWorkshops() {
+                const resp = await fetch('/api/workshops/api/all/');
+                const data = await resp.json();
+                this.allWorkshops = Array.isArray(data) ? data : (data.results || []);
             },
             async loadStages() {
                 this.loading = true;
@@ -680,9 +727,8 @@
                 const resp = await fetch(`/orders/api/stages/?workshop=${workshop.id}&status=in_progress`);
                 const data = await resp.json();
                 this.stages = Array.isArray(data) ? data : (data.results || []);
-                console.log('stages:', this.stages); // debug
                 this.loading = false;
-                lucide.createIcons(); // обновить иконки после загрузки этапов
+                lucide.createIcons();
                 // Автоскролл к этапу после действия
                 this.$nextTick(() => {
                     if (this.lastActionStageId) {
@@ -713,36 +759,30 @@
                 return Math.max(0, stage.plan_quantity - assigned);
             },
             get maxEditableQuantity() {
-                // Найти stage по editAssignForm.stage_id
                 const stage = this.stages.find(s => s.id === this.editAssignForm.stage_id);
                 if (!stage) return 1;
-                // Сумма назначений другим сотрудникам
                 const otherAssigned = (stage.assigned || []).filter(a => a.id !== this.editAssignForm.id).reduce((sum, a) => sum + a.quantity, 0);
                 return Math.max(1, stage.plan_quantity - otherAssigned);
             },
             get nowHour() {
-                // Получить текущий час (локальное время)
                 return new Date().getHours();
             },
             canAssign(stage) {
-                // Кнопка "Распределить" доступна, если этап ещё не выполнен
                 return stage.done_count < stage.plan_quantity;
             },
             canTransfer(stage) {
-                // Можно ли показывать кнопку "Перевести дальше"
                 if (stage.done_count >= stage.plan_quantity) return true;
                 if (this.nowHour >= 17) return true;
                 return false;
             },
             canPostpone(stage) {
-                // Можно ли показывать кнопку "Оставить"
                 return this.nowHour >= 17 && stage.done_count < stage.plan_quantity;
             },
             async openAssignModal(stage) {
                 this.assignForm = { stage_id: stage.id, employee_id: '', quantity: 1 };
                 await this.loadEmployees();
                 this.showAssignModal = true;
-                lucide.createIcons(); // обновить иконки после открытия модалки
+                lucide.createIcons();
             },
             async submitAssign() {
                 const payload = { stage: this.assignForm.stage_id, employee: this.assignForm.employee_id, quantity: this.assignForm.quantity };
@@ -754,13 +794,13 @@
                 if (resp.ok) {
                     await this.loadStages();
                     this.showAssignModal = false;
-                    lucide.createIcons(); // обновить иконки после закрытия модалки
+                    lucide.createIcons();
                 }
             },
             openEditAssignModal(stage, assign) {
                 this.editAssignForm = { id: assign.id, stage_id: stage.id, employee_id: assign.employee_id, employee_name: assign.employee_name, quantity: assign.quantity };
                 this.showEditAssignModal = true;
-                lucide.createIcons(); // обновить иконки после открытия модалки
+                lucide.createIcons();
             },
             async submitEditAssign() {
                 const payload = { quantity: this.editAssignForm.quantity };
@@ -772,7 +812,7 @@
                 if (resp.ok) {
                     await this.loadStages();
                     this.showEditAssignModal = false;
-                    lucide.createIcons(); // обновить иконки после закрытия модалки
+                    lucide.createIcons();
                 }
             },
             async deleteAssign(stage, assign) {
@@ -783,30 +823,41 @@
                 });
                 if (resp.ok) {
                     await this.loadStages();
-                    lucide.createIcons(); // обновить иконки после удаления
+                    lucide.createIcons();
                 }
             },
             async tabChanged(idx) {
                 this.selectedWorkshopIdx = idx;
                 await this.loadStages();
-                lucide.createIcons(); // обновить иконки после смены таба
+                lucide.createIcons();
             },
             openTransferModal(stage) {
                 this.transferStageId = stage.id;
+                this.transferQuantity = Math.max(0, stage.done_count);
                 this.showTransferModal = true;
             },
             confirmTransferFirst() {
                 this.showTransferModal = false;
                 this.showTransferConfirmModal = true;
             },
-            async confirmTransferFinal() {
+            async openTransferDestination() {
                 this.showTransferConfirmModal = false;
+                await this.loadAllWorkshops();
+                const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
+                this.allWorkshops = this.allWorkshops.filter(w => !currentWorkshop || w.id !== currentWorkshop.id);
+                this.transferTargetWorkshopId = this.allWorkshops.length ? this.allWorkshops[0].id : null;
+                this.showTransferDestinationModal = true;
+                lucide.createIcons();
+            },
+            async confirmTransferFinal() {
+                this.showTransferDestinationModal = false;
                 this.loadingAction = 'transfer';
                 this.lastActionStageId = this.transferStageId;
                 try {
                     const resp = await fetch(`/orders/api/stages/${this.transferStageId}/transfer/`, {
                         method: 'POST',
-                        headers: { 'X-CSRFToken': this.getCsrfToken() }
+                        headers: { 'X-CSRFToken': this.getCsrfToken(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ target_workshop_id: this.transferTargetWorkshopId, completed_quantity: this.transferQuantity })
                     });
                     if (!resp.ok) {
                         const data = await resp.json();

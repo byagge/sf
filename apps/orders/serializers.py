@@ -31,6 +31,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductFullSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True, source='product')
     glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
+    order = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -38,8 +39,23 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'id', 'product', 'product_id', 'quantity', 'size', 'color',
             'glass_type', 'glass_type_display', 'paint_type', 'paint_color',
             'cnc_specs', 'cutting_specs', 'packaging_notes',
-            'glass_cutting_completed', 'glass_cutting_quantity', 'packaging_received_quantity'
+            'glass_cutting_completed', 'glass_cutting_quantity', 'packaging_received_quantity',
+            'order'
         ]
+    
+    def get_order(self, obj):
+        # Минимальная информация о заказе для отображения в шаблонах
+        if not obj.order:
+            return None
+        client = obj.order.client
+        return {
+            'id': obj.order.id,
+            'name': obj.order.name,
+            'created_at': obj.order.created_at,
+            'status_display': obj.order.status_display,
+            'comment': obj.order.comment,
+            'client': {'id': client.id, 'name': client.name} if client else None,
+        }
 
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
