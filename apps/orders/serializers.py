@@ -68,11 +68,12 @@ class OrderStageSerializer(serializers.ModelSerializer):
     done_count = serializers.IntegerField(read_only=True)
     defective_count = serializers.IntegerField(read_only=True)
     workshop_info = serializers.SerializerMethodField()
+    order = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = OrderStage
         fields = [
-            'id', 'workshop', 'order_name', 'order_item', 'operation', 'sequence', 
+            'id', 'workshop', 'order_name', 'order_item', 'order', 'operation', 'sequence', 
             'parallel_group', 'plan_quantity', 'completed_quantity', 'done_count', 
             'defective_count', 'deadline', 'status', 'in_progress', 'defective', 
             'completed', 'date', 'comment', 'assigned', 'workshop_info'
@@ -81,6 +82,23 @@ class OrderStageSerializer(serializers.ModelSerializer):
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
         return obj.get_workshop_info()
+
+    def get_order(self, obj):
+        o = getattr(obj, 'order', None)
+        if not o:
+            return None
+        return {
+            'id': o.id,
+            'name': getattr(o, 'name', None),
+            'status': getattr(o, 'status', None),
+            'status_display': o.get_status_display() if hasattr(o, 'get_status_display') else getattr(o, 'status', None),
+            'created_at': o.created_at.isoformat() if getattr(o, 'created_at', None) else None,
+            'comment': getattr(o, 'comment', ''),
+            'client': ({
+                'id': getattr(o.client, 'id', None),
+                'name': getattr(o.client, 'name', None)
+            } if getattr(o, 'client', None) else None)
+        }
 
 class OrderDefectSerializer(serializers.ModelSerializer):
     workshop = WorkshopFullSerializer(read_only=True)

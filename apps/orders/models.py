@@ -212,7 +212,7 @@ class OrderStage(models.Model):
         
         return True
 
-    def confirm_stage(self, completed_qty):
+    def confirm_stage(self, completed_qty, target_workshop_id=None):
         """
         Мастер подтверждает выполнение этапа. Если выполнено не всё — остаток остаётся, выполненное уходит дальше.
         """
@@ -238,7 +238,7 @@ class OrderStage(models.Model):
             if self.is_packaging_stage():
                 self._create_finished_good(completed_qty)
             
-            self._activate_next_stage(self.plan_quantity)
+            self._activate_next_stage(self.plan_quantity, target_workshop_id=target_workshop_id)
         elif completed_qty > 0:
             # Часть выполнено, часть — остаток
             self.completed_quantity = completed_qty
@@ -256,7 +256,7 @@ class OrderStage(models.Model):
             if self.is_packaging_stage():
                 self._create_finished_good(completed_qty)
             
-            self._activate_next_stage(completed_qty)
+            self._activate_next_stage(completed_qty, target_workshop_id=target_workshop_id)
             # Создаём новый этап-остаток в этом же цехе
             OrderStage.objects.create(
                 order=self.order,
@@ -300,10 +300,11 @@ class OrderStage(models.Model):
         # Обновляем количество полученное в упаковке
         self.order_item.record_packaging_receipt(quantity)
 
-    def _activate_next_stage(self, qty):
+    def _activate_next_stage(self, qty, target_workshop_id=None):
         """
         Активирует следующий этап, если он есть, и передаёт туда qty.
         Если следующего этапа нет — создаёт его по workflow.
+        Если указан target_workshop_id — перевод выполняется именно в выбранный цех.
         """
         from apps.orders.models import OrderStage
         
@@ -314,22 +315,28 @@ class OrderStage(models.Model):
         # Ищем следующий этап в том же потоке
         next_seq = self.sequence + 1
         
+        # Подготовим фильтр для поиска существующего следующего этапа
+        filter_kwargs = {
+            'order': self.order,
+            'order_item': current_order_item,
+            'sequence': next_seq,
+        }
         if current_parallel_group is not None:
-            # Для параллельных потоков ищем следующий этап в той же группе
-            next_stage = OrderStage.objects.filter(
-                order=self.order,
-                order_item=current_order_item,
-                parallel_group=current_parallel_group,
-                sequence=next_seq
-            ).first()
+            filter_kwargs['parallel_group'] = current_parallel_group
         else:
-            # Для основного потока ищем следующий этап
-            next_stage = OrderStage.objects.filter(
-                order=self.order,
-                order_item=current_order_item,
-                parallel_group__isnull=True,
-                sequence=next_seq
-            ).first()
+            filter_kwargs['parallel_group__isnull'] = True
+        
+        # Если указан целевой цех — учитываем его при поиске
+        target_workshop = None
+        if target_workshop_id is not None:
+            from apps.operations.workshops.models import Workshop
+            try:
+                target_workshop = Workshop.objects.get(pk=target_workshop_id)
+                filter_kwargs['workshop'] = target_workshop
+            except Workshop.DoesNotExist:
+                target_workshop = None  # игнорируем, упадём на стандартную логику ниже
+        
+        next_stage = OrderStage.objects.filter(**filter_kwargs).first()
         
         if next_stage:
             # Активируем существующий этап
@@ -348,14 +355,14 @@ class OrderStage(models.Model):
             if next_seq - 1 < len(workflow_steps):
                 step = workflow_steps[next_seq - 1]
                 from apps.operations.workshops.models import Workshop
-                workshop = Workshop.objects.get(pk=step["workshop"])
+                workshop_for_next = target_workshop or Workshop.objects.get(pk=step["workshop"])
                 
                 OrderStage.objects.create(
                     order=self.order,
                     order_item=current_order_item,
                     sequence=next_seq,
                     stage_type='workshop',
-                    workshop=workshop,
+                    workshop=workshop_for_next,
                     operation=step["operation"],
                     plan_quantity=qty,
                     deadline=timezone.now().replace(hour=18, minute=0, second=0, microsecond=0).date(),
