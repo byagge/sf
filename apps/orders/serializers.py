@@ -3,7 +3,46 @@ from .models import Order, OrderStage, OrderDefect, OrderItem, create_order_stag
 from apps.clients.models import Client
 from apps.products.models import Product
 from apps.operations.workshops.models import Workshop
-from apps.employee_tasks.serializers import EmployeeTaskSerializer
+
+class SimpleEmployeeTaskSerializer(serializers.Serializer):
+    """Упрощенный сериализатор для EmployeeTask без циклических ссылок"""
+    id = serializers.IntegerField()
+    employee = serializers.IntegerField()
+    quantity = serializers.IntegerField()
+    completed_quantity = serializers.IntegerField()
+    defective_quantity = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+    completed_at = serializers.DateTimeField(allow_null=True)
+    earnings = serializers.DecimalField(max_digits=10, decimal_places=2)
+    penalties = serializers.DecimalField(max_digits=10, decimal_places=2)
+    net_earnings = serializers.DecimalField(max_digits=10, decimal_places=2)
+    stage_name = serializers.SerializerMethodField()
+    is_completed = serializers.SerializerMethodField()
+    title = serializers.SerializerMethodField()
+    plan_quantity = serializers.SerializerMethodField()
+    started_at = serializers.SerializerMethodField()
+    
+    def get_stage_name(self, obj):
+        """Возвращает название этапа"""
+        return obj.stage.operation if obj.stage else ''
+    
+    def get_is_completed(self, obj):
+        """Проверяет, выполнена ли задача полностью"""
+        return obj.completed_quantity >= obj.quantity
+    
+    def get_title(self, obj):
+        """Возвращает название задачи на основе этапа"""
+        if obj.stage:
+            return f"{obj.stage.operation} - {obj.stage.order.name if obj.stage.order else 'Заказ'}"
+        return f"Задача #{obj.id}"
+    
+    def get_plan_quantity(self, obj):
+        """Возвращает план задачи"""
+        return obj.quantity
+    
+    def get_started_at(self, obj):
+        """Возвращает дату начала задачи"""
+        return obj.created_at
 
 class ClientFullSerializer(serializers.ModelSerializer):
     class Meta:
@@ -43,7 +82,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
-    assigned = EmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
+    assigned = SimpleEmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
     order_name = serializers.CharField(source='order.name', read_only=True)
     order_item = OrderItemSerializer(read_only=True)
     order = serializers.SerializerMethodField()
