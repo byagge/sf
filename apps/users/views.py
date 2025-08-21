@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.views import View
 from django.utils.decorators import method_decorator
@@ -102,6 +102,29 @@ class LoginView(View):
         }
         
         return role_redirects.get(role, '/')
+
+class LogoutView(View):
+    """
+    Представление для выхода пользователя из системы
+    """
+    
+    def get(self, request):
+        """
+        Обрабатывает GET запрос для выхода пользователя
+        """
+        logout(request)
+        messages.success(request, 'Вы успешно вышли из системы.')
+        return redirect('login')
+    
+    def post(self, request):
+        """
+        Обрабатывает POST запрос для выхода пользователя
+        """
+        logout(request)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': 'Вы успешно вышли из системы.'})
+        messages.success(request, 'Вы успешно вышли из системы.')
+        return redirect('login')
 
 class ProfileView(View):
     template_name = 'profile.html'
