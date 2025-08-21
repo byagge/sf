@@ -3,46 +3,7 @@ from .models import Order, OrderStage, OrderDefect, OrderItem, create_order_stag
 from apps.clients.models import Client
 from apps.products.models import Product
 from apps.operations.workshops.models import Workshop
-
-class SimpleEmployeeTaskSerializer(serializers.Serializer):
-    """Упрощенный сериализатор для EmployeeTask без циклических ссылок"""
-    id = serializers.IntegerField()
-    employee = serializers.IntegerField()
-    quantity = serializers.IntegerField()
-    completed_quantity = serializers.IntegerField()
-    defective_quantity = serializers.IntegerField()
-    created_at = serializers.DateTimeField()
-    completed_at = serializers.DateTimeField(allow_null=True)
-    earnings = serializers.DecimalField(max_digits=10, decimal_places=2)
-    penalties = serializers.DecimalField(max_digits=10, decimal_places=2)
-    net_earnings = serializers.DecimalField(max_digits=10, decimal_places=2)
-    stage_name = serializers.SerializerMethodField()
-    is_completed = serializers.SerializerMethodField()
-    title = serializers.SerializerMethodField()
-    plan_quantity = serializers.SerializerMethodField()
-    started_at = serializers.SerializerMethodField()
-    
-    def get_stage_name(self, obj):
-        """Возвращает название этапа"""
-        return obj.stage.operation if obj.stage else ''
-    
-    def get_is_completed(self, obj):
-        """Проверяет, выполнена ли задача полностью"""
-        return obj.completed_quantity >= obj.quantity
-    
-    def get_title(self, obj):
-        """Возвращает название задачи на основе этапа"""
-        if obj.stage:
-            return f"{obj.stage.operation} - {obj.stage.order.name if obj.stage.order else 'Заказ'}"
-        return f"Задача #{obj.id}"
-    
-    def get_plan_quantity(self, obj):
-        """Возвращает план задачи"""
-        return obj.quantity
-    
-    def get_started_at(self, obj):
-        """Возвращает дату начала задачи"""
-        return obj.created_at
+from apps.employee_tasks.serializers import EmployeeTaskSerializer
 
 class ClientFullSerializer(serializers.ModelSerializer):
     class Meta:
@@ -82,10 +43,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
-    assigned = SimpleEmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
+    assigned = EmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
     order_name = serializers.CharField(source='order.name', read_only=True)
     order_item = OrderItemSerializer(read_only=True)
-    order = serializers.SerializerMethodField()
     done_count = serializers.IntegerField(read_only=True)
     defective_count = serializers.IntegerField(read_only=True)
     workshop_info = serializers.SerializerMethodField()
@@ -93,27 +53,11 @@ class OrderStageSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderStage
         fields = [
-            'id', 'workshop', 'order_name', 'order_item', 'order', 'operation', 'sequence', 
+            'id', 'workshop', 'order_name', 'order_item', 'operation', 'sequence', 
             'parallel_group', 'plan_quantity', 'completed_quantity', 'done_count', 
             'defective_count', 'deadline', 'status', 'in_progress', 'defective', 
             'completed', 'date', 'comment', 'assigned', 'workshop_info'
         ]
-    
-    def get_order(self, obj):
-        """Возвращает информацию о заказе"""
-        if obj.order:
-            return {
-                'id': obj.order.id,
-                'name': obj.order.name,
-                'status': obj.order.status,
-                'status_display': obj.order.status_display,
-                'client': {
-                    'id': obj.order.client.id,
-                    'name': obj.order.client.name
-                } if obj.order.client else None,
-                'created_at': obj.order.created_at.isoformat() if obj.order.created_at else None
-            }
-        return None
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""

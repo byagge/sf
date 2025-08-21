@@ -99,55 +99,55 @@
                                 <div class="font-semibold text-gray-900 text-sm mb-2" x-text="task.stage_name ? task.stage_name : ('Этап №' + task.stage)"></div>
                                 
                                 <!-- Product Info -->
-                                <template x-if="task.stage && task.stage.order_item">
+                                <template x-if="task.order_item">
                                     <div class="mb-2">
                                         <!-- Product Image -->
-                                        <template x-if="task.stage.order_item.product && task.stage.order_item.product.img">
+                                        <template x-if="task.order_item.product && task.order_item.product.img">
                                             <div class="mb-2">
-                                                <img :src="task.stage.order_item.product.img" :alt="task.stage.order_item.product.name" 
+                                                <img :src="task.order_item.product.img" :alt="task.order_item.product.name" 
                                                      class="w-full h-20 rounded-lg product-image bg-gray-100">
                                             </div>
                                         </template>
                                         
                                         <!-- Product Details -->
                                         <div class="bg-gray-50 rounded-lg p-2 mb-2">
-                                            <div class="font-medium text-gray-900 text-sm mb-1" x-text="task.stage.order_item.product ? task.stage.order_item.product.name : 'Товар'"></div>
+                                            <div class="font-medium text-gray-900 text-sm mb-1" x-text="task.order_item.product ? task.order_item.product.name : 'Товар'"></div>
                                             
                                             <!-- Tags -->
                                             <div class="flex flex-wrap gap-1 mb-1">
-                                                <template x-if="task.stage.order_item.size">
+                                                <template x-if="task.order_item.size">
                                                     <div class="flex items-center space-x-1 bg-blue-100 px-1.5 py-0.5 rounded-full">
                                                         <i data-lucide="ruler" class="w-2.5 h-2.5 text-blue-600"></i>
-                                                        <span class="text-xs text-blue-700 font-medium" x-text="task.stage.order_item.size"></span>
+                                                        <span class="text-xs text-blue-700 font-medium" x-text="task.order_item.size"></span>
                                                     </div>
                                                 </template>
-                                                <template x-if="task.stage.order_item.color">
+                                                <template x-if="task.order_item.color">
                                                     <div class="flex items-center space-x-1 bg-purple-100 px-1.5 py-0.5 rounded-full">
                                                         <i data-lucide="palette" class="w-2.5 h-2.5 text-purple-600"></i>
-                                                        <span class="text-xs text-purple-700 font-medium" x-text="task.stage.order_item.color"></span>
+                                                        <span class="text-xs text-purple-700 font-medium" x-text="task.order_item.color"></span>
                                                     </div>
                                                 </template>
-                                                <template x-if="task.stage.order_item.product && task.stage.order_item.product.is_glass">
+                                                <template x-if="task.order_item.product && task.order_item.product.is_glass">
                                                     <div class="flex items-center space-x-1 bg-cyan-100 px-1.5 py-0.5 rounded-full">
                                                         <i data-lucide="droplets" class="w-2.5 h-2.5 text-cyan-600"></i>
-                                                        <span class="text-xs text-cyan-700 font-medium" x-text="task.stage.order_item.glass_type_display || 'Стекло'"></span>
+                                                        <span class="text-xs text-cyan-700 font-medium" x-text="task.order_item.glass_type_display || 'Стекло'"></span>
                                                     </div>
                                                 </template>
                                             </div>
                                             
                                             <!-- Paint Info -->
-                                            <template x-if="task.stage.order_item.paint_type || task.stage.order_item.paint_color">
+                                            <template x-if="task.order_item.paint_type || task.order_item.paint_color">
                                                 <div class="flex flex-wrap gap-1">
-                                                    <template x-if="task.stage.order_item.paint_type">
+                                                    <template x-if="task.order_item.paint_type">
                                                         <div class="flex items-center space-x-1 bg-orange-100 px-1.5 py-0.5 rounded-full">
                                                             <i data-lucide="brush" class="w-2.5 h-2.5 text-orange-600"></i>
-                                                            <span class="text-xs text-orange-700 font-medium" x-text="task.stage.order_item.paint_type"></span>
+                                                            <span class="text-xs text-orange-700 font-medium" x-text="task.order_item.paint_type"></span>
                                                         </div>
                                                     </template>
-                                                    <template x-if="task.stage.order_item.paint_color">
+                                                    <template x-if="task.order_item.paint_color">
                                                         <div class="flex items-center space-x-1 bg-red-100 px-1.5 py-0.5 rounded-full">
                                                             <i data-lucide="droplet" class="w-2.5 h-2.5 text-red-600"></i>
-                                                            <span class="text-xs text-red-700 font-medium" x-text="task.stage.order_item.paint_color"></span>
+                                                            <span class="text-xs text-red-700 font-medium" x-text="task.order_item.paint_color"></span>
                                                         </div>
                                                     </template>
                                                 </div>
@@ -156,36 +156,8 @@
                                     </div>
                                 </template>
                                 
-                                <!-- Fallback Product Info (если нет order_item) -->
-                                <template x-if="task.stage && !task.stage.order_item && task.stage.order && task.stage.order.product">
-                                    <div class="mb-2">
-                                        <!-- Product Image -->
-                                        <template x-if="task.stage.order.product.img">
-                                            <div class="mb-2">
-                                                <img :src="task.stage.order.product.img" :alt="task.stage.order.product.name" 
-                                                     class="w-full h-20 rounded-lg product-image bg-gray-100">
-                                            </div>
-                                        </template>
-                                        
-                                        <!-- Product Details -->
-                                        <div class="bg-gray-50 rounded-lg p-2 mb-2">
-                                            <div class="font-medium text-gray-900 text-sm mb-1" x-text="task.stage.order.product ? task.stage.order.product.name : 'Товар'"></div>
-                                            
-                                            <!-- Tags -->
-                                            <div class="flex flex-wrap gap-1 mb-1">
-                                                <template x-if="task.stage.order.product.is_glass">
-                                                    <div class="flex items-center space-x-1 bg-cyan-100 px-1.5 py-0.5 rounded-full">
-                                                        <i data-lucide="droplets" class="w-2.5 h-2.5 text-cyan-600"></i>
-                                                        <span class="text-xs text-cyan-700 font-medium" x-text="task.stage.order.product.glass_type_display || 'Стекло'"></span>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </template>
-                                
                                 <!-- No Product Info -->
-                                <template x-if="!task.stage || (!task.stage.order_item && (!task.stage.order || !task.stage.order.product))">
+                                <template x-if="!task.order_item">
                                     <div class="mb-2 bg-yellow-50 p-2 rounded-lg">
                                         <div class="text-xs text-yellow-800">
                                             <i data-lucide="alert-triangle" class="w-3 h-3 inline mr-1"></i>
@@ -273,10 +245,9 @@
                 
                 // Отладочная информация
                 console.log('Loaded tasks:', this.tasks);
-                if (this.tasks.length > 0 && this.tasks[0].stage && this.tasks[0].stage.order_item) {
-                    console.log('First task stage:', this.tasks[0].stage);
-                    console.log('First task order_item:', this.tasks[0].stage.order_item);
-                    console.log('First task product:', this.tasks[0].stage.order_item.product);
+                if (this.tasks.length > 0 && this.tasks[0].order_item) {
+                    console.log('First task order_item:', this.tasks[0].order_item);
+                    console.log('First task product:', this.tasks[0].order_item.product);
                 }
                 
                 this.loading = false;
@@ -286,7 +257,7 @@
                 return this.tasks.filter(task =>
                     (task.title || '').toLowerCase().includes(term) ||
                     (task.stage_name || '').toLowerCase().includes(term) ||
-                    (task.stage && task.stage.order_item && task.stage.order_item.product && task.stage.order_item.product.name ? task.stage.order_item.product.name.toLowerCase().includes(term) : false)
+                    (task.order_item && task.order_item.product && task.order_item.product.name ? task.order_item.product.name.toLowerCase().includes(term) : false)
                 );
             },
             async toggleTask(task) {
