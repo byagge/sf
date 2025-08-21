@@ -149,7 +149,11 @@ def create_defect_on_defective_change(sender, instance, **kwargs):
                 for _ in range(defect_quantity):
                     Defect.objects.create(
                         employee_task=instance,
-                        product=instance.stage.order_item.product if instance.stage.order_item else None,
+                        product=(
+                            instance.stage.order_item.product
+                            if instance.stage.order_item
+                            else (instance.stage.order.product if getattr(instance.stage, 'order', None) and getattr(instance.stage.order, 'product', None) else None)
+                        ),
                         user=instance.employee,
                         status='pending'  # Ожидает подтверждения мастера
                     )
