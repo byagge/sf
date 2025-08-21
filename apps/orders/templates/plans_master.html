@@ -130,24 +130,6 @@
                                                 Стекло: <span x-text="stage.order_item.glass_type_display || 'Не указан'"></span>
                                             </div>
                                         </template>
-                                        <template x-if="stage.order_item.paint_type">
-                                            <div class="text-xs text-gray-600 mt-1">
-                                                <span class="font-medium">Тип краски:</span> <span x-text="stage.order_item.paint_type"></span>
-                                            </div>
-                                        </template>
-                                        <template x-if="stage.order_item.paint_color">
-                                            <div class="text-xs text-gray-600 mt-1">
-                                                <span class="font-medium">Цвет краски:</span> <span x-text="stage.order_item.paint_color"></span>
-                                            </div>
-                                        </template>
-                                        <template x-if="stage.order_item.order">
-                                            <div class="text-xs text-gray-500 mt-1">
-                                                Заказ №<span x-text="stage.order_item.order.id"></span>
-                                                <template x-if="stage.order_item.order.client">
-                                                    <span> • Клиент: <span x-text="stage.order_item.order.client.name"></span></span>
-                                                </template>
-                                            </div>
-                                        </template>
                                         <template x-if="stage.workshop_info && stage.workshop_info.cutting_specs">
                                             <div class="text-xs text-gray-600 mt-1">
                                                 <span class="font-medium">Распил:</span> <span x-text="stage.workshop_info.cutting_specs"></span>
@@ -166,6 +148,28 @@
                                                 </template>
                                             </div>
                                         </template>
+                                    </div>
+                                </template>
+                                
+                                <!-- Информация о заказе -->
+                                <template x-if="stage.order_item && stage.order_item.order">
+                                    <div class="text-xs text-gray-600 mt-2 p-2 bg-gray-50 rounded">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-gray-500">Номер заказа:</span>
+                                            <span class="font-medium text-gray-900" x-text="stage.order_item.order.id"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-gray-500">Клиент:</span>
+                                            <span class="font-medium text-gray-900" x-text="stage.order_item.order.client ? stage.order_item.order.client.name : 'Не указан'"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-gray-500">Статус:</span>
+                                            <span class="font-medium text-gray-900" x-text="stage.order_item.order.status_display || stage.order_item.order.status"></span>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-gray-500">Дата создания:</span>
+                                            <span class="font-medium text-gray-900" x-text="new Date(stage.order_item.order.created_at).toLocaleDateString('ru-RU')"></span>
+                                        </div>
                                     </div>
                                 </template>
                             </div>

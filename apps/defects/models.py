@@ -28,7 +28,7 @@ class Defect(models.Model):
     )
     
     # Основная информация
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='defects', verbose_name='Продукт')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='defects', verbose_name='Продукт', null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='defects', verbose_name='Сотрудник (кто создал брак)')
     created_at = models.DateTimeField('Дата брака', auto_now_add=True)
     
