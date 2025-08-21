@@ -5,6 +5,7 @@ from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.db import transaction
 from decimal import Decimal
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -132,14 +133,24 @@ class EmployeeTask(models.Model):
 
 @receiver(pre_save, sender=EmployeeTask)
 def create_defect_on_defective_change(sender, instance, **kwargs):
-    """Создает записи браков в новой системе при изменении defective_quantity"""
+    """Создает записи браков в новой системе при изменении defective_quantity
+    Одновременно управляет completed_at при смене статуса выполнения"""
     if instance.pk:
         try:
             old_instance = EmployeeTask.objects.get(pk=instance.pk)
             # Дельта выполненного для последующего списания материалов
             delta_completed = int(instance.completed_quantity) - int(old_instance.completed_quantity)
             instance._delta_completed_quantity = max(delta_completed, 0)
-
+            
+            # Управление completed_at
+            was_completed = old_instance.completed_quantity >= old_instance.quantity
+            is_now_completed = instance.completed_quantity >= instance.quantity
+            if is_now_completed and not was_completed and instance.completed_at is None:
+                instance.completed_at = timezone.now()
+            elif not is_now_completed and was_completed:
+                # Сбросить, если задачу "развыполнили"
+                instance.completed_at = None
+            
             # Создание браков в новой системе
             if instance.defective_quantity > old_instance.defective_quantity:
                 from apps.defects.models import Defect
@@ -161,6 +172,9 @@ def create_defect_on_defective_change(sender, instance, **kwargs):
             instance._delta_completed_quantity = 0
     else:
         instance._delta_completed_quantity = 0
+        # Для новых записей, если сразу выполнены, установить completed_at
+        if instance.completed_quantity >= (instance.quantity or 0) and instance.completed_at is None:
+            instance.completed_at = timezone.now()
 
 @receiver(post_save, sender=EmployeeTask)
 def update_earnings_and_materials(sender, instance, created, **kwargs):

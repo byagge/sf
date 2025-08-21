@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" x-data="employeeStatsPage()" x-init="init()">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -14,6 +14,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script id="user-id" type="application/json">{{ request.user.id|default:'null' }}</script>
     <style>
         body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
         .nav-active { color: #2563eb; }
@@ -31,18 +32,96 @@
         </div>
     </header>
     <!-- Main Content -->
-    <main class="flex-1 pt-20 pb-20 px-2 max-w-2xl mx-auto w-full flex flex-col items-center justify-center">
-        <div class="flex flex-col items-center justify-center py-16">
-            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                <i data-lucide="bar-chart" class="w-12 h-12 text-blue-600"></i>
+    <main class="flex-1 pt-20 pb-20 px-3 max-w-2xl mx-auto w-full">
+        <!-- Overview Cards -->
+        <div class="grid grid-cols-2 gap-3 mb-4" x-show="!loading">
+            <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-xs text-gray-500 mb-1">Заработок</div>
+                <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_earnings)"></div>
             </div>
-            <h1 class="text-2xl font-bold text-gray-900 mb-2">Скоро будет!</h1>
-            <p class="text-gray-600 text-base mb-8">Раздел "Статистика" в разработке</p>
+            <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-xs text-gray-500 mb-1">Штрафы</div>
+                <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_penalties)"></div>
+            </div>
+            <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-xs text-gray-500 mb-1">Чистый доход</div>
+                <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_net_earnings)"></div>
+            </div>
+            <div class="bg-white rounded-lg p-3 shadow-sm">
+                <div class="text-xs text-gray-500 mb-1">Задачи</div>
+                <div class="text-lg font-bold text-gray-900" x-text="`${overview.completed_tasks}/${overview.total_tasks}`"></div>
+            </div>
+        </div>
+        
+        <!-- Loading State -->
+        <template x-if="loading">
+            <div class="space-y-3 animate-pulse">
+                <div class="h-24 rounded-lg bg-white"></div>
+                <div class="h-40 rounded-lg bg-white"></div>
+            </div>
+        </template>
+
+        <!-- Monthly Chart-like list (simple) -->
+        <div class="bg-white rounded-lg p-3 shadow-sm mb-4" x-show="!loading && monthly.length">
+            <div class="flex items-center justify-between mb-2">
+                <div class="font-semibold text-gray-900">По месяцам</div>
+                <i data-lucide="calendar" class="w-4 h-4 text-gray-400"></i>
+            </div>
+            <div class="space-y-2">
+                <template x-for="m in monthly" :key="m.month">
+                    <div class="flex items-center justify-between text-sm">
+                        <div class="text-gray-600">Месяц <span x-text="m.month"></span></div>
+                        <div class="font-medium text-gray-900" x-text="formatMoney(m.total_net)"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Task History -->
+        <div class="mb-2 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-gray-900">История задач</h2>
+            <div class="text-xs text-gray-500" x-text="`Всего: ${tasks.length}`"></div>
+        </div>
+        <div class="space-y-3">
+            <template x-for="task in tasks" :key="task.id">
+                <div class="bg-white rounded-lg p-3 shadow-sm">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-semibold text-gray-900 text-sm mb-1" x-text="task.stage_name || ('Этап #' + task.stage)"></div>
+                            <div class="text-xs text-gray-600 mb-1" x-text="task.title || ''"></div>
+                            <div class="text-xs text-gray-500">
+                                <span>План: <span class="text-gray-900" x-text="task.quantity"></span></span>
+                                <span class="mx-1">•</span>
+                                <span>Выполнено: <span class="text-gray-900" x-text="task.completed_quantity"></span></span>
+                                <template x-if="task.defective_quantity && task.defective_quantity > 0">
+                                    <span>
+                                        <span class="mx-1">•</span>
+                                        <span class="text-red-600">Брак: <span x-text="task.defective_quantity"></span></span>
+                                    </span>
+                                </template>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">
+                                <span>Создано: <span x-text="formatDate(task.created_at)"></span></span>
+                                <template x-if="task.completed_at">
+                                    <span>
+                                        <span class="mx-1">•</span>
+                                        <span>Завершено: <span x-text="formatDate(task.completed_at)"></span></span>
+                                    </span>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="text-right ml-3">
+                            <div class="text-xs text-gray-500">Чистый</div>
+                            <div class="text-sm font-semibold text-gray-900" x-text="formatMoney(task.net_earnings || 0)"></div>
+                        </div>
+                    </div>
+                </div>
+            </template>
         </div>
     </main>
     <!-- Bottom Navigation -->
     <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40 w-full">
-        <a href="/employee_tasks/tasks/" class="flex flex-col items-center nav-active">
+        <a href="/employee_tasks/tasks/" class="flex flex-col items-center">
             <i data-lucide="home" class="w-5 h-5"></i>
             <span class="text-xs">Главная</span>
         </a>
@@ -53,7 +132,7 @@
         <a href="/attendance/scan/" class="flex flex-col items-center justify-center w-12 h-12 bg-blue-600 rounded-full -mt-4 shadow-lg">
             <i data-lucide="qr-code" class="w-6 h-6 text-white"></i>
         </a>
-        <a href="/employee_tasks/stats/" class="flex flex-col items-center">
+        <a href="/employee_tasks/stats/" class="flex flex-col items-center nav-active">
             <i data-lucide="bar-chart" class="w-5 h-5"></i>
             <span class="text-xs">Статистика</span>
         </a>
@@ -62,6 +141,54 @@
             <span class="text-xs">Профиль</span>
         </a>
     </nav>
-    <script>lucide.createIcons();</script>
+    <script>
+    function employeeStatsPage() {
+        return {
+            loading: true,
+            userId: null,
+            overview: { total_earnings: 0, total_penalties: 0, total_net_earnings: 0, total_tasks: 0, completed_tasks: 0 },
+            monthly: [],
+            tasks: [],
+            async init() {
+                this.userId = JSON.parse(document.getElementById('user-id').textContent) || null;
+                await Promise.all([this.loadStats(), this.loadTasks()]);
+                this.loading = false;
+                lucide.createIcons();
+            },
+            async loadStats() {
+                if (!this.userId) return;
+                const resp = await fetch(`/employee_tasks/api/earnings/employee/${this.userId}/`);
+                const data = await resp.json();
+                this.overview = data.overview || this.overview;
+                this.monthly = (data.monthly_stats || []).map(x => ({
+                    month: x.month,
+                    total_earnings: x.total_earnings,
+                    total_penalties: x.total_penalties,
+                    total_net: x.total_net
+                }));
+            },
+            async loadTasks() {
+                if (!this.userId) return;
+                const resp = await fetch(`/employee_tasks/api/employee-tasks/?employee=${this.userId}`);
+                const data = await resp.json();
+                const items = (data.results || data);
+                this.tasks = items.sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
+            },
+            formatMoney(v) {
+                const num = Number(v || 0);
+                return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(num);
+            },
+            formatDate(iso) {
+                if (!iso) return '';
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return '';
+                return d.toLocaleString('ru-RU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            }
+        }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+    </script>
 </body>
 </html>

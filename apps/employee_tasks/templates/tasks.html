@@ -254,16 +254,18 @@
             },
             get filteredTasks() {
                 const term = this.searchTerm.toLowerCase();
-                return this.tasks.filter(task =>
-                    (task.title || '').toLowerCase().includes(term) ||
-                    (task.stage_name || '').toLowerCase().includes(term) ||
-                    (task.order_item && task.order_item.product && task.order_item.product.name ? task.order_item.product.name.toLowerCase().includes(term) : false)
-                );
+                return this.tasks
+                    .filter(task => this.isTaskVisible(task))
+                    .filter(task =>
+                        (task.title || '').toLowerCase().includes(term) ||
+                        (task.stage_name || '').toLowerCase().includes(term) ||
+                        (task.order_item && task.order_item.product && task.order_item.product.name ? task.order_item.product.name.toLowerCase().includes(term) : false)
+                    );
             },
             async toggleTask(task) {
                 const isDone = (Number(task.completed_quantity) || 0) >= (Number(task.quantity) || 0);
                 const newCompleted = isDone ? 0 : (Number(task.quantity) || 0);
-                await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
+                const resp = await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
@@ -273,7 +275,25 @@
                         completed_quantity: newCompleted
                     })
                 });
-                task.completed_quantity = newCompleted;
+                try {
+                    const updated = await resp.json();
+                    Object.assign(task, updated);
+                } catch (e) {
+                    task.completed_quantity = newCompleted;
+                    if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
+                    if (newCompleted === 0) task.completed_at = null;
+                }
+            },
+            isTaskVisible(task) {
+                const qty = Number(task.quantity) || 0;
+                const done = Number(task.completed_quantity) || 0;
+                const isCompleted = done >= qty && qty > 0;
+                if (!isCompleted) return true;
+                if (!task.completed_at) return true;
+                const completedAt = new Date(task.completed_at);
+                if (isNaN(completedAt.getTime())) return true;
+                const ms24h = 24 * 60 * 60 * 1000;
+                return (Date.now() - completedAt.getTime()) < ms24h;
             },
             getCsrfToken() {
                 const name = 'csrftoken';
