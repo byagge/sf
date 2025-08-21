@@ -14,6 +14,7 @@ from apps.orders.models import OrderDefect
 class EmployeeTaskViewSet(viewsets.ModelViewSet):
     queryset = EmployeeTask.objects.select_related(
         'stage__order_item__product', 
+        'stage__order_item__order',
         'stage__workshop', 
         'stage__order',
         'stage__order__client',
