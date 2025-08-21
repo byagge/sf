@@ -31,6 +31,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductFullSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True, source='product')
     glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
+    order = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = OrderItem
@@ -38,8 +39,26 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'id', 'product', 'product_id', 'quantity', 'size', 'color',
             'glass_type', 'glass_type_display', 'paint_type', 'paint_color',
             'cnc_specs', 'cutting_specs', 'packaging_notes',
-            'glass_cutting_completed', 'glass_cutting_quantity', 'packaging_received_quantity'
+            'glass_cutting_completed', 'glass_cutting_quantity', 'packaging_received_quantity',
+            'order'
         ]
+
+    def get_order(self, obj):
+        o = getattr(obj, 'order', None)
+        if not o:
+            return None
+        return {
+            'id': o.id,
+            'name': getattr(o, 'name', None),
+            'status': getattr(o, 'status', None),
+            'status_display': o.get_status_display() if hasattr(o, 'get_status_display') else getattr(o, 'status', None),
+            'created_at': o.created_at.isoformat() if getattr(o, 'created_at', None) else None,
+            'comment': getattr(o, 'comment', ''),
+            'client': ({
+                'id': getattr(o.client, 'id', None),
+                'name': getattr(o.client, 'name', None)
+            } if getattr(o, 'client', None) else None)
+        }
 
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
