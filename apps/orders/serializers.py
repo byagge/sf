@@ -31,6 +31,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductFullSerializer(read_only=True)
     product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True, source='product')
     glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
+    order = serializers.SerializerMethodField()  # Добавляем информацию о заказе
 
     class Meta:
         model = OrderItem
@@ -38,13 +39,31 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'id', 'product', 'product_id', 'quantity', 'size', 'color',
             'glass_type', 'glass_type_display', 'paint_type', 'paint_color',
             'cnc_specs', 'cutting_specs', 'packaging_notes',
-            'glass_cutting_completed', 'glass_cutting_quantity', 'packaging_received_quantity'
+            'glass_cutting_completed', 'glass_cutting_quantity', 'packaging_received_quantity',
+            'order'
         ]
+    
+    def get_order(self, obj):
+        """Возвращает упрощенную информацию о заказе"""
+        if obj.order:
+            return {
+                'id': obj.order.id,
+                'name': obj.order.name,
+                'status': obj.order.status,
+                'status_display': obj.order.status_display,
+                'created_at': obj.order.created_at,
+                'client': {
+                    'id': obj.order.client.id,
+                    'name': obj.order.client.name
+                } if obj.order.client else None
+            }
+        return None
 
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
-    assigned = EmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
+    # Убираем assigned для избежания циклических зависимостей
     order_name = serializers.CharField(source='order.name', read_only=True)
+    order = serializers.SerializerMethodField()  # Добавляем полную информацию о заказе
     order_item = OrderItemSerializer(read_only=True)
     done_count = serializers.IntegerField(read_only=True)
     defective_count = serializers.IntegerField(read_only=True)
@@ -53,15 +72,31 @@ class OrderStageSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderStage
         fields = [
-            'id', 'workshop', 'order_name', 'order_item', 'operation', 'sequence', 
+            'id', 'workshop', 'order_name', 'order', 'order_item', 'operation', 'sequence', 
             'parallel_group', 'plan_quantity', 'completed_quantity', 'done_count', 
             'defective_count', 'deadline', 'status', 'in_progress', 'defective', 
-            'completed', 'date', 'comment', 'assigned', 'workshop_info'
+            'completed', 'date', 'comment', 'workshop_info'
         ]
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
         return obj.get_workshop_info()
+    
+    def get_order(self, obj):
+        """Возвращает упрощенную информацию о заказе"""
+        if obj.order:
+            return {
+                'id': obj.order.id,
+                'name': obj.order.name,
+                'status': obj.order.status,
+                'status_display': obj.order.status_display,
+                'created_at': obj.order.created_at,
+                'client': {
+                    'id': obj.order.client.id,
+                    'name': obj.order.client.name
+                } if obj.order.client else None
+            }
+        return None
 
 class OrderDefectSerializer(serializers.ModelSerializer):
     workshop = WorkshopFullSerializer(read_only=True)

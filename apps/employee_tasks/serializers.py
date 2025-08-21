@@ -8,9 +8,12 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     order_item = serializers.SerializerMethodField()
     workshop_info = serializers.SerializerMethodField()
     is_completed = serializers.BooleanField(read_only=True)
-    title = serializers.CharField(read_only=True)
+    title = serializers.SerializerMethodField()
     plan_quantity = serializers.IntegerField(read_only=True)
     started_at = serializers.DateTimeField(read_only=True)
+    
+    # Добавляем детальную информацию о stage
+    stage = serializers.SerializerMethodField()
     
     class Meta:
         model = EmployeeTask
@@ -48,4 +51,17 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
-        return obj.stage.get_workshop_info() if obj.stage else {} 
+        return obj.stage.get_workshop_info() if obj.stage else {}
+    
+    def get_title(self, obj):
+        """Возвращает название задачи на основе этапа"""
+        if obj.stage:
+            return f"{obj.stage.operation} - {obj.stage.order.name if obj.stage.order else 'Заказ'}"
+        return f"Задача #{obj.id}"
+    
+    def get_stage(self, obj):
+        """Возвращает детальную информацию о stage"""
+        if obj.stage:
+            from apps.orders.serializers import OrderStageSerializer
+            return OrderStageSerializer(obj.stage).data
+        return None 
