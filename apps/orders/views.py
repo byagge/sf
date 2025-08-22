@@ -1,12 +1,17 @@
 from django.shortcuts import render
-from rest_framework import viewsets, permissions, status
-from .models import Order, OrderStage, OrderDefect, OrderItem
-from .serializers import OrderSerializer, OrderStageConfirmSerializer, OrderStageSerializer
-from django.views import View
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.utils.decorators import method_decorator
+from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.views import View
+from rest_framework import viewsets, status, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .models import Order, OrderItem, OrderStage
+from .serializers import OrderSerializer, OrderItemSerializer, OrderStageSerializer
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.views.generic import TemplateView
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Count, F
 from django.utils import timezone
@@ -267,3 +272,14 @@ class StageViewSet(viewsets.ReadOnlyModelViewSet):
 		if workshop_param:
 			qs = qs.filter(workshop_id=workshop_param)
 		return qs
+
+class PlansMasterView(TemplateView):
+    template_name = 'plans_master.html'
+
+class PlansMasterDetailView(TemplateView):
+    template_name = 'plans_master_detail.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['stage_id'] = self.kwargs.get('stage_id')
+        return context

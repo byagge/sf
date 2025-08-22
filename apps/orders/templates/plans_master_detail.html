@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ru" x-data="masterPlansDetailPage()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Smart Factory">
+    <title>Детали этапа (Мастер)</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script id="stage-id" type="application/json">{{ stage_id|default:'null' }}</script>
+    <style>
+        body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
+        .nav-active { color: #2563eb; }
+        .nav-bar { box-shadow: 0 -2px 16px 0 rgba(37,99,235,0.08); }
+        .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
+        .modal-bg { background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); }
+        .skeleton { background: linear-gradient(90deg, #e0e7ef 25%, #f3f4f6 50%, #e0e7ef 75%); background-size: 200% 100%; animation: skeleton 1.2s infinite linear; }
+        @keyframes skeleton { 0% {background-position: 200% 0;} 100% {background-position: -200% 0;} }
+        .product-image { object-fit: cover; }
+        
+        /* Responsive styles */
+        @media (max-width: 640px) {
+            .responsive-btn-row { flex-direction: column; gap: 0.5rem; }
+            .modal-content { width: 95vw; max-width: 95vw; border-radius: 1.25rem; }
+        }
+        @media (min-width: 641px) {
+            .responsive-btn-row { flex-direction: row; gap: 0.5rem; }
+            .modal-content { width: 100%; max-width: 24rem; border-radius: 0.75rem; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;">
+    <!-- AppBar -->
+    <header class="fixed top-0 left-0 right-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200 flex items-center justify-between px-4 h-16">
+        <div class="flex items-center space-x-3">
+            <a href="/orders/plans/master/" class="text-gray-600 hover:text-gray-900">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            </a>
+            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                <span class="text-white font-bold text-2xl">O</span>
+            </div>
+            <span class="text-lg font-semibold text-gray-900">Детали этапа</span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <template x-if="stage && isStageOverdue(stage)">
+                <div class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-medium">
+                    <i data-lucide="clock" class="w-3 h-3 inline mr-1"></i>
+                    Просрочено
+                </div>
+            </template>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 pt-20 pb-20 px-3 max-w-2xl mx-auto w-full">
+        <!-- Loading State -->
+        <template x-if="loading">
+            <div class="space-y-4 animate-pulse">
+                <div class="h-32 rounded-lg skeleton"></div>
+                <div class="h-20 rounded-lg skeleton"></div>
+                <div class="h-20 rounded-lg skeleton"></div>
+            </div>
+        </template>
+
+        <!-- Stage Details -->
+        <template x-if="!loading && stage">
+            <div class="space-y-4">
+                <!-- Stage Header -->
+                <div class="card bg-white rounded-lg p-4" :class="isStageOverdue(stage) ? 'bg-red-50 border-l-4 border-l-red-400' : ''">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex-1">
+                            <h1 class="text-xl font-bold text-gray-900 mb-2" x-text="stage.order_name"></h1>
+                            <div class="space-y-1 text-sm text-gray-600">
+                                <div><span class="font-medium">Операция:</span> <span x-text="stage.operation"></span></div>
+                                <div><span class="font-medium">План:</span> <span x-text="getDisplayQuantity(stage, 'plan')"></span></div>
+                                <div><span class="font-medium">Выполнено:</span> <span x-text="getDisplayQuantity(stage, 'done')"></span></div>
+                                <div><span class="font-medium">Осталось:</span> <span x-text="getDisplayQuantity(stage, 'remaining')"></span></div>
+                            </div>
+                        </div>
+                        <div class="ml-3">
+                            <div class="w-6 h-6 rounded border-2 flex items-center justify-center"
+                                 :class="(stage.done_count || 0) >= stage.plan_quantity ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'">
+                                <i data-lucide="check" class="w-5 h-5 text-white" x-show="(stage.done_count || 0) >= stage.plan_quantity"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress Bar -->
+                    <div class="mb-3">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-600">Прогресс</span>
+                            <span class="font-medium" x-text="`${getDisplayQuantity(stage, 'done')}/${getDisplayQuantity(stage, 'plan')}`"></span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                                 :style="`width: ${Math.min(100, ((stage.done_count || 0) / stage.plan_quantity) * 100)}%`"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Task Stats -->
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div class="bg-blue-50 p-2 rounded-lg">
+                            <div class="text-blue-600 font-medium">План</div>
+                            <div class="text-blue-900 font-bold" x-text="getDisplayQuantity(stage, 'plan')"></div>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded-lg">
+                            <div class="text-green-600 font-medium">Выполнено</div>
+                            <div class="text-green-900 font-bold" x-text="getDisplayQuantity(stage, 'done')"></div>
+                        </div>
+                        <div class="bg-yellow-50 p-2 rounded-lg">
+                            <div class="text-yellow-600 font-medium">Осталось</div>
+                            <div class="text-yellow-900 font-bold" x-text="getDisplayQuantity(stage, 'remaining')"></div>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded-lg">
+                            <div class="text-gray-600 font-medium">Статус</div>
+                            <div class="text-gray-900 font-bold" x-text="(stage.done_count || 0) >= stage.plan_quantity ? 'Завершён' : 'В работе'"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order Information -->
+                <template x-if="stage.order_item && stage.order_item.order">
+                    <div class="card bg-white rounded-lg p-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i data-lucide="file-text" class="w-5 h-5 mr-2 text-green-600"></i>
+                            Информация о заказе
+                        </h2>
+                        
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Заявка:</span>
+                                <span class="font-semibold text-gray-900" x-text="stage.order_item.order.name || 'Не указано'"></span>
+                            </div>
+                            
+                            <template x-if="stage.order_item.order.client">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Клиент:</span>
+                                    <span class="font-medium text-gray-900" x-text="stage.order_item.order.client.name"></span>
+                                </div>
+                            </template>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Статус заказа:</span>
+                                <span class="font-medium text-gray-900" x-text="stage.order_item.order.status_display || stage.order_item.order.status"></span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Дата создания:</span>
+                                <span class="font-medium text-gray-900" x-text="stage.order_item.order.created_at ? new Date(stage.order_item.order.created_at).toLocaleDateString('ru-RU') : 'Не указана'"></span>
+                            </div>
+                            
+                            <template x-if="stage.order_item.order.comment">
+                                <div class="bg-blue-50 p-3 rounded-lg">
+                                    <div class="text-blue-800 text-sm">
+                                        <span class="font-medium">Комментарий:</span> <span x-text="stage.order_item.order.comment"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <!-- Все товары заказа -->
+                            <template x-if="stage.order_item.order.items && stage.order_item.order.items.length > 1">
+                                <div class="mt-3 pt-3 border-t border-gray-200">
+                                    <div class="text-sm font-semibold text-gray-800 mb-2">Все товары заказа:</div>
+                                    <div class="space-y-2">
+                                        <template x-for="item in stage.order_item.order.items" :key="item.id">
+                                            <div class="text-sm border-l-2 border-gray-300 pl-3 py-2" :class="item.id === stage.order_item.id ? 'border-l-blue-600 bg-blue-50' : ''">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex-1">
+                                                        <div class="font-medium text-gray-900" x-text="item.product.name"></div>
+                                                        <div class="text-gray-600 text-xs">
+                                                            <span x-text="item.quantity"></span> шт.
+                                                            <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                            <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                                        </div>
+                                                    </div>
+                                                    <div class="ml-3">
+                                                        <template x-if="item.id === stage.order_item.id">
+                                                            <div class="bg-blue-600 text-white text-xs px-2 py-1 rounded-full">Текущий</div>
+                                                        </template>
+                                                        <template x-if="item.id !== stage.order_item.id">
+                                                            <div class="text-gray-500 text-xs">ID: <span x-text="item.id"></span></div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Product Information -->
+                <template x-if="stage.order_item">
+                    <div class="card bg-white rounded-lg p-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i data-lucide="package" class="w-5 h-5 mr-2 text-blue-600"></i>
+                            Информация о товаре
+                        </h2>
+                        
+                        <!-- Product Image -->
+                        <template x-if="stage.order_item.product && stage.order_item.product.img">
+                            <div class="mb-4">
+                                <img :src="stage.order_item.product.img" :alt="stage.order_item.product.name" 
+                                     class="w-full h-48 rounded-lg product-image bg-gray-100">
+                            </div>
+                        </template>
+                        
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Товар:</span>
+                                <span class="font-semibold text-gray-900" x-text="stage.order_item.product.name"></span>
+                            </div>
+                            
+                            <template x-if="stage.order_item.size">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Размер:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="ruler" class="w-4 h-4 text-blue-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="stage.order_item.size"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="stage.order_item.color">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Цвет:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="palette" class="w-4 h-4 text-purple-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="stage.order_item.color"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="stage.order_item.product && stage.order_item.product.is_glass">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Тип стекла:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="droplets" class="w-4 h-4 text-cyan-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="stage.order_item.glass_type_display || 'Не указан'"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="stage.order_item.paint_type">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Тип краски:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="brush" class="w-4 h-4 text-orange-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="stage.order_item.paint_type"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="stage.order_item.paint_color">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Цвет краски:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="droplet" class="w-4 h-4 text-red-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="stage.order_item.paint_color"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="stage.order_item.cnc_specs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">ЧПУ:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="cpu" class="w-4 h-4 text-green-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="stage.order_item.cnc_specs"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="stage.order_item.cutting_specs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Распил:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="scissors" class="w-4 h-4 text-orange-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="stage.order_item.cutting_specs"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="stage.order_item.packaging_notes">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Упаковка:</span>
+                                    <div class="flex items-center space-x-1">
+                                        <i data-lucide="package" class="w-4 h-4 text-indigo-600"></i>
+                                        <span class="font-medium text-gray-900" x-text="stage.order_item.packaging_notes"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Workshop Information -->
+                <template x-if="stage.workshop_info && Object.keys(stage.workshop_info).length > 0">
+                    <div class="card bg-white rounded-lg p-4">
+                        <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                            <i data-lucide="settings" class="w-5 h-5 mr-2 text-purple-600"></i>
+                            Спецификации цеха
+                        </h2>
+                        
+                        <div class="space-y-2 text-sm">
+                            <template x-if="stage.workshop_info.cutting_specs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Распил:</span>
+                                    <span class="font-medium text-gray-900" x-text="stage.workshop_info.cutting_specs"></span>
+                                </div>
+                            </template>
+                            <template x-if="stage.workshop_info.cnc_specs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">ЧПУ:</span>
+                                    <span class="font-medium text-gray-900" x-text="stage.workshop_info.cnc_specs"></span>
+                                </div>
+                            </template>
+                            <template x-if="stage.workshop_info.paint_type">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Краска:</span>
+                                    <span class="font-medium text-gray-900" x-text="stage.workshop_info.paint_type"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Assignments -->
+                <div class="card bg-white rounded-lg p-4">
+                    <h2 class="text-lg font-bold text-gray-900 mb-3 flex items-center">
+                        <i data-lucide="users" class="w-5 h-5 mr-2 text-indigo-600"></i>
+                        Назначения сотрудников
+                    </h2>
+                    
+                    <template x-if="stage.assigned && stage.assigned.length > 0">
+                        <div class="space-y-3">
+                            <template x-for="assign in stage.assigned" :key="assign.id">
+                                <div class="border border-gray-200 rounded-lg p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="font-medium text-gray-900" x-text="assign.employee_name"></div>
+                                        <div class="text-sm text-gray-500">ID: <span x-text="assign.employee_id"></span></div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-3 gap-2 text-sm">
+                                        <div class="bg-blue-50 p-2 rounded text-center">
+                                            <div class="text-blue-600 font-medium">Назначено</div>
+                                            <div class="text-blue-900 font-bold" x-text="assign.quantity"></div>
+                                        </div>
+                                        <div class="bg-green-50 p-2 rounded text-center">
+                                            <div class="text-green-600 font-medium">Выполнено</div>
+                                            <div class="text-green-900 font-bold" x-text="assign.completed_quantity || 0"></div>
+                                        </div>
+                                        <div class="bg-red-50 p-2 rounded text-center">
+                                            <div class="text-red-600 font-medium">Брак</div>
+                                            <div class="text-red-900 font-bold" x-text="assign.defective_quantity || 0"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-2 text-xs text-gray-500">
+                                        Прогресс: <span x-text="`${assign.completed_quantity || 0}/${assign.quantity}`"></span>
+                                        (<span x-text="Math.round(((assign.completed_quantity || 0) / assign.quantity) * 100)"></span>%)
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    
+                    <template x-if="!stage.assigned || stage.assigned.length === 0">
+                        <div class="text-center py-6 text-gray-500">
+                            <i data-lucide="user-x" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
+                            <p>Сотрудники не назначены</p>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="space-y-3">
+                    <template x-if="canAssign(stage)">
+                        <button @click="openAssignModal(stage)" 
+                                class="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg font-semibold text-base shadow-lg hover:shadow-xl transition-all duration-150">
+                            <i data-lucide="user-plus" class="w-5 h-5 inline mr-2"></i>
+                            Назначить сотрудника
+                        </button>
+                    </template>
+                    
+                    <template x-if="canTransfer(stage)">
+                        <button @click="openTransferModal(stage)" 
+                                class="w-full py-3 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-lg font-semibold text-base shadow-lg hover:shadow-xl transition-all duration-150">
+                            <i data-lucide="arrow-right" class="w-5 h-5 inline mr-2"></i>
+                            Перевести дальше
+                        </button>
+                    </template>
+                    
+                    <template x-if="canPostpone(stage)">
+                        <button @click="openPostponeModal(stage)" 
+                                class="w-full py-3 bg-yellow-500 hover:bg-yellow-600 active:bg-yellow-700 text-white rounded-lg font-semibold text-base shadow-lg hover:shadow-xl transition-all duration-150">
+                            <i data-lucide="clock" class="w-5 h-5 inline mr-2"></i>
+                            Оставить на завтра
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        <!-- Error State -->
+        <template x-if="!loading && !stage">
+            <div class="text-center py-12">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-circle" class="w-8 h-8 text-red-500"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Этап не найден</h3>
+                <p class="text-gray-600 mb-4">Запрашиваемый этап не существует или был удален</p>
+                <a href="/orders/plans/master/" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i>
+                    Вернуться к планам
+                </a>
+            </div>
+        </template>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40 max-w-md mx-auto w-full">
+        <a href="/dashboard/" class="flex flex-col items-center">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span class="text-xs">Главная</span>
+        </a>
+        <a href="/employees/" class="flex flex-col items-center">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span class="text-xs">Сотрудники</span>
+        </a>
+        <a href="/attendance/scan/" class="flex flex-col items-center justify-center w-12 h-12 bg-blue-600 rounded-full -mt-4 shadow-lg">
+            <i data-lucide="qr-code" class="w-6 h-6 text-white"></i>
+        </a>
+        <a href="/orders/plans/master/" class="flex flex-col items-center nav-active">
+            <i data-lucide="archive" class="w-5 h-5"></i>
+            <span class="text-xs">Планы</span>
+        </a>
+        <a href="/settings/" class="flex flex-col items-center">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            <span class="text-xs">Настройки</span>
+        </a>
+    </nav>
+
+    <script>
+    function masterPlansDetailPage() {
+        return {
+            loading: true,
+            stage: null,
+            stageId: null,
+            
+            loadingAction: null,
+            lastActionStageId: null,
+            tooltip: null,
+            isOnline: navigator.onLine,
+            
+            get nowHour() {
+                return new Date().getHours();
+            },
+            
+            async init() {
+                this.stageId = JSON.parse(document.getElementById('stage-id').textContent) || null;
+                await this.loadStage();
+                lucide.createIcons();
+            },
+            
+            async loadStage() {
+                if (!this.stageId) {
+                    this.loading = false;
+                    return;
+                }
+                
+                this.loading = true;
+                try {
+                    const resp = await fetch(`/orders/api/stages/${this.stageId}/`);
+                    if (resp.ok) {
+                        this.stage = await resp.json();
+                    } else {
+                        this.stage = null;
+                    }
+                } catch (error) {
+                    console.error('Error loading stage:', error);
+                    this.stage = null;
+                }
+                
+                this.loading = false;
+            },
+            
+            isStageOverdue(stage) {
+                if (!stage.created_at) return false;
+                const createdDate = new Date(stage.created_at);
+                if (isNaN(createdDate.getTime())) return false;
+                
+                const threeDaysAgo = new Date();
+                threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+                
+                return createdDate < threeDaysAgo;
+            },
+            
+            canAssign(stage) {
+                return (stage.done_count || 0) < stage.plan_quantity;
+            },
+            
+            canTransfer(stage) {
+                if ((stage.done_count || 0) >= stage.plan_quantity) return true;
+                if (this.nowHour >= 17) return true;
+                return false;
+            },
+            
+            canPostpone(stage) {
+                return this.nowHour >= 17 && (stage.done_count || 0) < stage.plan_quantity;
+            },
+            
+            openAssignModal(stage) {
+                // Переход на страницу планов с открытым модальным окном назначения
+                window.location.href = `/orders/plans/master/?assign_stage=${stage.id}`;
+            },
+            
+            openTransferModal(stage) {
+                // Переход на страницу планов с открытым модальным окном перевода
+                window.location.href = `/orders/plans/master/?transfer_stage=${stage.id}`;
+            },
+            
+            openPostponeModal(stage) {
+                // Переход на страницу планов с открытым модальным окном переноса
+                window.location.href = `/orders/plans/master/?postpone_stage=${stage.id}`;
+            },
+            
+            // Функция для получения всех товаров заказа
+            getAllOrderItems(order) {
+                if (!order || !order.items) return [];
+                return order.items;
+            },
+            
+            // Функция для проверки, является ли товар текущим
+            isCurrentItem(itemId, currentItemId) {
+                return itemId === currentItemId;
+            },
+
+            getDisplayQuantity(stage, type) {
+                if (!stage) return '0';
+                
+                let quantity = 0;
+                if (type === 'plan') {
+                    quantity = stage.plan_quantity || 0;
+                } else if (type === 'done') {
+                    quantity = stage.done_count || 0;
+                } else if (type === 'remaining') {
+                    quantity = Math.max(0, (stage.plan_quantity || 0) - (stage.done_count || 0));
+                }
+                
+                // Проверяем, является ли цех "распил", "чпу" или до пресса
+                const workshopName = stage.workshop_name || '';
+                const isPrePressWorkshop = workshopName.toLowerCase().includes('распил') || 
+                                         workshopName.toLowerCase().includes('чпу') ||
+                                         workshopName.toLowerCase().includes('cnc') ||
+                                         workshopName.toLowerCase().includes('резка') ||
+                                         workshopName.toLowerCase().includes('обработка') ||
+                                         workshopName.toLowerCase().includes('cutting');
+                
+                // Если это цех до пресса, количество x2
+                if (isPrePressWorkshop && quantity > 0) {
+                    return `${quantity} ×2`;
+                }
+                
+                return quantity.toString();
+            }
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+    </script>
+</body>
+</html> 

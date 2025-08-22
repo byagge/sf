@@ -10,6 +10,8 @@ class Order(models.Model):
         ('stock', 'На складе'),
         ('shipped', 'Отправлен клиенту'),
         ('new', 'Новая'),
+        ('pending', 'Ожидает распределения'),
+        ('in_progress', 'В работе'),
     ]
     name = models.CharField('Название заявки', max_length=200)
     client = models.ForeignKey('clients.Client', on_delete=models.CASCADE, related_name='orders', verbose_name='Клиент')
@@ -147,6 +149,16 @@ class OrderStage(models.Model):
     deadline = models.DateField('Срок', null=True, blank=True)
     status = models.CharField('Статус', max_length=30, choices=STAGE_STATUS_CHOICES, default='in_progress')
     parallel_group = models.PositiveIntegerField('Группа параллельной обработки', null=True, blank=True, help_text='Для параллельных потоков (например, стекло)')
+    
+    # Спецификации цеха
+    cutting_specs = models.TextField('Спецификации распила', blank=True, null=True)
+    cnc_specs = models.TextField('Спецификации ЧПУ', blank=True, null=True)
+    paint_type = models.CharField('Тип краски', max_length=100, blank=True, null=True)
+    paint_color = models.CharField('Цвет краски', max_length=100, blank=True, null=True)
+    
+    # Временные метки
+    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+    updated_at = models.DateTimeField('Дата обновления', auto_now=True)
 
     class Meta:
         unique_together = ('order', 'workshop', 'stage_type', 'finished_good', 'order_item', 'parallel_group')

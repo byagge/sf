@@ -25,69 +25,50 @@ def employee_earnings_stats(request, employee_id):
         # Базовый queryset задач сотрудника
         tasks = EmployeeTask.objects.filter(employee=employee)
         
-        # Пробуем использовать сохранённые значения (если они рассчитаны сигналами)
-        stored_total = tasks.aggregate(s=Coalesce(Sum('earnings'), 0))['s'] or 0
+        # Простая статистика без сложных вычислений
+        total_tasks = tasks.count()
+        completed_tasks = tasks.filter(completed_quantity__gt=0).count()
         
-        if stored_total and stored_total > 0:
-            # Используем сохранённые earnings/net_earnings/penalties
-            total_earnings = stored_total
-            total_penalties = tasks.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
-            total_net_earnings = tasks.aggregate(s=Coalesce(Sum('net_earnings'), 0))['s'] or (total_earnings - total_penalties)
-            total_tasks = tasks.count()
-            completed_tasks = tasks.filter(completed_quantity__gt=0).count()
-            workshop_stats = tasks.values('stage__workshop__name').annotate(
-                total_earnings=Coalesce(Sum('earnings'), 0),
-                total_penalties=Coalesce(Sum('penalties'), 0),
-                total_net=Coalesce(Sum('net_earnings'), 0),
-                task_count=Count('id')
-            )
-            monthly_stats = (
+        # Пробуем получить базовые суммы
+        try:
+            total_earnings = tasks.aggregate(s=Sum('earnings'))['s'] or 0
+            total_penalties = tasks.aggregate(s=Sum('penalties'))['s'] or 0
+            total_net_earnings = tasks.aggregate(s=Sum('net_earnings'))['s'] or 0
+        except Exception as e:
+            print(f"Error aggregating earnings: {e}")
+            total_earnings = 0
+            total_penalties = 0
+            total_net_earnings = 0
+        
+        # Простая статистика по цехам
+        try:
+            workshop_stats = list(tasks.values('stage__workshop__name').annotate(
+            total_earnings=Sum('earnings'),
+            total_penalties=Sum('penalties'),
+            total_net=Sum('net_earnings'),
+            task_count=Count('id')
+            ))
+        except Exception as e:
+            print(f"Error with workshop stats: {e}")
+            workshop_stats = []
+        
+        # Простая статистика по месяцам
+        try:
+            monthly_stats = list(
                 tasks
                 .annotate(year=ExtractYear('created_at'), month=ExtractMonth('created_at'))
                 .values('year', 'month')
                 .annotate(
-                    total_earnings=Coalesce(Sum('earnings'), 0),
-                    total_penalties=Coalesce(Sum('penalties'), 0),
-                    total_net=Coalesce(Sum('net_earnings'), 0),
-                    task_count=Count('id')
+            total_earnings=Sum('earnings'),
+            total_penalties=Sum('penalties'),
+            total_net=Sum('net_earnings'),
+            task_count=Count('id')
                 )
                 .order_by('year', 'month')
             )
-        else:
-            # Динамический пересчёт по цене услуги активного цеха
-            service_price_sq = Subquery(
-                Service.objects.filter(workshop=OuterRef('stage__workshop'), is_active=True)
-                .values('service_price')[:1]
-            )
-            annotated = tasks.annotate(
-                calc_earnings=ExpressionWrapper(
-                    F('completed_quantity') * Coalesce(service_price_sq, 0),
-                    output_field=DecimalField(max_digits=14, decimal_places=2)
-                )
-            )
-            total_earnings = annotated.aggregate(s=Coalesce(Sum('calc_earnings'), 0))['s'] or 0
-            total_penalties = annotated.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
-            total_net_earnings = total_earnings - total_penalties
-            total_tasks = tasks.count()
-            completed_tasks = tasks.filter(completed_quantity__gt=0).count()
-            workshop_stats = annotated.values('stage__workshop__name').annotate(
-                total_earnings=Coalesce(Sum('calc_earnings'), 0),
-                total_penalties=Coalesce(Sum('penalties'), 0),
-                total_net=Coalesce(Sum('calc_earnings'), 0) - Coalesce(Sum('penalties'), 0),
-                task_count=Count('id')
-            )
-            monthly_stats = (
-                annotated
-                .annotate(year=ExtractYear('created_at'), month=ExtractMonth('created_at'))
-                .values('year', 'month')
-                .annotate(
-                    total_earnings=Coalesce(Sum('calc_earnings'), 0),
-                    total_penalties=Coalesce(Sum('penalties'), 0),
-                    total_net=Coalesce(Sum('calc_earnings'), 0) - Coalesce(Sum('penalties'), 0),
-                    task_count=Count('id')
-                )
-                .order_by('year', 'month')
-            )
+        except Exception as e:
+            print(f"Error with monthly stats: {e}")
+            monthly_stats = []
         
         return Response({
             'employee': {
@@ -102,13 +83,16 @@ def employee_earnings_stats(request, employee_id):
                 'total_tasks': total_tasks,
                 'completed_tasks': completed_tasks
             },
-            'workshop_stats': list(workshop_stats),
-            'monthly_stats': list(monthly_stats)
+            'workshop_stats': workshop_stats,
+            'monthly_stats': monthly_stats
         })
         
     except User.DoesNotExist:
         return Response({'error': 'Сотрудник не найден'}, status=404)
     except Exception as e:
+        print(f"Error in employee_earnings_stats: {e}")
+        import traceback
+        traceback.print_exc()
         return Response({'error': str(e)}, status=500)
 
 @api_view(['GET'])
@@ -121,38 +105,29 @@ def workshop_earnings_stats(request, workshop_id):
         
         # Базовый queryset по цеху
         tasks = EmployeeTask.objects.filter(stage__workshop=workshop)
-        stored_total = tasks.aggregate(s=Coalesce(Sum('earnings'), 0))['s'] or 0
         
-        if stored_total and stored_total > 0:
-            total_earnings = stored_total
-            total_penalties = tasks.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
-            total_net_earnings = tasks.aggregate(s=Coalesce(Sum('net_earnings'), 0))['s'] or (total_earnings - total_penalties)
-            employee_stats = tasks.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
-                total_earnings=Coalesce(Sum('earnings'), 0),
-                total_penalties=Coalesce(Sum('penalties'), 0),
-                total_net=Coalesce(Sum('net_earnings'), 0),
-                task_count=Count('id')
-            )
-        else:
-            service_price_sq = Subquery(
-                Service.objects.filter(workshop=OuterRef('stage__workshop'), is_active=True)
-                .values('service_price')[:1]
-            )
-            annotated = tasks.annotate(
-                calc_earnings=ExpressionWrapper(
-                    F('completed_quantity') * Coalesce(service_price_sq, 0),
-                    output_field=DecimalField(max_digits=14, decimal_places=2)
-                )
-            )
-            total_earnings = annotated.aggregate(s=Coalesce(Sum('calc_earnings'), 0))['s'] or 0
-            total_penalties = annotated.aggregate(s=Coalesce(Sum('penalties'), 0))['s'] or 0
-            total_net_earnings = total_earnings - total_penalties
-            employee_stats = annotated.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
-                total_earnings=Coalesce(Sum('calc_earnings'), 0),
-                total_penalties=Coalesce(Sum('penalties'), 0),
-                total_net=Coalesce(Sum('calc_earnings'), 0) - Coalesce(Sum('penalties'), 0),
-                task_count=Count('id')
-            )
+        # Простая статистика
+        try:
+            total_earnings = tasks.aggregate(s=Sum('earnings'))['s'] or 0
+            total_penalties = tasks.aggregate(s=Sum('penalties'))['s'] or 0
+            total_net_earnings = tasks.aggregate(s=Sum('net_earnings'))['s'] or 0
+        except Exception as e:
+            print(f"Error aggregating workshop earnings: {e}")
+            total_earnings = 0
+            total_penalties = 0
+            total_net_earnings = 0
+        
+        # Статистика по сотрудникам
+        try:
+            employee_stats = list(tasks.values('employee__username', 'employee__first_name', 'employee__last_name').annotate(
+            total_earnings=Sum('earnings'),
+            total_penalties=Sum('penalties'),
+            total_net=Sum('net_earnings'),
+            task_count=Count('id')
+            ))
+        except Exception as e:
+            print(f"Error with employee stats: {e}")
+            employee_stats = []
         
         # Получаем услугу цеха
         try:
@@ -183,6 +158,9 @@ def workshop_earnings_stats(request, workshop_id):
     except Workshop.DoesNotExist:
         return Response({'error': 'Цех не найден'}, status=404)
     except Exception as e:
+        print(f"Error in workshop_earnings_stats: {e}")
+        import traceback
+        traceback.print_exc()
         return Response({'error': str(e)}, status=500)
 
 @api_view(['GET'])

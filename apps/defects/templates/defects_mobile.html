@@ -14,6 +14,9 @@
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; }
         [x-cloak] { display: none !important; }
+        
+        /* Дополнительная защита от показа модальных окон до инициализации Alpine.js */
+        .modal-hidden { display: none !important; }
     </style>
 </head>
 <body class="min-h-screen bg-gray-50">
@@ -50,6 +53,8 @@
             <input type="text" placeholder="Поиск по продукту или сотруднику..." x-model="searchTerm"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
+        
+
         
         <!-- Статистика -->
         <div class="grid grid-cols-3 gap-2 mb-4">
@@ -122,13 +127,8 @@
     <!-- Модальное окно подтверждения брака -->
     <div x-show="showConfirmationModal === true" 
          x-cloak
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-200"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0">
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-hidden">
+
         <div class="bg-white rounded-lg p-4 w-full max-w-sm" @click.away="closeConfirmationModal()">
             <h3 class="text-lg font-semibold mb-4">Подтверждение брака</h3>
             
@@ -240,7 +240,7 @@
     <!-- Модальное окно отметки починки -->
     <div x-show="showRepairModal === true" 
          x-cloak
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-hidden"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -417,7 +417,9 @@
             
             canConfirmDefect(defect) {
                 if (!this.currentUser || !defect) return false;
-                if (this.currentUser.role !== 'master') return false;
+                // Check for master role - handle different possible role formats
+                const userRole = this.currentUser.role || this.currentUser.role_name || this.currentUser.user_role;
+                if (!userRole || (userRole !== 'master' && userRole !== 'Master')) return false;
                 return defect.status === 'pending';
             },
             
@@ -437,7 +439,7 @@
                 this.selectedDefect = { ...defect };
                 this.confirmationStep = 1;
                 this.showConfirmationModal = true;
-                this.showRepairModal = false; // Закрываем другое модальное окно
+                this.showRepairModal = false; // Закрываем другое модальное окна
             },
             
             openRepairModal(defect) {
@@ -611,6 +613,8 @@
                 alert(message);
             },
             
+
+            
             async init() {
                 try {
                     // Явно устанавливаем модальные окна в скрытое состояние
@@ -620,11 +624,18 @@
                     this.selectedDefect = {};
                     this.repairComment = '';
                     
+                    // Дополнительная проверка - принудительно скрываем модальные окна
+                    setTimeout(() => {
+                        this.showConfirmationModal = false;
+                        this.showRepairModal = false;
+                    }, 100);
+                    
                     await Promise.all([
                         this.fetchDefects(),
                         this.fetchWorkshops(),
                         this.fetchCurrentUser()
                     ]);
+                    
                     this.$nextTick(() => {
                         try {
                             lucide.createIcons();

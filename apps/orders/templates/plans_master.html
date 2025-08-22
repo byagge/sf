@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru" x-data="masterPlansPage()" x-init="init()">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -14,6 +14,525 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script defer>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/static/sw.js');
+        });
+    }
+    function masterPlansPage() {
+        return {
+            loading: true,
+            initialized: false,
+            workshops: [],
+            selectedWorkshopIdx: 0,
+            stages: [],
+            employees: [],
+            showAssignModal: false,
+            assignForm: { stage_id: null, employee_id: '', quantity: 1 },
+            showEditAssignModal: false,
+            editAssignForm: { id: null, stage_id: null, employee_id: '', employee_name: '', quantity: 1 },
+            showTransferModal: false,
+            showTransferConfirmModal: false,
+            showTransferDestinationModal: false,
+            transferStageId: null,
+            transferTargetWorkshopId: null,
+            transferQuantity: 0,
+            get transferMaxQuantity() {
+                const s = this.stages.find(x => x.id === this.transferStageId);
+                if (!s) return 0;
+                return Math.max(0, s.done_count);
+            },
+            allWorkshops: [],
+            showPostponeModal: false,
+            showPostponeConfirmModal: false,
+            showNoTransferModal: false,
+            showNoTransferConfirmModal: false,
+            postponeStageId: null,
+            noTransferStageId: null,
+            toast: { show: false, message: '', type: 'success', timeout: null },
+            showToast(msg, type = 'success') {
+                this.toast.message = msg;
+                this.toast.type = type;
+                this.toast.show = true;
+                lucide.createIcons();
+                if (this.toast.timeout) clearTimeout(this.toast.timeout);
+                this.toast.timeout = setTimeout(() => { this.toast.show = false; }, 2500);
+            },
+            hideToast() {
+                this.toast.show = false;
+                if (this.toast.timeout) clearTimeout(this.toast.timeout);
+            },
+            loadingAction: null,
+            lastActionStageId: null,
+            tooltip: null,
+            isOnline: navigator.onLine,
+            
+            // Новые переменные для заявок
+            showRequestsTab: false,
+            loadingRequests: false,
+            newRequests: [],
+            availableWorkshops: [],
+            
+            // Проверка, является ли текущий пользователь мастером первого цеха
+            get isFirstWorkshopMaster() {
+                return this.workshops.length > 0 && this.selectedWorkshopIdx === 0;
+            },
+            
+            init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                window.addEventListener('online', () => { this.isOnline = true; });
+                window.addEventListener('offline', () => { this.isOnline = false; });
+                this.loadWorkshops();
+                lucide.createIcons();
+            },
+            
+            async loadWorkshops() {
+                this.loading = true;
+                try {
+                    const resp = await fetch('/api/workshops/api/my-workshops/');
+                    const data = await resp.json();
+                    this.workshops = Array.isArray(data) ? data : (data.results || []);
+                    if (this.workshops.length > 0) {
+                        this.selectedWorkshopIdx = 0;
+                        await this.loadStages();
+                        await this.loadAvailableWorkshops();
+                    }
+                } catch (e) {
+                    console.error('DEBUG: Ошибка загрузки цехов:', e);
+                } finally {
+                    this.loading = false;
+                }
+            },
+            
+            async loadAvailableWorkshops() {
+                try {
+                    const resp = await fetch('/api/workshops/api/all/');
+                    const data = await resp.json();
+                    this.availableWorkshops = Array.isArray(data) ? data : (data.results || []);
+                } catch (e) {
+                    console.error('DEBUG: Ошибка загрузки списка цехов:', e);
+                }
+            },
+            
+            async loadAllWorkshops() {
+                try {
+                    const resp = await fetch('/api/workshops/api/all/');
+                    const data = await resp.json();
+                    this.allWorkshops = Array.isArray(data) ? data : (data.results || []);
+                } catch (e) {
+                    console.error('DEBUG: Ошибка загрузки всех цехов:', e);
+                }
+            },
+            
+            async loadStages() {
+                this.loading = true;
+                try {
+                    const workshop = this.workshops[this.selectedWorkshopIdx];
+                    if (!workshop) {
+                        this.stages = [];
+                        return;
+                    }
+                    console.log('DEBUG: Загружаем этапы для цеха:', workshop.id, workshop.name);
+                    const resp = await fetch(`/orders/api/stages/?workshop=${workshop.id}&status=in_progress`);
+                    console.log('DEBUG: Ответ API этапов:', resp.status, resp.ok);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        console.log('DEBUG: Полученные данные этапов:', data);
+                                            this.stages = Array.isArray(data) ? data : (data.results || []);
+                    // Initialize showAssignments property for each stage
+                    this.stages.forEach(stage => {
+                        stage.showAssignments = false;
+                    });
+                    console.log('DEBUG: Обработанные этапы:', this.stages);
+                    } else {
+                        const errorText = await resp.text();
+                        console.error('DEBUG: Ошибка API этапов:', resp.status, errorText);
+                        this.stages = [];
+                    }
+                } catch (e) {
+                    console.error('DEBUG: Сбой загрузки этапов:', e);
+                    this.stages = [];
+                } finally {
+                    this.loading = false;
+                    lucide.createIcons();
+                    this.$nextTick(() => {
+                        if (this.lastActionStageId) {
+                            const el = document.querySelector(`[data-stage-id='${this.lastActionStageId}']`);
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            this.lastActionStageId = null;
+                        }
+                    });
+                }
+            },
+            
+            // Загрузка новых заявок
+            async loadNewRequests() {
+                this.loadingRequests = true;
+                try {
+                    console.log('DEBUG: Загружаем новые заявки...');
+                    const resp = await fetch('/orders/api/new-requests/');
+                    console.log('DEBUG: Ответ API:', resp.status, resp.ok);
+                    
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        console.log('DEBUG: Полученные данные заявок:', data);
+                        this.newRequests = Array.isArray(data) ? data : (data.results || []);
+                        console.log('DEBUG: Обработанные заявки:', this.newRequests);
+                        
+                        // Добавляем поле для выбора цеха для каждой заявки
+                        this.newRequests.forEach(request => {
+                            request.selectedWorkshop = '';
+                        });
+                    } else {
+                        console.error('DEBUG: Ошибка API:', resp.status);
+                        const errorText = await resp.text();
+                        console.error('DEBUG: Текст ошибки:', errorText);
+                    }
+                } catch (error) {
+                    console.error('DEBUG: Ошибка загрузки заявок:', error);
+                    this.showToast('Ошибка загрузки заявок', 'error');
+                }
+                this.loadingRequests = false;
+            },
+            
+            // Назначение заявки в цех
+            async assignRequestToWorkshop(request) {
+                if (!request.selectedWorkshop) {
+                    this.showToast('Выберите цех для перевода', 'error');
+                    return;
+                }
+                
+                try {
+                    const resp = await fetch(`/orders/api/requests/${request.id}/assign-workshop/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            workshop_id: request.selectedWorkshop
+                        })
+                    });
+                    
+                    if (resp.ok) {
+                        this.showToast('Заявка успешно переведена в цех', 'success');
+                        // Удаляем заявку из списка
+                        this.newRequests = this.newRequests.filter(r => r.id !== request.id);
+                    } else {
+                        const errorData = await resp.json();
+                        this.showToast(errorData.error || 'Ошибка при переводе заявки', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error assigning request to workshop:', error);
+                    this.showToast('Ошибка сети при переводе заявки', 'error');
+                }
+            },
+            
+            // Открытие вкладки заявок
+            async openRequestsTab() {
+                this.showRequestsTab = true;
+                await this.loadNewRequests();
+            },
+            
+            async loadEmployees() {
+                const workshop = this.workshops[this.selectedWorkshopIdx];
+                if (!workshop) return;
+                const resp = await fetch(`/api/workshops/api/employees/?workshop=${workshop.id}`);
+                this.employees = await resp.json();
+            },
+            
+            get filteredEmployees() {
+                const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
+                if (!stage) return this.employees;
+                const assignedIds = (stage.assigned || []).map(a => a.employee_id);
+                return this.employees.filter(emp => !assignedIds.includes(emp.id));
+            },
+            
+            get maxAssignableQuantity() {
+                const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
+                if (!stage) return 1;
+                const assigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
+                return Math.max(0, stage.plan_quantity - assigned);
+            },
+            
+            get maxEditableQuantity() {
+                const stage = this.stages.find(s => s.id === this.editAssignForm.stage_id);
+                if (!stage) return 1;
+                const otherAssigned = (stage.assigned || []).filter(a => a.id !== this.editAssignForm.id).reduce((sum, a) => sum + a.quantity, 0);
+                return Math.max(1, stage.plan_quantity - otherAssigned);
+            },
+            
+            get nowHour() {
+                return new Date().getHours();
+            },
+            
+            canAssign(stage) {
+                return stage.done_count < stage.plan_quantity;
+            },
+            
+            canTransfer(stage) {
+                if (stage.done_count >= stage.plan_quantity) return true;
+                if (this.nowHour >= 17) return true;
+                return false;
+            },
+            
+            canPostpone(stage) {
+                return this.nowHour >= 17 && stage.done_count < stage.plan_quantity;
+            },
+            
+            async openAssignModal(stage) {
+                this.assignForm = { stage_id: stage.id, employee_id: '', quantity: 1 };
+                await this.loadEmployees();
+                this.showAssignModal = true;
+                lucide.createIcons();
+            },
+            
+            async submitAssign() {
+                const payload = { stage: this.assignForm.stage_id, employee: this.assignForm.employee_id, quantity: this.assignForm.quantity };
+                const resp = await fetch('/employee_tasks/assign/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                    body: JSON.stringify(payload)
+                });
+                if (resp.ok) {
+                    await this.loadStages();
+                    this.showAssignModal = false;
+                    lucide.createIcons();
+                }
+            },
+            
+            openEditAssignModal(stage, assign) {
+                this.editAssignForm = { id: assign.id, stage_id: stage.id, employee_id: assign.employee_id, employee_name: assign.employee_name, quantity: assign.quantity };
+                this.showEditAssignModal = true;
+                lucide.createIcons();
+            },
+            
+            async submitEditAssign() {
+                const payload = { quantity: this.editAssignForm.quantity };
+                const resp = await fetch(`/employee_tasks/assign/${this.editAssignForm.id}/`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                    body: JSON.stringify(payload)
+                });
+                if (resp.ok) {
+                    await this.loadStages();
+                    this.showEditAssignModal = false;
+                    lucide.createIcons();
+                }
+            },
+            
+            async deleteAssign(stage, assign) {
+                if (!confirm('Удалить назначение?')) return;
+                const resp = await fetch(`/employee_tasks/assign/${assign.id}/`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': this.getCsrfToken() }
+                });
+                if (resp.ok) {
+                    await this.loadStages();
+                    lucide.createIcons();
+                }
+            },
+            
+            async tabChanged(idx) {
+                this.selectedWorkshopIdx = idx;
+                this.showRequestsTab = false; // Скрываем вкладку заявок при переключении на другой цех
+                await this.loadStages();
+                lucide.createIcons();
+            },
+            
+            openTransferModal(stage) {
+                this.transferStageId = stage.id;
+                this.transferQuantity = Math.max(0, stage.done_count);
+                this.showTransferModal = true;
+            },
+            
+            confirmTransferFirst() {
+                this.showTransferModal = false;
+                this.showTransferConfirmModal = true;
+            },
+            
+            async openTransferDestination() {
+                this.showTransferConfirmModal = false;
+                await this.loadAllWorkshops();
+                const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
+                this.allWorkshops = this.allWorkshops.filter(w => !currentWorkshop || w.id !== currentWorkshop.id);
+                this.transferTargetWorkshopId = this.allWorkshops.length ? this.allWorkshops[0].id : null;
+                this.showTransferDestinationModal = true;
+                lucide.createIcons();
+            },
+            
+            async confirmTransferFinal() {
+                this.showTransferDestinationModal = false;
+                this.loadingAction = 'transfer';
+                this.lastActionStageId = this.transferStageId;
+                try {
+                    const resp = await fetch(`/orders/api/stages/${this.transferStageId}/transfer/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': this.getCsrfToken(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ target_workshop_id: this.transferTargetWorkshopId, completed_quantity: this.transferQuantity })
+                    });
+                    if (!resp.ok) {
+                        const data = await resp.json();
+                        this.showToast(data.error || 'Ошибка при переводе этапа!', 'error');
+                    } else {
+                        this.showToast('Этап успешно переведён!', 'success');
+                    }
+                } catch (e) {
+                    this.showToast('Ошибка сети при переводе этапа!', 'error');
+                }
+                await this.loadStages();
+                this.loadingAction = null;
+            },
+            
+            cancelTransfer() {
+                this.showTransferModal = false;
+                this.showTransferConfirmModal = false;
+            },
+            
+            openPostponeModal(stage) {
+                this.postponeStageId = stage.id;
+                this.showPostponeModal = true;
+            },
+            
+            confirmPostponeFirst() {
+                this.showPostponeModal = false;
+                this.showPostponeConfirmModal = true;
+            },
+            
+            async confirmPostponeFinal() {
+                this.showPostponeConfirmModal = false;
+                this.loadingAction = 'postpone';
+                this.lastActionStageId = this.postponeStageId;
+                try {
+                    const resp = await fetch(`/orders/api/stages/${this.postponeStageId}/postpone/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': this.getCsrfToken() }
+                    });
+                    if (!resp.ok) {
+                        const data = await resp.json();
+                        this.showToast(data.error || 'Ошибка при переносе дедлайна!', 'error');
+                    } else {
+                        this.showToast('Дедлайн перенесён!', 'success');
+                    }
+                } catch (e) {
+                    this.showToast('Ошибка сети при переносе дедлайна!', 'error');
+                }
+                await this.loadStages();
+                this.loadingAction = null;
+            },
+            
+            cancelPostpone() {
+                this.showPostponeModal = false;
+                this.showPostponeConfirmModal = false;
+            },
+            
+            openNoTransferModal(stage) {
+                this.noTransferStageId = stage.id;
+                this.showNoTransferModal = true;
+            },
+            
+            confirmNoTransferFirst() {
+                this.showNoTransferModal = false;
+                this.showNoTransferConfirmModal = true;
+            },
+            
+            async confirmNoTransferFinal() {
+                this.showNoTransferConfirmModal = false;
+                this.loadingAction = 'no-transfer';
+                this.lastActionStageId = this.noTransferStageId;
+                try {
+                    const resp = await fetch(`/orders/api/stages/${this.noTransferStageId}/no-transfer/`, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': this.getCsrfToken() }
+                    });
+                    if (!resp.ok) {
+                        const data = await resp.json();
+                        this.showToast(data.error || 'Ошибка при действии \"не переводить\"!', 'error');
+                    } else {
+                        this.showToast('Этап отмечен как \"не переводить\"', 'success');
+                    }
+                } catch (e) {
+                    this.showToast('Ошибка сети при действии \"не переводить\"!', 'error');
+                }
+                await this.loadStages();
+                this.loadingAction = null;
+            },
+            
+            cancelNoTransfer() {
+                this.showNoTransferModal = false;
+                this.showNoTransferConfirmModal = false;
+            },
+            
+            getCsrfToken() {
+                const name = 'csrftoken';
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    cookie = cookie.trim();
+                    if (cookie.startsWith(name + '=')) {
+                        return decodeURIComponent(cookie.substring(name.length + 1));
+                    }
+                }
+                return '';
+            },
+            
+            isStageOverdue(stage) {
+                // Проверяем, прошло ли более 3 дней с момента создания этапа
+                if (!stage.created_at) return false;
+                const createdDate = new Date(stage.created_at);
+                if (isNaN(createdDate.getTime())) return false;
+                
+                const threeDaysAgo = new Date();
+                threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+                
+                return createdDate < threeDaysAgo;
+            },
+            
+            // Функция для отображения количества с учетом x2 для цехов до пресса
+            getDisplayQuantity(stage, type) {
+                if (!stage) return '0';
+                
+                let quantity = 0;
+                if (type === 'plan') {
+                    quantity = stage.plan_quantity || 0;
+                } else if (type === 'completed') {
+                    quantity = stage.completed_quantity || 0;
+                } else if (type === 'done') {
+                    quantity = stage.done_count || 0;
+                }
+                
+                // Проверяем, является ли цех "распил", "чпу" или до пресса
+                const workshopName = stage.workshop_name || '';
+                const isPrePressWorkshop = workshopName.toLowerCase().includes('распил') || 
+                                         workshopName.toLowerCase().includes('чпу') ||
+                                         workshopName.toLowerCase().includes('cnc') ||
+                                         workshopName.toLowerCase().includes('резка') ||
+                                         workshopName.toLowerCase().includes('обработка') ||
+                                         workshopName.toLowerCase().includes('cutting');
+                
+                // Если это цех до пресса, количество x2
+                if (isPrePressWorkshop && quantity > 0) {
+                    return `${quantity} ×2`;
+                }
+                
+                return quantity.toString();
+            },
+            
+            formatDate(dateStr) {
+                if (!dateStr) return '';
+                const d = new Date(dateStr);
+                return d.toLocaleDateString('ru-RU');
+            }
+        }
+    }
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('masterPlansPage', masterPlansPage);
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+    </script>
     <style>
         body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
         .nav-active { color: #2563eb; }
@@ -25,12 +544,36 @@
         @media (max-width: 640px) {
             .responsive-btn-row { flex-direction: column; gap: 0.5rem; }
             .modal-content { width: 95vw; max-width: 95vw; border-radius: 1.25rem; }
+                    .stage-card { padding: 1rem; }
+        .stage-title { font-size: 1.125rem; }
+        .btn-mobile { padding: 0.75rem 1rem; font-size: 0.875rem; }
+        .assignments-section { margin-top: 1rem; }
+        .stage-actions { gap: 0.5rem; }
+        .stage-actions button { min-height: 2.5rem; }
+        .action-summary { font-size: 0.75rem; padding: 0.75rem; }
         }
         @media (min-width: 641px) {
             .responsive-btn-row { flex-direction: row; gap: 0.5rem; }
             .modal-content { width: 100%; max-width: 24rem; border-radius: 0.75rem; }
+                    .stage-card { padding: 1.5rem; }
+        .stage-title { font-size: 1.25rem; }
+        .btn-mobile { padding: 1rem 1.5rem; font-size: 1rem; }
+        .assignments-section { margin-top: 1.5rem; }
+        .stage-actions { gap: 0.75rem; }
+        .stage-actions button { min-height: 3rem; }
+        .action-summary { font-size: 0.875rem; padding: 1rem; }
+        .stages-header { padding: 1.5rem; }
+        .stages-header h2 { font-size: 1.25rem; }
         }
         .modal-content { animation: scaleIn 0.2s; }
+        /* Mobile-specific improvements */
+        @media (max-width: 640px) {
+            .stage-card { margin-bottom: 1rem; }
+                    .stage-actions button { min-width: 120px; }
+        .assignments-section button { padding: 0.75rem; }
+        .stages-header { padding: 1rem; }
+        .stages-header h2 { font-size: 1.125rem; }
+        }
         @keyframes fadeInBg {
             from { background: rgba(0,0,0,0); }
             to   { background: rgba(0,0,0,0.35); }
@@ -85,32 +628,147 @@
                     <span x-text="workshop.name"></span>
                 </button>
             </template>
+            <!-- Заявки - только для мастера первого цеха -->
+            <template x-if="isFirstWorkshopMaster">
+                <button @click="openRequestsTab()" :class="showRequestsTab ? 'bg-green-600 text-white' : 'bg-white text-gray-700'" class="px-4 py-2 rounded-lg font-semibold border border-green-600 min-w-max">
+                    <span>Заявки</span>
+                </button>
+            </template>
         </div>
-        <!-- Stages for selected workshop -->
-        <template x-if="loading">
-            <div class="space-y-4 animate-pulse">
+        
+        <!-- Заявки Tab -->
+        <div x-show="showRequestsTab" class="space-y-4">
+            <div class="bg-white rounded-xl p-4 border border-green-200">
+                <h2 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i data-lucide="file-text" class="w-5 h-5 mr-2 text-green-600"></i>
+                    Новые заявки
+                </h2>
+                
+                <!-- Loading State for Requests -->
+                <template x-if="loadingRequests">
+                    <div class="space-y-3 animate-pulse">
+                        <div class="h-16 rounded-lg bg-gray-200"></div>
+                        <div class="h-16 rounded-lg bg-gray-200"></div>
+                    </div>
+                </template>
+                
+                <!-- Requests List -->
+                <template x-if="!loadingRequests">
+                    <template x-if="newRequests.length === 0">
+                        <div class="text-center py-8">
+                            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <i data-lucide="check-square" class="w-8 h-8 text-gray-400"></i>
+                            </div>
+                            <h3 class="text-base font-semibold text-gray-900 mb-1">Нет новых заявок</h3>
+                            <p class="text-sm text-gray-600">Все заявки уже распределены по цехам</p>
+                        </div>
+                    </template>
+                    
+                    <template x-if="newRequests.length > 0">
+                        <div class="space-y-3">
+                            <template x-for="request in newRequests" :key="request.id">
+                                <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div class="flex-1">
+                                            <h3 class="font-semibold text-gray-900 text-base mb-1" x-text="request.name"></h3>
+                                            <div class="text-xs text-gray-600">
+                                                <span>Клиент: <span class="font-medium" x-text="request.client && request.client.name ? request.client.name : 'Не указан'"></span></span>
+                                                <span class="mx-2">•</span>
+                                                <span>Дата: <span class="font-medium" x-text="formatDate(request.created_at)"></span></span>
+                                            </div>
+                                        </div>
+                                        <div class="ml-3">
+                                            <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">Новая</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Товары заявки -->
+                                    <template x-if="request.items && request.items.length">
+                                        <div class="mb-3">
+                                            <div class="text-xs font-medium text-gray-700 mb-2">Товары:</div>
+                                            <div class="space-y-2">
+                                                <template x-for="item in request.items" :key="item.id">
+                                                    <div class="bg-white rounded p-2 border border-gray-100">
+                                                        <div class="flex items-center justify-between text-sm">
+                                                            <div class="flex-1">
+                                                                <div class="font-medium text-gray-900" x-text="item.product ? item.product.name : 'Товар'"></div>
+                                                                <div class="text-xs text-gray-600">
+                                                                    <span x-text="item.quantity"></span> шт.
+                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                                                </div>
+                                                            </div>
+                                                            <div class="text-right ml-3">
+                                                                <div class="text-xs text-gray-500">ID: <span x-text="item.id"></span></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    
+                                    <!-- Выбор цеха -->
+                                    <div class="flex items-center space-x-3">
+                                        <label class="text-sm font-medium text-gray-700">Перевести в цех:</label>
+                                        <select x-model="request.selectedWorkshop" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                                            <option value="">Выберите цех</option>
+                                            <template x-for="workshop in availableWorkshops" :key="workshop.id">
+                                                <option :value="workshop.id" x-text="workshop.name"></option>
+                                            </template>
+                                        </select>
+                                        <button @click="assignRequestToWorkshop(request)" 
+                                                :disabled="!request.selectedWorkshop"
+                                                :class="request.selectedWorkshop ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed'"
+                                                class="px-4 py-2 text-white rounded-lg font-medium text-sm transition-colors">
+                                            Перевести
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+            </div>
+        </div>
+        
+        <!-- Stages for selected workshop (always mount, toggle via x-show) -->
+        <div x-show="!showRequestsTab" class="stages-section">
+            <div class="mb-4 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400 stages-header">
+                <h2 class="text-lg font-semibold text-blue-900 mb-2 flex items-center">
+                    <i data-lucide="list-checks" class="w-5 h-5 mr-2"></i>
+                    Этапы производства
+                </h2>
+                <p class="text-sm text-blue-700">Управление задачами и назначениями</p>
+            </div>
+            <div x-show="loading" class="space-y-4 animate-pulse">
                 <div class="h-20 rounded-xl skeleton"></div>
                 <div class="h-20 rounded-xl skeleton"></div>
             </div>
-        </template>
-        <template x-if="!loading && stages.length === 0">
-            <div class="text-center py-12">
+            <div x-show="!loading && stages.length === 0" class="text-center py-12">
                 <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i data-lucide="check-square" class="w-10 h-10 text-gray-400"></i>
                 </div>
                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Нет активных этапов</h3>
                 <p class="text-gray-600">В этом цеху пока нет задач</p>
             </div>
-        </template>
-        <template x-if="!loading && stages.length > 0">
-            <div class="space-y-6">
+            <div x-show="!loading && stages.length > 0" class="space-y-6">
                 <template x-for="stage in stages" :key="stage.id">
-                    <div class="card bg-white rounded-xl p-4 flex flex-col space-y-2" :data-stage-id="stage.id">
+                    <div class="card bg-white rounded-xl p-4 flex flex-col space-y-2 stage-card" :data-stage-id="stage.id"
+                         :class="isStageOverdue(stage) ? 'bg-red-50 border-l-4 border-l-red-400' : ''">
                         <div class="flex justify-between items-center mb-2">
                             <div>
-                                <div class="font-bold text-gray-900 text-lg" x-text="stage.order_name"></div>
+                                <div class="flex items-center space-x-2 mb-1">
+                                                                            <span class="font-bold text-gray-900 text-lg hover:text-blue-600 transition-colors duration-200 stage-title" x-text="stage.order_name"></span>
+                                    <template x-if="isStageOverdue(stage)">
+                                        <div class="flex items-center space-x-1 bg-red-100 px-2 py-1 rounded-full">
+                                            <i data-lucide="clock" class="w-3 h-3 text-red-600"></i>
+                                            <span class="text-xs text-red-700 font-medium">Просрочено</span>
+                                        </div>
+                                    </template>
+                                </div>
                                 <div class="text-xs text-gray-500">Операция: <span x-text="stage.operation"></span></div>
-                                <div class="text-xs text-gray-500">План: <span x-text="stage.plan_quantity"></span></div>
+                                <div class="text-xs text-gray-500">План: <span x-text="getDisplayQuantity(stage, 'plan')"></span></div>
                                 
                                 <!-- Детальная информация о заказе -->
                                 <template x-if="stage.order_item && stage.order_item.order">
@@ -141,66 +799,55 @@
                                             <template x-if="stage.order_item.color">
                                                 <span class="text-gray-500">• <span x-text="stage.order_item.color"></span></span>
                                             </template>
+                                </div>
+                                    </div>
+                                </template>
+                                
+                                <!-- Все товары заказа -->
+                                <template x-if="stage.order_item && stage.order_item.order && stage.order_item.order.items && stage.order_item.order.items.length > 1">
+                                    <div class="mt-2 p-2 bg-yellow-50 rounded-lg border-l-4 border-yellow-400">
+                                        <div class="text-xs font-semibold text-yellow-800 mb-2">Все товары заказа:</div>
+                                        <div class="space-y-2">
+                                            <template x-for="item in stage.order_item.order.items" :key="item.id">
+                                                <div class="text-xs border-l-2 border-yellow-300 pl-2" :class="item.id === stage.order_item.id ? 'border-l-yellow-600 bg-yellow-100' : ''">
+                                                    <div class="flex items-center justify-between">
+                                                        <div class="flex-1">
+                                                            <div class="font-medium text-yellow-900" x-text="item.product.name"></div>
+                                                            <div class="text-yellow-700">
+                                                                <span x-text="item.quantity"></span> шт.
+                                                                <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                                            </div>
+                                                        </div>
+                                                        <div class="ml-2">
+                                                            <template x-if="item.id === stage.order_item.id">
+                                                                <div class="bg-yellow-600 text-white text-xs px-2 py-1 rounded-full">Текущий</div>
+                                                            </template>
+                                                            <template x-if="item.id !== stage.order_item.id">
+                                                                <div class="text-yellow-600 text-xs">ID: <span x-text="item.id"></span></div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
                                         </div>
-                                        <template x-if="stage.order_item.product.is_glass">
-                                            <div class="text-xs text-blue-600 mt-1">
-                                                <i data-lucide="droplets" class="w-3 h-3 inline mr-1"></i>
-                                                Стекло: <span x-text="stage.order_item.glass_type_display || 'Не указан'"></span>
-                                            </div>
-                                        </template>
-                                        <!-- Дополнительные характеристики товара -->
-                                        <template x-if="stage.order_item.paint_type">
-                                            <div class="text-xs text-purple-600 mt-1">
-                                                <i data-lucide="palette" class="w-3 h-3 inline mr-1"></i>
-                                                Краска: <span x-text="stage.order_item.paint_type"></span>
-                                                <template x-if="stage.order_item.paint_color">
-                                                    <span> (<span x-text="stage.order_item.paint_color"></span>)</span>
-                                                </template>
-                                            </div>
-                                        </template>
-                                        <template x-if="stage.order_item.cnc_specs">
-                                            <div class="text-xs text-green-600 mt-1">
-                                                <i data-lucide="cpu" class="w-3 h-3 inline mr-1"></i>
-                                                ЧПУ: <span x-text="stage.order_item.cnc_specs"></span>
-                                            </div>
-                                        </template>
-                                        <template x-if="stage.order_item.cutting_specs">
-                                            <div class="text-xs text-orange-600 mt-1">
-                                                <i data-lucide="scissors" class="w-3 h-3 inline mr-1"></i>
-                                                Распил: <span x-text="stage.order_item.cutting_specs"></span>
-                                            </div>
-                                        </template>
-                                        <template x-if="stage.order_item.packaging_notes">
-                                            <div class="text-xs text-indigo-600 mt-1">
-                                                <i data-lucide="package" class="w-3 h-3 inline mr-1"></i>
-                                                Упаковка: <span x-text="stage.order_item.packaging_notes"></span>
-                                            </div>
-                                        </template>
-                                        <template x-if="stage.workshop_info && stage.workshop_info.cutting_specs">
-                                            <div class="text-xs text-gray-600 mt-1">
-                                                <span class="font-medium">Распил:</span> <span x-text="stage.workshop_info.cutting_specs"></span>
-                                            </div>
-                                        </template>
-                                        <template x-if="stage.workshop_info && stage.workshop_info.cnc_specs">
-                                            <div class="text-xs text-gray-600 mt-1">
-                                                <span class="font-medium">ЧПУ:</span> <span x-text="stage.workshop_info.cnc_specs"></span>
-                                            </div>
-                                        </template>
-                                        <template x-if="stage.workshop_info && stage.workshop_info.paint_type">
-                                            <div class="text-xs text-gray-600 mt-1">
-                                                <span class="font-medium">Краска:</span> <span x-text="stage.workshop_info.paint_type"></span>
-                                                <template x-if="stage.workshop_info.paint_color">
-                                                    <span> (<span x-text="stage.workshop_info.paint_color"></span>)</span>
-                                                </template>
-                                            </div>
-                                        </template>
                                     </div>
                                 </template>
                             </div>
-                            <div class="flex responsive-btn-row flex-wrap gap-2 mt-2">
+                                                            <!-- Действия с этапом -->
+                            <div class="mb-3 p-3 bg-gray-50 rounded-lg text-xs text-gray-600 action-summary">
+                                <div class="font-medium mb-1">Действия:</div>
+                                <div class="space-y-1">
+                                    <div><span class="text-blue-600">• Распределить:</span> назначить сотруднику</div>
+                                    <div><span class="text-green-600">• Перевести дальше:</span> передать на следующий этап</div>
+                                    <div><span class="text-red-600">• Отклонить:</span> не выполнять этап</div>
+                                    <div><span class="text-yellow-600">• Оставить:</span> перенести дедлайн</div>
+                                </div>
+                            </div>
+                            <div class="flex responsive-btn-row flex-wrap gap-2 mt-2 stage-actions">
                                 <template x-if="canAssign(stage)">
                                     <div class="relative group">
-                                        <button @click="openAssignModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 bg-blue-600 text-white flex items-center space-x-2 font-semibold text-base">
+                                                                                    <button @click="openAssignModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 bg-blue-600 text-white flex items-center space-x-2 font-semibold text-base btn-mobile">
                                             <i data-lucide="user-plus" class="w-4 h-4"></i>
                                             <span>Распределить</span>
                                         </button>
@@ -211,7 +858,7 @@
                                 </template>
                                 <template x-if="canTransfer(stage)">
                                     <div class="relative group">
-                                        <button @click="openTransferModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 text-white flex items-center space-x-2 font-semibold text-base">
+                                                                                    <button @click="openTransferModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 text-white flex items-center space-x-2 font-semibold text-base btn-mobile">
                                             <i data-lucide="arrow-right" class="w-4 h-4"></i>
                                             <span>Перевести дальше</span>
                                         </button>
@@ -220,68 +867,74 @@
                                         </div>
                                     </div>
                                 </template>
+                                <!-- Отклонить: этап не будет выполняться, отмечается как отклонённый -->
                                 <template x-if="canTransfer(stage)">
                                     <div class="relative group">
-                                        <button @click="openNoTransferModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white flex items-center space-x-2 font-semibold text-base">
+                                        <button @click="openNoTransferModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white flex items-center space-x-2 font-semibold text-base btn-mobile">
                                             <i data-lucide="slash" class="w-4 h-4"></i>
-                                            <span>Не переводить</span>
+                                                                                            <span>Отклонить</span>
                                         </button>
                                         <div x-show="!('ontouchstart' in window) && $root.tooltip === 'no-transfer-' + stage.id" @mouseenter="$root.tooltip = 'no-transfer-' + stage.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'no-transfer-' + stage.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
-                                            Зафиксировать этап как "не переводить"
+                                                                                            Отклонить этап (не выполнять)
                                         </div>
                                     </div>
                                 </template>
-                                <template x-if="canPostpone(stage)">
-                                    <div class="relative group">
-                                        <button @click="openPostponeModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 bg-yellow-500 text-white flex items-center space-x-2 font-semibold text-base">
-                                            <i data-lucide="clock" class="w-4 h-4"></i>
-                                            <span>Оставить</span>
-                                        </button>
-                                        <div x-show="!('ontouchstart' in window) && $root.tooltip === 'postpone-' + stage.id" @mouseenter="$root.tooltip = 'postpone-' + stage.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'postpone-' + stage.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
-                                            Перенести дедлайн на следующий день
+                                                                    <!-- Оставить: переносит дедлайн на следующий день, работа остаётся в цехе -->
+                                    <template x-if="canPostpone(stage)">
+                                        <div class="relative group">
+                                            <button @click="openPostponeModal(stage)" class="px-3 py-2 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 bg-yellow-500 text-white flex items-center space-x-2 font-semibold text-base btn-mobile">
+                                                <i data-lucide="clock" class="w-4 h-4"></i>
+                                                <span>Оставить</span>
+                                            </button>
+                                            <div x-show="!('ontouchstart' in window) && $root.tooltip === 'postpone-' + stage.id" @mouseenter="$root.tooltip = 'postpone-' + stage.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'postpone-' + stage.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                                Перенести дедлайн на следующий день
+                                            </div>
+                                        </div>
+                                    </template>
+                            </div>
+                            <div class="mt-2">
+                                <div class="text-xs text-gray-700 font-semibold mb-1">Назначения:</div>
+                                <template x-if="!stage.assigned || stage.assigned.length === 0">
+                                    <div class="text-xs text-gray-400">Пока не назначено</div>
+                                </template>
+                                <template x-for="assign in stage.assigned" :key="assign.id">
+                                    <div class="flex items-center justify-between py-1">
+                                        <div>
+                                            <div class="text-xs text-gray-500">Кому: <span class="font-medium text-gray-900" x-text="assign.employee_name"></span></div>
+                                            <div class="text-xs text-gray-500">Назначено: <span x-text="assign.quantity"></span></div>
+                                            <template x-if="assign.completed_quantity !== undefined">
+                                                <div class="text-xs text-green-600">Сделано: <span x-text="assign.completed_quantity"></span> из <span x-text="assign.quantity"></span></div>
+                                            </template>
+                                            <template x-if="assign.defective_quantity && assign.defective_quantity > 0">
+                                                <div class="text-xs text-red-600">Брак: <span x-text="assign.defective_quantity"></span></div>
+                                            </template>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <button @click="openEditAssignModal(stage, assign)" class="text-blue-600 hover:underline text-xs relative group">
+                                                Редактировать
+                                                <div x-show="!('ontouchstart' in window) && $root.tooltip === 'edit-' + assign.id" @mouseenter="$root.tooltip = 'edit-' + assign.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'edit-' + assign.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                                    Изменить количество
+                                                </div>
+                                            </button>
+                                            <button @click="deleteAssign(stage, assign)" class="text-red-500 hover:underline text-xs relative group">
+                                                Удалить
+                                                <div x-show="!('ontouchstart' in window) && $root.tooltip === 'delete-' + assign.id" @mouseenter="$root.tooltip = 'delete-' + assign.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'delete-' + assign.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
+                                                    Удалить назначение
+                                                </div>
+                                            </button>
                                         </div>
                                     </div>
                                 </template>
                             </div>
                         </div>
-                        <div class="mt-2">
-                            <div class="text-xs text-gray-700 font-semibold mb-1">Назначения:</div>
-                            <template x-if="stage.assigned.length === 0">
-                                <div class="text-xs text-gray-400">Пока не назначено</div>
-                            </template>
-                            <template x-for="assign in stage.assigned" :key="assign.id">
-                                <div class="flex items-center justify-between py-1">
-                                    <div>
-                                        <div class="text-xs text-gray-500">Кому: <span class="font-medium text-gray-900" x-text="assign.employee_name"></span></div>
-                                        <div class="text-xs text-gray-500">Назначено: <span x-text="assign.quantity"></span></div>
-                                        <template x-if="assign.completed_quantity !== undefined">
-                                            <div class="text-xs text-green-600">Сделано: <span x-text="assign.completed_quantity"></span> из <span x-text="assign.quantity"></span></div>
-                                        </template>
-                                        <template x-if="assign.defective_quantity && assign.defective_quantity > 0">
-                                            <div class="text-xs text-red-600">Брак: <span x-text="assign.defective_quantity"></span></div>
-                                        </template>
-                                    </div>
-                                    <div class="flex space-x-2">
-                                        <button @click="openEditAssignModal(stage, assign)" class="text-blue-600 hover:underline text-xs relative group">
-                                            Редактировать
-                                            <div x-show="!('ontouchstart' in window) && $root.tooltip === 'edit-' + assign.id" @mouseenter="$root.tooltip = 'edit-' + assign.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'edit-' + assign.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
-                                                Изменить количество
-                                            </div>
-                                        </button>
-                                        <button @click="deleteAssign(stage, assign)" class="text-red-500 hover:underline text-xs relative group">
-                                            Удалить
-                                            <div x-show="!('ontouchstart' in window) && $root.tooltip === 'delete-' + assign.id" @mouseenter="$root.tooltip = 'delete-' + assign.id" @mouseleave="$root.tooltip = null" @mouseover="$root.tooltip = 'delete-' + assign.id" @mouseout="$root.tooltip = null" class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 text-white text-xs shadow-lg z-50 whitespace-nowrap" style="display: none;" x-transition x-cloak>
-                                                Удалить назначение
-                                            </div>
-                                        </button>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                </template>
+                    </template>
+                </div>
+            </template>
+            <!-- Compact debug output to verify data presence -->
+            <div class="mt-4 text-xs text-gray-400" x-show="!loading">
+                <span>Всего этапов: </span><span x-text="stages.length"></span>
             </div>
-        </template>
+        </div>
     </main>
     <!-- Assign Modal -->
     <template x-if="showAssignModal">
@@ -320,6 +973,34 @@
                                             <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.color">
                                                 <div><span class="font-medium">Цвет:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.color"></span></div>
                                             </template>
+                                        </div>
+                                    </template>
+                                    
+                                    <!-- Все товары заказа -->
+                                    <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && stages.find(s => s.id === assignForm.stage_id).order_item.order.items.length > 1">
+                                        <div class="mt-2 pt-2 border-t border-blue-200">
+                                            <div class="text-xs font-semibold text-blue-800 mb-2">Все товары заказа:</div>
+                                            <div class="space-y-1">
+                                                <template x-for="item in stages.find(s => s.id === assignForm.stage_id).order_item.order.items" :key="item.id">
+                                                    <div class="text-xs border-l-2 border-blue-300 pl-2" :class="item.id === stages.find(s => s.id === assignForm.stage_id).order_item.id ? 'border-l-blue-600 bg-blue-100' : ''">
+                                                        <div class="flex items-center justify-between">
+                                                            <div class="flex-1">
+                                                                <div class="font-medium text-blue-900" x-text="item.product.name"></div>
+                                                                <div class="text-blue-700">
+                                                                    <span x-text="item.quantity"></span> шт.
+                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                </div>
+                                                            </div>
+                                                            <div class="ml-2">
+                                                                <template x-if="item.id === stages.find(s => s.id === assignForm.stage_id).order_item.id">
+                                                                    <div class="bg-blue-600 text-white text-xs px-1 py-0.5 rounded">Текущий</div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
                                         </div>
                                     </template>
                                 </div>
@@ -394,6 +1075,34 @@
                                             </template>
                                         </div>
                                     </template>
+                                    
+                                    <!-- Все товары заказа -->
+                                    <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item && stages.find(s => s.id === editAssignForm.stage_id).order_item.order && stages.find(s => s.id === editAssignForm.stage_id).order_item.order.items && stages.find(s => s.id === editAssignForm.stage_id).order_item.order.items.length > 1">
+                                        <div class="mt-2 pt-2 border-t border-blue-200">
+                                            <div class="text-xs font-semibold text-blue-800 mb-2">Все товары заказа:</div>
+                                            <div class="space-y-1">
+                                                <template x-for="item in stages.find(s => s.id === editAssignForm.stage_id).order_item.order.items" :key="item.id">
+                                                    <div class="text-xs border-l-2 border-blue-300 pl-2" :class="item.id === stages.find(s => s.id === editAssignForm.stage_id).order_item.id ? 'border-l-blue-600 bg-blue-100' : ''">
+                                                        <div class="flex items-center justify-between">
+                                                            <div class="flex-1">
+                                                                <div class="font-medium text-blue-900" x-text="item.product.name"></div>
+                                                                <div class="text-blue-700">
+                                                                    <span x-text="item.quantity"></span> шт.
+                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                </div>
+                                                            </div>
+                                                            <div class="ml-2">
+                                                                <template x-if="item.id === stages.find(s => s.id === editAssignForm.stage_id).order_item.id">
+                                                                    <div class="bg-blue-600 text-white text-xs px-1 py-0.5 rounded">Текущий</div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
@@ -438,6 +1147,34 @@
                                         </template>
                                         <div><span class="font-medium">Товар:</span> <span x-text="stages.find(s => s.id === transferStageId).order_item.product.name"></span></div>
                                         <div><span class="font-medium">План:</span> <span x-text="stages.find(s => s.id === transferStageId).plan_quantity"></span></div>
+                                    </template>
+                                    
+                                    <!-- Все товары заказа -->
+                                    <template x-if="stages.find(s => s.id === transferStageId).order_item && stages.find(s => s.id === transferStageId).order_item.order && stages.find(s => s.id === transferStageId).order_item.order.items && stages.find(s => s.id === transferStageId).order_item.order.items.length > 1">
+                                        <div class="mt-2 pt-2 border-t border-blue-200">
+                                            <div class="text-xs font-semibold text-blue-800 mb-2">Все товары заказа:</div>
+                                            <div class="space-y-1">
+                                                <template x-for="item in stages.find(s => s.id === transferStageId).order_item.order.items" :key="item.id">
+                                                    <div class="text-xs border-l-2 border-blue-300 pl-2" :class="item.id === stages.find(s => s.id === transferStageId).order_item.id ? 'border-l-blue-600 bg-blue-100' : ''">
+                                                        <div class="flex items-center justify-between">
+                                                            <div class="flex-1">
+                                                                <div class="font-medium text-blue-900" x-text="item.product.name"></div>
+                                                                <div class="text-blue-700">
+                                                                    <span x-text="item.quantity"></span> шт.
+                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                </div>
+                                                            </div>
+                                                            <div class="ml-2">
+                                                                <template x-if="item.id === stages.find(s => s.id === transferStageId).order_item.id">
+                                                                    <div class="bg-blue-600 text-white text-xs px-1 py-0.5 rounded">Текущий</div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
                                     </template>
                                 </div>
                             </template>
@@ -527,6 +1264,34 @@
                                         <div><span class="font-medium">Товар:</span> <span x-text="stages.find(s => s.id === postponeStageId).order_item.product.name"></span></div>
                                         <div><span class="font-medium">План:</span> <span x-text="stages.find(s => s.id === postponeStageId).plan_quantity"></span></div>
                                     </template>
+                                    
+                                    <!-- Все товары заказа -->
+                                    <template x-if="stages.find(s => s.id === postponeStageId).order_item && stages.find(s => s.id === postponeStageId).order_item.order && stages.find(s => s.id === postponeStageId).order_item.order.items && stages.find(s => s.id === postponeStageId).order_item.order.items.length > 1">
+                                        <div class="mt-2 pt-2 border-t border-blue-200">
+                                            <div class="text-xs font-semibold text-blue-800 mb-2">Все товары заказа:</div>
+                                            <div class="space-y-1">
+                                                <template x-for="item in stages.find(s => s.id === postponeStageId).order_item.order.items" :key="item.id">
+                                                    <div class="text-xs border-l-2 border-blue-300 pl-2" :class="item.id === stages.find(s => s.id === postponeStageId).order_item.id ? 'border-l-blue-600 bg-blue-100' : ''">
+                                                        <div class="flex items-center justify-between">
+                                                            <div class="flex-1">
+                                                                <div class="font-medium text-blue-900" x-text="item.product.name"></div>
+                                                                <div class="text-blue-700">
+                                                                    <span x-text="item.quantity"></span> шт.
+                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                </div>
+                                                            </div>
+                                                            <div class="ml-2">
+                                                                <template x-if="item.id === stages.find(s => s.id === postponeStageId).order_item.id">
+                                                                    <div class="bg-blue-600 text-white text-xs px-1 py-0.5 rounded">Текущий</div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
@@ -564,8 +1329,8 @@
         <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
             <div class="modal-content bg-white p-6 mx-4">
                 <div class="text-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Не переводить этап?</h3>
-                    <p class="text-gray-600 mb-2">Этап останется на текущем месте. Продолжить?</p>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Отклонить этап?</h3>
+                    <p class="text-gray-600 mb-2">Этап будет отмечен как отклонённый и не будет выполняться. Продолжить?</p>
                     
                     <!-- Детальная информация о заказе -->
                     <template x-if="noTransferStageId">
@@ -581,6 +1346,34 @@
                                         <div><span class="font-medium">Товар:</span> <span x-text="stages.find(s => s.id === noTransferStageId).order_item.product.name"></span></div>
                                         <div><span class="font-medium">План:</span> <span x-text="stages.find(s => s.id === noTransferStageId).plan_quantity"></span></div>
                                     </template>
+                                    
+                                    <!-- Все товары заказа -->
+                                    <template x-if="stages.find(s => s.id === noTransferStageId).order_item && stages.find(s => s.id === noTransferStageId).order_item.order && stages.find(s => s.id === noTransferStageId).order_item.order.items && stages.find(s => s.id === noTransferStageId).order_item.order.items.length > 1">
+                                        <div class="mt-2 pt-2 border-t border-blue-200">
+                                            <div class="text-xs font-semibold text-blue-800 mb-2">Все товары заказа:</div>
+                                            <div class="space-y-1">
+                                                <template x-for="item in stages.find(s => s.id === noTransferStageId).order_item.order.items" :key="item.id">
+                                                    <div class="text-xs border-l-2 border-blue-300 pl-2" :class="item.id === stages.find(s => s.id === noTransferStageId).order_item.id ? 'border-l-blue-600 bg-blue-100' : ''">
+                                                        <div class="flex items-center justify-between">
+                                                            <div class="flex-1">
+                                                                <div class="font-medium text-blue-900" x-text="item.product.name"></div>
+                                                                <div class="text-blue-700">
+                                                                    <span x-text="item.quantity"></span> шт.
+                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                </div>
+                                                            </div>
+                                                            <div class="ml-2">
+                                                                <template x-if="item.id === stages.find(s => s.id === noTransferStageId).order_item.id">
+                                                                    <div class="bg-blue-600 text-white text-xs px-1 py-0.5 rounded">Текущий</div>
+                                                                </template>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
@@ -588,7 +1381,7 @@
                 </div>
                 <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
                     <button type="button" @click="cancelNoTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base">Отмена</button>
-                    <button type="button" @click="confirmNoTransferFirst" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white font-semibold text-base">Не переводить</button>
+                    <button type="button" @click="confirmNoTransferFirst" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-red-400 bg-red-500 text-white font-semibold text-base">Отклонить</button>
                 </div>
             </div>
         </div>
@@ -599,7 +1392,7 @@
             <div class="modal-content bg-white p-6 mx-4">
                 <div class="text-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">Вы уверены?</h3>
-                    <p class="text-gray-600 mb-2">Это действие нельзя отменить. Не переводить этап?</p>
+                    <p class="text-gray-600 mb-2">Это действие нельзя отменить. Отклонить этап?</p>
                 </div>
                 <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
                     <button type="button" @click="cancelNoTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base" :disabled="loadingAction === 'no-transfer'">Нет, отменить</button>
@@ -607,7 +1400,7 @@
                         <template x-if="loadingAction === 'no-transfer'">
                             <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
                         </template>
-                        <span x-text="loadingAction === 'no-transfer' ? 'Выполняется...' : 'Да, уверен'"></span>
+                        <span x-text="loadingAction === 'no-transfer' ? 'Выполняется...' : 'Да, отклонить'"></span>
                     </button>
                 </div>
             </div>
@@ -647,319 +1440,5 @@
             <span>Установить приложение</span>
         </button>
     </div>
-    <script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/static/sw.js');
-        });
-    }
-    function masterPlansPage() {
-        return {
-            loading: true,
-            workshops: [],
-            selectedWorkshopIdx: 0,
-            stages: [],
-            employees: [],
-            showAssignModal: false,
-            assignForm: { stage_id: null, employee_id: '', quantity: 1 },
-            showEditAssignModal: false,
-            editAssignForm: { id: null, stage_id: null, employee_id: '', employee_name: '', quantity: 1 },
-            showTransferModal: false,
-            showTransferConfirmModal: false,
-            showTransferDestinationModal: false,
-            transferStageId: null,
-            transferTargetWorkshopId: null,
-            transferQuantity: 0,
-            get transferMaxQuantity() {
-                const s = this.stages.find(x => x.id === this.transferStageId);
-                if (!s) return 0;
-                return Math.max(0, s.done_count);
-            },
-            allWorkshops: [],
-            showPostponeModal: false,
-            showPostponeConfirmModal: false,
-            showNoTransferModal: false,
-            showNoTransferConfirmModal: false,
-            postponeStageId: null,
-            noTransferStageId: null,
-            toast: { show: false, message: '', type: 'success', timeout: null },
-            showToast(msg, type = 'success') {
-                this.toast.message = msg;
-                this.toast.type = type;
-                this.toast.show = true;
-                lucide.createIcons();
-                if (this.toast.timeout) clearTimeout(this.toast.timeout);
-                this.toast.timeout = setTimeout(() => { this.toast.show = false; }, 2500);
-            },
-            hideToast() {
-                this.toast.show = false;
-                if (this.toast.timeout) clearTimeout(this.toast.timeout);
-            },
-            loadingAction: null,
-            lastActionStageId: null,
-            tooltip: null,
-            isOnline: navigator.onLine,
-            init() {
-                window.addEventListener('online', () => { this.isOnline = true; });
-                window.addEventListener('offline', () => { this.isOnline = false; });
-                this.loadWorkshops();
-                lucide.createIcons();
-            },
-            async loadWorkshops() {
-                this.loading = true;
-                const resp = await fetch('/api/workshops/api/my-workshops/');
-                this.workshops = await resp.json();
-                if (this.workshops.length > 0) {
-                    this.selectedWorkshopIdx = 0;
-                    await this.loadStages();
-                }
-                this.loading = false;
-            },
-            async loadAllWorkshops() {
-                const resp = await fetch('/api/workshops/api/all/');
-                const data = await resp.json();
-                this.allWorkshops = Array.isArray(data) ? data : (data.results || []);
-            },
-            async loadStages() {
-                this.loading = true;
-                const workshop = this.workshops[this.selectedWorkshopIdx];
-                if (!workshop) return;
-                const resp = await fetch(`/orders/api/stages/?workshop=${workshop.id}&status=in_progress`);
-                const data = await resp.json();
-                this.stages = Array.isArray(data) ? data : (data.results || []);
-                this.loading = false;
-                lucide.createIcons();
-                // Автоскролл к этапу после действия
-                this.$nextTick(() => {
-                    if (this.lastActionStageId) {
-                        const el = document.querySelector(`[data-stage-id='${this.lastActionStageId}']`);
-                        if (el) {
-                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
-                        this.lastActionStageId = null;
-                    }
-                });
-            },
-            async loadEmployees() {
-                const workshop = this.workshops[this.selectedWorkshopIdx];
-                if (!workshop) return;
-                const resp = await fetch(`/api/workshops/api/employees/?workshop=${workshop.id}`);
-                this.employees = await resp.json();
-            },
-            get filteredEmployees() {
-                const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
-                if (!stage) return this.employees;
-                const assignedIds = (stage.assigned || []).map(a => a.employee_id);
-                return this.employees.filter(emp => !assignedIds.includes(emp.id));
-            },
-            get maxAssignableQuantity() {
-                const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
-                if (!stage) return 1;
-                const assigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
-                return Math.max(0, stage.plan_quantity - assigned);
-            },
-            get maxEditableQuantity() {
-                const stage = this.stages.find(s => s.id === this.editAssignForm.stage_id);
-                if (!stage) return 1;
-                const otherAssigned = (stage.assigned || []).filter(a => a.id !== this.editAssignForm.id).reduce((sum, a) => sum + a.quantity, 0);
-                return Math.max(1, stage.plan_quantity - otherAssigned);
-            },
-            get nowHour() {
-                return new Date().getHours();
-            },
-            canAssign(stage) {
-                return stage.done_count < stage.plan_quantity;
-            },
-            canTransfer(stage) {
-                if (stage.done_count >= stage.plan_quantity) return true;
-                if (this.nowHour >= 17) return true;
-                return false;
-            },
-            canPostpone(stage) {
-                return this.nowHour >= 17 && stage.done_count < stage.plan_quantity;
-            },
-            async openAssignModal(stage) {
-                this.assignForm = { stage_id: stage.id, employee_id: '', quantity: 1 };
-                await this.loadEmployees();
-                this.showAssignModal = true;
-                lucide.createIcons();
-            },
-            async submitAssign() {
-                const payload = { stage: this.assignForm.stage_id, employee: this.assignForm.employee_id, quantity: this.assignForm.quantity };
-                const resp = await fetch('/employee_tasks/assign/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
-                    body: JSON.stringify(payload)
-                });
-                if (resp.ok) {
-                    await this.loadStages();
-                    this.showAssignModal = false;
-                    lucide.createIcons();
-                }
-            },
-            openEditAssignModal(stage, assign) {
-                this.editAssignForm = { id: assign.id, stage_id: stage.id, employee_id: assign.employee_id, employee_name: assign.employee_name, quantity: assign.quantity };
-                this.showEditAssignModal = true;
-                lucide.createIcons();
-            },
-            async submitEditAssign() {
-                const payload = { quantity: this.editAssignForm.quantity };
-                const resp = await fetch(`/employee_tasks/assign/${this.editAssignForm.id}/`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
-                    body: JSON.stringify(payload)
-                });
-                if (resp.ok) {
-                    await this.loadStages();
-                    this.showEditAssignModal = false;
-                    lucide.createIcons();
-                }
-            },
-            async deleteAssign(stage, assign) {
-                if (!confirm('Удалить назначение?')) return;
-                const resp = await fetch(`/employee_tasks/assign/${assign.id}/`, {
-                    method: 'DELETE',
-                    headers: { 'X-CSRFToken': this.getCsrfToken() }
-                });
-                if (resp.ok) {
-                    await this.loadStages();
-                    lucide.createIcons();
-                }
-            },
-            async tabChanged(idx) {
-                this.selectedWorkshopIdx = idx;
-                await this.loadStages();
-                lucide.createIcons();
-            },
-            openTransferModal(stage) {
-                this.transferStageId = stage.id;
-                this.transferQuantity = Math.max(0, stage.done_count);
-                this.showTransferModal = true;
-            },
-            confirmTransferFirst() {
-                this.showTransferModal = false;
-                this.showTransferConfirmModal = true;
-            },
-            async openTransferDestination() {
-                this.showTransferConfirmModal = false;
-                await this.loadAllWorkshops();
-                const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
-                this.allWorkshops = this.allWorkshops.filter(w => !currentWorkshop || w.id !== currentWorkshop.id);
-                this.transferTargetWorkshopId = this.allWorkshops.length ? this.allWorkshops[0].id : null;
-                this.showTransferDestinationModal = true;
-                lucide.createIcons();
-            },
-            async confirmTransferFinal() {
-                this.showTransferDestinationModal = false;
-                this.loadingAction = 'transfer';
-                this.lastActionStageId = this.transferStageId;
-                try {
-                    const resp = await fetch(`/orders/api/stages/${this.transferStageId}/transfer/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': this.getCsrfToken(), 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ target_workshop_id: this.transferTargetWorkshopId, completed_quantity: this.transferQuantity })
-                    });
-                    if (!resp.ok) {
-                        const data = await resp.json();
-                        this.showToast(data.error || 'Ошибка при переводе этапа!', 'error');
-                    } else {
-                        this.showToast('Этап успешно переведён!', 'success');
-                    }
-                } catch (e) {
-                    this.showToast('Ошибка сети при переводе этапа!', 'error');
-                }
-                await this.loadStages();
-                this.loadingAction = null;
-            },
-            cancelTransfer() {
-                this.showTransferModal = false;
-                this.showTransferConfirmModal = false;
-            },
-            openPostponeModal(stage) {
-                this.postponeStageId = stage.id;
-                this.showPostponeModal = true;
-            },
-            confirmPostponeFirst() {
-                this.showPostponeModal = false;
-                this.showPostponeConfirmModal = true;
-            },
-            async confirmPostponeFinal() {
-                this.showPostponeConfirmModal = false;
-                this.loadingAction = 'postpone';
-                this.lastActionStageId = this.postponeStageId;
-                try {
-                    const resp = await fetch(`/orders/api/stages/${this.postponeStageId}/postpone/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': this.getCsrfToken() }
-                    });
-                    if (!resp.ok) {
-                        const data = await resp.json();
-                        this.showToast(data.error || 'Ошибка при переносе дедлайна!', 'error');
-                    } else {
-                        this.showToast('Дедлайн перенесён!', 'success');
-                    }
-                } catch (e) {
-                    this.showToast('Ошибка сети при переносе дедлайна!', 'error');
-                }
-                await this.loadStages();
-                this.loadingAction = null;
-            },
-            cancelPostpone() {
-                this.showPostponeModal = false;
-                this.showPostponeConfirmModal = false;
-            },
-            openNoTransferModal(stage) {
-                this.noTransferStageId = stage.id;
-                this.showNoTransferModal = true;
-            },
-            confirmNoTransferFirst() {
-                this.showNoTransferModal = false;
-                this.showNoTransferConfirmModal = true;
-            },
-            async confirmNoTransferFinal() {
-                this.showNoTransferConfirmModal = false;
-                this.loadingAction = 'no-transfer';
-                this.lastActionStageId = this.noTransferStageId;
-                try {
-                    const resp = await fetch(`/orders/api/stages/${this.noTransferStageId}/no-transfer/`, {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': this.getCsrfToken() }
-                    });
-                    if (!resp.ok) {
-                        const data = await resp.json();
-                        this.showToast(data.error || 'Ошибка при действии "не переводить"!', 'error');
-                    } else {
-                        this.showToast('Этап отмечен как "не переводить"', 'success');
-                    }
-                } catch (e) {
-                    this.showToast('Ошибка сети при действии "не переводить"!', 'error');
-                }
-                await this.loadStages();
-                this.loadingAction = null;
-            },
-            cancelNoTransfer() {
-                this.showNoTransferModal = false;
-                this.showNoTransferConfirmModal = false;
-            },
-            getCsrfToken() {
-                const name = 'csrftoken';
-                const cookies = document.cookie.split(';');
-                for (let cookie of cookies) {
-                    cookie = cookie.trim();
-                    if (cookie.startsWith(name + '=')) {
-                        return decodeURIComponent(cookie.substring(name.length + 1));
-                    }
-                }
-                return '';
-            }
-        }
-    }
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('masterPlansPage', masterPlansPage);
-    });
-    document.addEventListener('DOMContentLoaded', function() {
-        lucide.createIcons();
-    });
-    </script>
 </body>
 </html> 

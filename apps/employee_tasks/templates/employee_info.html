@@ -91,7 +91,7 @@
                                         <input type="checkbox" :checked="task.completed_quantity >= task.quantity" disabled class="w-5 h-5 text-blue-600 rounded">
                                         <div class="flex-1">
                                             <div class="font-medium" x-text="task.stage_name ? task.stage_name : ('Этап №' + task.stage)"></div>
-                                            <div class="text-xs text-gray-500">План: <span x-text="task.quantity"></span>, Выполнено: <span x-text="task.completed_quantity"></span></div>
+                                            <div class="text-xs text-gray-500">План: <span x-text="getDisplayQuantity(task, 'plan')"></span>, Выполнено: <span x-text="getDisplayQuantity(task, 'completed')"></span></div>
                                         </div>
                                     </div>
                                 </template>
@@ -173,6 +173,31 @@
             },
             formatCurrency(value) {
                 return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
+            },
+            getDisplayQuantity(task, type) {
+                if (!task) return '0';
+                
+                let quantity = 0;
+                if (type === 'plan') {
+                    quantity = task.quantity || 0;
+                } else if (type === 'completed') {
+                    quantity = task.completed_quantity || 0;
+                }
+                
+                // Проверяем, является ли цех "распил", "чпу" или до пресса
+                const workshopName = task.workshop_info?.workshop_name || '';
+                const isPrePressWorkshop = workshopName.toLowerCase().includes('распил') || 
+                                        workshopName.toLowerCase().includes('чпу') ||
+                                        workshopName.toLowerCase().includes('cnc') ||
+                                        workshopName.toLowerCase().includes('резка') ||
+                                        workshopName.toLowerCase().includes('обработка');
+                
+                // Если это цех до пресса, количество x2
+                if (isPrePressWorkshop && quantity > 0) {
+                    return `${quantity} ×2`;
+                }
+                
+                return quantity.toString();
             }
         }
     }
