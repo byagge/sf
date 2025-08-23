@@ -1179,6 +1179,17 @@
                     <template x-if="assignForm.stage_id">
                         <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
                             <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
+                            
+                            <!-- ВРЕМЕННАЯ ОТЛАДКА -->
+                            <div class="text-xs text-red-600 mb-2">
+                                <div>Stage ID: <span x-text="assignForm.stage_id"></span></div>
+                                <div>Найден этап: <span x-text="stages.find(s => s.id === assignForm.stage_id) ? 'Да' : 'Нет'"></span></div>
+                                <template x-if="stages.find(s => s.id === assignForm.stage_id)">
+                                    <div>order_item: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item ? 'Есть' : 'Нет'"></span></div>
+                                    <div>order: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order ? 'Есть' : 'Нет'"></span></div>
+                                </template>
+                            </div>
+                            
                             <template x-if="stages.find(s => s.id === assignForm.stage_id)">
                                 <div class="space-y-1 text-xs text-blue-700">
                                     <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order">
@@ -1192,7 +1203,13 @@
                                             <div><span class="font-medium">Комментарий:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.comment"></span></div>
                                         </template>
                                     </template>
+                                    <template x-if="!(stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order)">
+                                        <div class="text-blue-600">Информация о заказе недоступна</div>
+                                    </template>
                                 </div>
+                            </template>
+                            <template x-if="!stages.find(s => s.id === assignForm.stage_id)">
+                                <div class="text-blue-600">Этап не найден</div>
                             </template>
                         </div>
                     </template>
@@ -1200,6 +1217,22 @@
                     <!-- Информация о товарах заказа -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Товары заказа</label>
+                        
+                        <!-- ВРЕМЕННАЯ ОТЛАДКА -->
+                        <div class="text-xs text-red-600 mb-2">
+                            <div>Stage ID: <span x-text="assignForm.stage_id"></span></div>
+                            <div>Найден этап: <span x-text="stages.find(s => s.id === assignForm.stage_id) ? 'Да' : 'Нет'"></span></div>
+                            <template x-if="stages.find(s => s.id === assignForm.stage_id)">
+                                <div>order_item: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item ? 'Есть' : 'Нет'"></span></div>
+                                <div>order: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order ? 'Есть' : 'Нет'"></span></div>
+                                <div>items: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items ? 'Есть' : 'Нет'"></span></div>
+                                <div>items array: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items) ? 'Да' : 'Нет'"></span></div>
+                                <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
+                                    <div>Количество товаров: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.items.length"></span></div>
+                                </template>
+                            </template>
+                        </div>
+                        
                         <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
                             <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items)">
                                 <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
