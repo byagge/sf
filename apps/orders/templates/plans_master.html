@@ -1179,17 +1179,6 @@
                     <template x-if="assignForm.stage_id">
                         <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
                             <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
-                            
-                            <!-- ВРЕМЕННАЯ ОТЛАДКА -->
-                            <div class="text-xs text-red-600 mb-2">
-                                <div>Stage ID: <span x-text="assignForm.stage_id"></span></div>
-                                <div>Найден этап: <span x-text="stages.find(s => s.id === assignForm.stage_id) ? 'Да' : 'Нет'"></span></div>
-                                <template x-if="stages.find(s => s.id === assignForm.stage_id)">
-                                    <div>order_item: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item ? 'Есть' : 'Нет'"></span></div>
-                                    <div>order: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order ? 'Есть' : 'Нет'"></span></div>
-                                </template>
-                            </div>
-                            
                             <template x-if="stages.find(s => s.id === assignForm.stage_id)">
                                 <div class="space-y-1 text-xs text-blue-700">
                                     <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order">
@@ -1217,21 +1206,6 @@
                     <!-- Информация о товарах заказа -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Товары заказа</label>
-                        
-                        <!-- ВРЕМЕННАЯ ОТЛАДКА -->
-                        <div class="text-xs text-red-600 mb-2">
-                            <div>Stage ID: <span x-text="assignForm.stage_id"></span></div>
-                            <div>Найден этап: <span x-text="stages.find(s => s.id === assignForm.stage_id) ? 'Да' : 'Нет'"></span></div>
-                            <template x-if="stages.find(s => s.id === assignForm.stage_id)">
-                                <div>order_item: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item ? 'Есть' : 'Нет'"></span></div>
-                                <div>order: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order ? 'Есть' : 'Нет'"></span></div>
-                                <div>items: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items ? 'Есть' : 'Нет'"></span></div>
-                                <div>items array: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items) ? 'Да' : 'Нет'"></span></div>
-                                <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
-                                    <div>Количество товаров: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.items.length"></span></div>
-                                </template>
-                            </template>
-                        </div>
                         
                         <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
                             <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items)">
@@ -1273,40 +1247,7 @@
                             </template>
                         </template>
                         
-                        <!-- ВРЕМЕННО: Упрощенное отображение товаров для отладки -->
-                        <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
-                            <div class="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                                <div class="text-xs font-medium text-yellow-800 mb-2">УПРОЩЕННОЕ ОТОБРАЖЕНИЕ (для отладки):</div>
-                                <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item">
-                                    <div class="text-xs text-yellow-700">
-                                        <div>✅ order_item найден</div>
-                                        <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order">
-                                            <div>✅ order найден</div>
-                                            <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
-                                                <div>✅ items найден</div>
-                                                <div>Количество товаров: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.items.length"></span></div>
-                                                <template x-for="(item, index) in stages.find(s => s.id === assignForm.stage_id).order_item.order.items" :key="index">
-                                                    <div class="ml-2 text-xs text-yellow-600">
-                                                        Товар <span x-text="index + 1"></span>: 
-                                                        <span x-text="item.product ? item.product.name : 'Без названия'"></span> 
-                                                        (<span x-text="item.quantity"></span> шт.)
-                                                    </div>
-                                                </template>
-                                            </template>
-                                            <template x-if="!stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
-                                                <div>❌ items не найден</div>
-                                            </template>
-                                        </template>
-                                        <template x-if="!stages.find(s => s.id === assignForm.stage_id).order_item.order">
-                                            <div>❌ order не найден</div>
-                                        </template>
-                                    </div>
-                                </template>
-                                <template x-if="!stages.find(s => s.id === assignForm.stage_id).order_item">
-                                    <div class="text-xs text-yellow-700">❌ order_item не найден</div>
-                                </template>
-                            </div>
-                        </template>
+
                     </div>
                     
                     <div>
@@ -1886,8 +1827,7 @@
                 if (!workshop) return;
                 
                 // ОТЛАДКА: Показываем URL запроса
-                // Пробуем разные варианты параметров для получения order_item
-                const apiUrl = `/orders/api/stages/?workshop=${workshop.id}&status=in_progress&expand=order_item,order&include_order_item=true&include_order=true&with_order_item=true`;
+                const apiUrl = `/orders/api/stages/?workshop=${workshop.id}&status=in_progress`;
                 console.log('=== DEBUG: API REQUEST ===');
                 console.log('API URL:', apiUrl);
                 console.log('Workshop ID:', workshop.id);
@@ -1901,55 +1841,14 @@
                 
                 this.stages = Array.isArray(data) ? data : (data.results || []);
                 
-                // ОТЛАДКА: Попробуем получить данные заказа для каждого этапа
-                console.log('=== DEBUG: TRYING TO GET ORDER DATA ===');
-                for (let i = 0; i < this.stages.length; i++) {
-                    const stage = this.stages[i];
-                    if (stage.order_name) {
-                        console.log(`Stage ${i + 1} order_name:`, stage.order_name);
-                        // Попробуем извлечь номер заказа из order_name
-                        const orderMatch = stage.order_name.match(/№([^-]+)/);
-                        if (orderMatch) {
-                            console.log(`Stage ${i + 1} extracted order number:`, orderMatch[1]);
-                            
-                            // Попробуем получить данные заказа по номеру
-                            try {
-                                const orderResp = await fetch(`/orders/api/orders/?search=${orderMatch[1]}`);
-                                const orderData = await orderResp.json();
-                                console.log(`Stage ${i + 1} order data:`, orderData);
-                                
-                                if (orderData && orderData.length > 0) {
-                                    // Добавляем данные заказа к этапу
-                                    this.stages[i].order_item = {
-                                        order: orderData[0],
-                                        items: orderData[0].items || []
-                                    };
-                                    console.log(`Stage ${i + 1} order_item added:`, this.stages[i].order_item);
-                                }
-                            } catch (error) {
-                                console.log(`Stage ${i + 1} order fetch error:`, error);
-                            }
-                        }
-                    }
-                }
-                
                 // ОТЛАДКА: Проверяем структуру данных этапов
                 console.log('=== DEBUG: LOADED STAGES ===');
                 console.log('Total stages loaded:', this.stages.length);
                 if (this.stages.length > 0) {
-                    console.log('First stage structure:', this.stages[0]);
                     console.log('First stage order_item:', this.stages[0].order_item);
-                    console.log('First stage order_item_id:', this.stages[0].order_item_id);
-                    console.log('First stage order_id:', this.stages[0].order_id);
-                    console.log('All stage keys:', Object.keys(this.stages[0]));
-                    console.log('All stage values:', Object.values(this.stages[0]));
-                    console.log('Full stage object:', JSON.stringify(this.stages[0], null, 2));
-                    
                     if (this.stages[0].order_item) {
                         console.log('First stage order_item.order:', this.stages[0].order_item.order);
-                        if (this.stages[0].order_item.order) {
-                            console.log('First stage order.items:', this.stages[0].order_item.order.items);
-                        }
+                        console.log('First stage order_item.items:', this.stages[0].order_item.items);
                     }
                 }
                 
