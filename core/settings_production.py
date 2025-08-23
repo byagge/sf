@@ -1,51 +1,57 @@
 """
-Production settings for Smart Factory project
+Django production settings for Smart Factory
 Optimized for high load and stability
 """
 
 import os
+import sys
 from pathlib import Path
-from core.settings import *
+from .settings import *
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Добавляем папку apps в PYTHONPATH
+APPS_DIR = BASE_DIR / 'apps'
+sys.path.insert(0, str(APPS_DIR))
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-# Production hosts
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-se9x7st*@o62&^mwej@a2x%$j)44xsmjy-g@^o!sf$zj04=pt=')
+
 ALLOWED_HOSTS = [
-    '185.189.12.23',
-    'your-domain.com',  # Замените на ваш домен
-    'www.your-domain.com',
+    '185.189.12.23', 
+    '127.0.0.1', 
+    'localhost',
+    'your-domain.com',
+    'www.your-domain.com'
 ]
 
-# Security settings
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_HSSL_REDIRECT = True  # Только если у вас есть SSL
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-X_FRAME_OPTIONS = 'DENY'
-
-# Database optimization - PostgreSQL для production
+# Database - PostgreSQL для production
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'smart_factory'),
-        'USER': os.environ.get('DB_USER', 'smart_factory_user'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
         'OPTIONS': {
-            'charset': 'utf8',
+            'CONN_MAX_AGE': 600,  # 10 minutes
+            'CONN_HEALTH_CHECKS': True,
         },
-        'CONN_MAX_AGE': 600,  # 10 минут
-        'CONN_HEALTH_CHECKS': True,
+        'CONN_MAX_AGE': 600,
+        'ATOMIC_REQUESTS': False,
+        'AUTOCOMMIT': True,
     }
 }
 
-# Cache configuration - Redis для production
+# Cache configuration - Redis
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
@@ -53,36 +59,60 @@ CACHES = {
                 'max_connections': 50,
                 'retry_on_timeout': True,
             },
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
+            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
         },
         'KEY_PREFIX': 'smart_factory',
-        'TIMEOUT': 300,  # 5 минут по умолчанию
+        'TIMEOUT': 300,  # 5 minutes default
     },
-    'sessions': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+    'session': {
+        'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/2'),
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         },
-        'KEY_PREFIX': 'sessions',
-        'TIMEOUT': 86400,  # 24 часа
+        'KEY_PREFIX': 'session',
+    },
+    'query': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/3'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'query',
+        'TIMEOUT': 600,  # 10 minutes for query cache
     }
 }
 
 # Session configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'sessions'
-SESSION_COOKIE_AGE = 86400  # 24 часа
+SESSION_CACHE_ALIAS = 'session'
+SESSION_COOKIE_AGE = 3600  # 1 hour
+SESSION_COOKIE_SECURE = False  # HTTP only
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 
-# Static files optimization
+# Security settings
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_HSTS_SECONDS = 0  # Disabled for HTTP
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+SECURE_SSL_REDIRECT = False  # HTTP only
+SECURE_PROXY_SSL_HEADER = None
+
+# CSRF settings
+CSRF_COOKIE_SECURE = False  # HTTP only
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Static files configuration
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-WHITENOISE_MAX_AGE = 31536000  # 1 год
-WHITENOISE_USE_FINDERS = True
 
-# Media files - для production лучше использовать S3 или другой CDN
-# MEDIA_URL = 'https://your-cdn.com/media/'
-# MEDIA_ROOT = '/path/to/media/storage'
+# Media files
+MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/media/'
 
 # Logging configuration
 LOGGING = {
@@ -103,7 +133,7 @@ LOGGING = {
             'level': 'INFO',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'logs' / 'django.log',
-            'maxBytes': 1024 * 1024 * 10,  # 10 MB
+            'maxBytes': 1024 * 1024 * 10,  # 10MB
             'backupCount': 5,
             'formatter': 'verbose',
         },
@@ -128,24 +158,41 @@ LOGGING = {
             'level': 'WARNING',
             'propagate': False,
         },
+        'django.security': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
-# Performance optimizations
-DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
+# Celery configuration
+CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/4')
+CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/4')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Bishkek'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
-# Database query optimization
-DB_OPTIMIZATION = {
-    'CONN_MAX_AGE': 600,
-    'ATOMIC_REQUESTS': False,
-    'AUTOCOMMIT': True,
+# Cacheops configuration for query caching
+CACHEOPS_REDIS = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/3')
+CACHEOPS_DEFAULTS = {
+    'timeout': 60 * 15,  # 15 minutes
+    'ops': ('fetch', 'get', 'count', 'aggregate'),
 }
 
-# REST Framework production settings
+# Rate limiting
+RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_ENABLE = True
+
+# REST Framework optimization
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 50,  # Увеличиваем для production
+    'PAGE_SIZE': 50,  # Increased for better performance
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
@@ -156,7 +203,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
+        'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '100/hour',
@@ -164,32 +211,81 @@ REST_FRAMEWORK = {
     },
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
 }
 
-# Celery configuration для фоновых задач
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_TASK_ALWAYS_EAGER = False
-CELERY_TASK_EAGER_PROPAGATES = True
+# Database optimization
+DATABASE_OPTIONS = {
+    'CONN_MAX_AGE': 600,
+    'OPTIONS': {
+        'MAX_CONNS': 20,
+        'MIN_CONNS': 5,
+    }
+}
 
-# Email configuration (настройте под ваши нужды)
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+FILE_UPLOAD_PERMISSIONS = 0o644
+
+# Email configuration (configure for your email provider)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
-EMAIL_USE_TLS = True
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 
-# Monitoring and health checks
+# Performance optimizations
+USE_TZ = True
+USE_I18N = True
+USE_L10N = True
+
+# Middleware optimization for production
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'core.middleware.PerformanceMiddleware',
+    'core.middleware.SecurityMiddleware',
+    'core.middleware.CacheMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'core.middleware.SessionOptimizationMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.DatabaseOptimizationMiddleware',
+    'core.middleware.RoleBasedRedirectMiddleware',
+    'django_ratelimit.middleware.RatelimitMiddleware',
+    'core.middleware.ErrorHandlingMiddleware',
+]
+
+# Template optimization
+TEMPLATES[0]['OPTIONS']['loaders'] = [
+    ('django.template.loaders.cached.Loader', [
+        'django.template.loaders.filesystem.Loader',
+        'django.template.loaders.app_directories.Loader',
+    ]),
+]
+
+# Health check settings
 HEALTH_CHECK = {
-    'DISK_USAGE_MAX': 90,  # Максимальное использование диска в %
-    'MEMORY_MIN': 100,     # Минимальная свободная память в MB
+    'DISK_USAGE_MAX': 90,  # percentage
+    'MEMORY_MIN': 100,     # in MB
 }
 
+# Sentry configuration (uncomment if using Sentry)
+# import sentry_sdk
+# from sentry_sdk.integrations.django import DjangoIntegration
+# 
+# sentry_sdk.init(
+#     dsn=os.environ.get('SENTRY_DSN'),
+#     integrations=[DjangoIntegration()],
+#     traces_sample_rate=0.1,
+#     send_default_pii=True,
+# )
+
 # Create logs directory if it doesn't exist
-os.makedirs(BASE_DIR / 'logs', exist_ok=True) 
+(BASE_DIR / 'logs').mkdir(exist_ok=True) 
