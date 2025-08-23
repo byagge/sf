@@ -1,38 +1,36 @@
 #!/usr/bin/env python
 import os
-import sys
 import django
 
 # Настройка Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from apps.orders.models import OrderStage, OrderItem
-from apps.employee_tasks.models import EmployeeTask
+from apps.orders.models import OrderStage, Order, OrderItem
 
-def check_stages():
-    print("=== Проверка этапов заказов ===")
-    
-    stages = OrderStage.objects.all()
-    print(f"Всего этапов: {stages.count()}")
-    
-    for stage in stages:
-        print(f"\nЭтап: {stage}")
-        print(f"  - Заказ: {stage.order}")
-        print(f"  - Позиция заказа: {stage.order_item}")
-        print(f"  - Операция: {stage.operation}")
-        print(f"  - Цех: {stage.workshop}")
-        
-        # Проверяем задачи для этого этапа
-        tasks = EmployeeTask.objects.filter(stage=stage)
-        print(f"  - Задач для этапа: {tasks.count()}")
-        
-        if stage.order_item:
-            print(f"  - Товар в позиции: {stage.order_item.product}")
-            print(f"  - Размер: {stage.order_item.size}")
-            print(f"  - Цвет: {stage.order_item.color}")
-        else:
-            print(f"  - НЕТ ПОЗИЦИИ ЗАКАЗА!")
+# Check specific stages
+stage_ids = [190, 191, 192]
+stages = OrderStage.objects.filter(id__in=stage_ids)
 
-if __name__ == '__main__':
-    check_stages() 
+print("Checking stages:")
+for s in stages:
+    print(f"Stage {s.id}:")
+    print(f"  order: {s.order}")
+    print(f"  order_item: {s.order_item}")
+    if s.order:
+        print(f"  order.items count: {s.order.items.count()}")
+        if s.order.items.exists():
+            print(f"  first order item: {s.order.items.first()}")
+    print()
+
+# Check all orders with their items
+print("All orders:")
+orders = Order.objects.all()
+for order in orders:
+    print(f"Order {order.id} ({order.name}):")
+    print(f"  Items count: {order.items.count()}")
+    print(f"  Stages count: {order.stages.count()}")
+    if order.items.exists():
+        for item in order.items.all():
+            print(f"    Item {item.id}: {item.product.name if item.product else 'No product'}")
+    print() 
