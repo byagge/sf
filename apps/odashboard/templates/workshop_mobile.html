@@ -74,7 +74,7 @@
                         <button type="button" @click="stage.completed_quantity = Math.max(0, stage.completed_quantity-1)" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-xl">-</button>
                         <input type="number" x-model.number="stage.completed_quantity" min="0" :max="stage.plan_quantity" class="w-16 text-center px-2 py-2 border border-gray-300 rounded-lg">
                         <button type="button" @click="stage.completed_quantity = Math.min(stage.plan_quantity, stage.completed_quantity+1)" class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-xl">+</button>
-                        <button @click="confirmStage(stage)" class="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg">Подтвердить</button>
+                        <!-- <button @click="confirmStage(stage)" class="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg">Подтвердить</button> -->
                     </div>
                 </div>
             </template>
