@@ -1272,6 +1272,41 @@
                                 <div class="text-gray-400 text-sm py-2">Товары заказа недоступны</div>
                             </template>
                         </template>
+                        
+                        <!-- ВРЕМЕННО: Упрощенное отображение товаров для отладки -->
+                        <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
+                            <div class="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                                <div class="text-xs font-medium text-yellow-800 mb-2">УПРОЩЕННОЕ ОТОБРАЖЕНИЕ (для отладки):</div>
+                                <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item">
+                                    <div class="text-xs text-yellow-700">
+                                        <div>✅ order_item найден</div>
+                                        <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order">
+                                            <div>✅ order найден</div>
+                                            <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
+                                                <div>✅ items найден</div>
+                                                <div>Количество товаров: <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.items.length"></span></div>
+                                                <template x-for="(item, index) in stages.find(s => s.id === assignForm.stage_id).order_item.order.items" :key="index">
+                                                    <div class="ml-2 text-xs text-yellow-600">
+                                                        Товар <span x-text="index + 1"></span>: 
+                                                        <span x-text="item.product ? item.product.name : 'Без названия'"></span> 
+                                                        (<span x-text="item.quantity"></span> шт.)
+                                                    </div>
+                                                </template>
+                                            </template>
+                                            <template x-if="!stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
+                                                <div>❌ items не найден</div>
+                                            </template>
+                                        </template>
+                                        <template x-if="!stages.find(s => s.id === assignForm.stage_id).order_item.order">
+                                            <div>❌ order не найден</div>
+                                        </template>
+                                    </div>
+                                </template>
+                                <template x-if="!stages.find(s => s.id === assignForm.stage_id).order_item">
+                                    <div class="text-xs text-yellow-700">❌ order_item не найден</div>
+                                </template>
+                            </div>
+                        </template>
                     </div>
                     
                     <div>
@@ -1853,7 +1888,19 @@
                 const data = await resp.json();
                 this.stages = Array.isArray(data) ? data : (data.results || []);
                 
-
+                // ОТЛАДКА: Проверяем структуру данных этапов
+                console.log('=== DEBUG: LOADED STAGES ===');
+                console.log('Total stages loaded:', this.stages.length);
+                if (this.stages.length > 0) {
+                    console.log('First stage structure:', this.stages[0]);
+                    console.log('First stage order_item:', this.stages[0].order_item);
+                    if (this.stages[0].order_item) {
+                        console.log('First stage order_item.order:', this.stages[0].order_item.order);
+                        if (this.stages[0].order_item.order) {
+                            console.log('First stage order.items:', this.stages[0].order_item.order.items);
+                        }
+                    }
+                }
                 
                 this.loading = false;
                 lucide.createIcons();
@@ -1935,6 +1982,19 @@
             },
             
             async openAssignModal(stage) {
+                // ОТЛАДКА: Проверяем данные этапа при открытии модального окна
+                console.log('=== DEBUG: OPEN ASSIGN MODAL ===');
+                console.log('Stage object:', stage);
+                console.log('Stage ID:', stage.id);
+                console.log('Stage order_item:', stage.order_item);
+                if (stage.order_item) {
+                    console.log('Stage order_item.order:', stage.order_item.order);
+                    if (stage.order_item.order) {
+                        console.log('Stage order_item.order.items:', stage.order_item.order.items);
+                        console.log('Stage order_item.order.items length:', stage.order_item.order.items ? stage.order_item.order.items.length : 'null');
+                    }
+                }
+                
                 // Получаем общее количество всех товаров заказа
                 let totalOrderItemsQuantity = 0;
                 if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
@@ -1957,6 +2017,8 @@
                     employee_id: '', 
                     quantity: 1 
                 };
+                
+                console.log('Assign form set:', this.assignForm);
                 
                 await this.loadEmployees();
                 this.showAssignModal = true;
