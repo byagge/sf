@@ -1192,13 +1192,7 @@
                                             <div><span class="font-medium">Комментарий:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.comment"></span></div>
                                         </template>
                                     </template>
-                                    <template x-if="!(stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order)">
-                                        <div class="text-blue-600">Информация о заказе недоступна</div>
-                                    </template>
                                 </div>
-                            </template>
-                            <template x-if="!stages.find(s => s.id === assignForm.stage_id)">
-                                <div class="text-blue-600">Этап не найден</div>
                             </template>
                         </div>
                     </template>
@@ -1206,7 +1200,6 @@
                     <!-- Информация о товарах заказа -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Товары заказа</label>
-                        
                         <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
                             <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items)">
                                 <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -1246,8 +1239,6 @@
                                 <div class="text-gray-400 text-sm py-2">Товары заказа недоступны</div>
                             </template>
                         </template>
-                        
-
                     </div>
                     
                     <div>
@@ -1825,32 +1816,11 @@
                 this.loading = true;
                 const workshop = this.workshops[this.selectedWorkshopIdx];
                 if (!workshop) return;
-                
-                // ОТЛАДКА: Показываем URL запроса
-                const apiUrl = `/orders/api/stages/?workshop=${workshop.id}&status=in_progress`;
-                console.log('=== DEBUG: API REQUEST ===');
-                console.log('API URL:', apiUrl);
-                console.log('Workshop ID:', workshop.id);
-                
-                const resp = await fetch(apiUrl);
-                console.log('Response status:', resp.status);
-                console.log('Response ok:', resp.ok);
-                
+                const resp = await fetch(`/orders/api/stages/?workshop=${workshop.id}&status=in_progress`);
                 const data = await resp.json();
-                console.log('Raw API response:', data);
-                
                 this.stages = Array.isArray(data) ? data : (data.results || []);
                 
-                // ОТЛАДКА: Проверяем структуру данных этапов
-                console.log('=== DEBUG: LOADED STAGES ===');
-                console.log('Total stages loaded:', this.stages.length);
-                if (this.stages.length > 0) {
-                    console.log('First stage order_item:', this.stages[0].order_item);
-                    if (this.stages[0].order_item) {
-                        console.log('First stage order_item.order:', this.stages[0].order_item.order);
-                        console.log('First stage order_item.items:', this.stages[0].order_item.items);
-                    }
-                }
+
                 
                 this.loading = false;
                 lucide.createIcons();
@@ -1932,19 +1902,6 @@
             },
             
             async openAssignModal(stage) {
-                // ОТЛАДКА: Проверяем данные этапа при открытии модального окна
-                console.log('=== DEBUG: OPEN ASSIGN MODAL ===');
-                console.log('Stage object:', stage);
-                console.log('Stage ID:', stage.id);
-                console.log('Stage order_item:', stage.order_item);
-                if (stage.order_item) {
-                    console.log('Stage order_item.order:', stage.order_item.order);
-                    if (stage.order_item.order) {
-                        console.log('Stage order_item.order.items:', stage.order_item.order.items);
-                        console.log('Stage order_item.order.items length:', stage.order_item.order.items ? stage.order_item.order.items.length : 'null');
-                    }
-                }
-                
                 // Получаем общее количество всех товаров заказа
                 let totalOrderItemsQuantity = 0;
                 if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
@@ -1967,8 +1924,6 @@
                     employee_id: '', 
                     quantity: 1 
                 };
-                
-                console.log('Assign form set:', this.assignForm);
                 
                 await this.loadEmployees();
                 this.showAssignModal = true;
