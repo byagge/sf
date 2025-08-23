@@ -1901,6 +1901,38 @@
                 
                 this.stages = Array.isArray(data) ? data : (data.results || []);
                 
+                // ОТЛАДКА: Попробуем получить данные заказа для каждого этапа
+                console.log('=== DEBUG: TRYING TO GET ORDER DATA ===');
+                for (let i = 0; i < this.stages.length; i++) {
+                    const stage = this.stages[i];
+                    if (stage.order_name) {
+                        console.log(`Stage ${i + 1} order_name:`, stage.order_name);
+                        // Попробуем извлечь номер заказа из order_name
+                        const orderMatch = stage.order_name.match(/№([^-]+)/);
+                        if (orderMatch) {
+                            console.log(`Stage ${i + 1} extracted order number:`, orderMatch[1]);
+                            
+                            // Попробуем получить данные заказа по номеру
+                            try {
+                                const orderResp = await fetch(`/orders/api/orders/?search=${orderMatch[1]}`);
+                                const orderData = await orderResp.json();
+                                console.log(`Stage ${i + 1} order data:`, orderData);
+                                
+                                if (orderData && orderData.length > 0) {
+                                    // Добавляем данные заказа к этапу
+                                    this.stages[i].order_item = {
+                                        order: orderData[0],
+                                        items: orderData[0].items || []
+                                    };
+                                    console.log(`Stage ${i + 1} order_item added:`, this.stages[i].order_item);
+                                }
+                            } catch (error) {
+                                console.log(`Stage ${i + 1} order fetch error:`, error);
+                            }
+                        }
+                    }
+                }
+                
                 // ОТЛАДКА: Проверяем структуру данных этапов
                 console.log('=== DEBUG: LOADED STAGES ===');
                 console.log('Total stages loaded:', this.stages.length);
@@ -1910,6 +1942,8 @@
                     console.log('First stage order_item_id:', this.stages[0].order_item_id);
                     console.log('First stage order_id:', this.stages[0].order_id);
                     console.log('All stage keys:', Object.keys(this.stages[0]));
+                    console.log('All stage values:', Object.values(this.stages[0]));
+                    console.log('Full stage object:', JSON.stringify(this.stages[0], null, 2));
                     
                     if (this.stages[0].order_item) {
                         console.log('First stage order_item.order:', this.stages[0].order_item.order);
