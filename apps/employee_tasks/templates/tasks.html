@@ -99,6 +99,12 @@
                                 <!-- Task Title with Overdue Indicator -->
                                 <div class="flex items-center space-x-2 mb-2">
                                     <div class="font-semibold text-gray-900 text-sm" x-text="task.stage_name ? task.stage_name : ('Этап №' + task.stage)"></div>
+                                    <template x-if="task.is_combined && task.combined_tasks">
+                                        <div class="flex items-center space-x-1 bg-blue-100 px-2 py-1 rounded-full">
+                                            <i data-lucide="package" class="w-3 h-3 text-blue-600"></i>
+                                            <span class="text-xs text-blue-700 font-medium" x-text="'Группа (' + task.combined_tasks.length + ')'"></span>
+                                        </div>
+                                    </template>
                                     <template x-if="isTaskOverdue(task)">
                                         <div class="flex items-center space-x-1 bg-red-100 px-2 py-1 rounded-full">
                                             <i data-lucide="clock" class="w-3 h-3 text-red-600"></i>
@@ -287,37 +293,114 @@
             },
             get filteredTasks() {
                 const term = this.searchTerm.toLowerCase();
-                return this.tasks
+                const filtered = this.tasks
                     .filter(task => this.isTaskVisible(task))
                     .filter(task =>
                     (task.title || '').toLowerCase().includes(term) ||
                     (task.stage_name || '').toLowerCase().includes(term) ||
                     (task.order_item && task.order_item.product && task.order_item.product.name ? task.order_item.product.name.toLowerCase().includes(term) : false)
                 );
+                
+                // Группируем задачи по товарам для отображения
+                const groupedTasks = [];
+                const taskGroups = {};
+                
+                filtered.forEach(task => {
+                    const key = `${task.stage}_${task.order_item?.id || 'no_item'}`;
+                    if (!taskGroups[key]) {
+                        taskGroups[key] = [];
+                    }
+                    taskGroups[key].push(task);
+                });
+                
+                // Создаем объединенные задачи
+                Object.values(taskGroups).forEach(group => {
+                    if (group.length === 1) {
+                        groupedTasks.push(group[0]);
+                    } else {
+                        // Объединяем несколько задач в одну
+                        const firstTask = group[0];
+                        const combinedTask = {
+                            ...firstTask,
+                            combined_tasks: group,
+                            quantity: group.reduce((sum, t) => sum + (t.quantity || 0), 0),
+                            completed_quantity: group.reduce((sum, t) => sum + (t.completed_quantity || 0), 0),
+                            defective_quantity: group.reduce((sum, t) => sum + (t.defective_quantity || 0), 0),
+                            is_combined: true
+                        };
+                        groupedTasks.push(combinedTask);
+                    }
+                });
+                
+                return groupedTasks;
             },
             async toggleTask(task) {
-                const realCompleted = this.getRealQuantity(task, 'completed');
-                const realPlan = this.getRealQuantity(task, 'plan');
-                const isDone = realCompleted >= realPlan;
-                const newCompleted = isDone ? 0 : (task.quantity || 0);
-                
-                const resp = await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCsrfToken()
-                    },
-                    body: JSON.stringify({ 
-                        completed_quantity: newCompleted
-                    })
-                });
-                try {
-                    const updated = await resp.json();
-                    Object.assign(task, updated);
-                } catch (e) {
-                task.completed_quantity = newCompleted;
-                    if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
-                    if (newCompleted === 0) task.completed_at = null;
+                if (task.is_combined && task.combined_tasks) {
+                    // Для объединенных задач обновляем все входящие задачи
+                    const realCompleted = this.getRealQuantity(task, 'completed');
+                    const realPlan = this.getRealQuantity(task, 'plan');
+                    const isDone = realCompleted >= realPlan;
+                    const newCompleted = isDone ? 0 : (task.quantity || 0);
+                    
+                    // Распределяем количество пропорционально между задачами
+                    const totalQuantity = task.combined_tasks.reduce((sum, t) => sum + (t.quantity || 0), 0);
+                    
+                    for (const subTask of task.combined_tasks) {
+                        const subTaskQuantity = subTask.quantity || 0;
+                        const subTaskNewCompleted = totalQuantity > 0 ? Math.round((subTaskQuantity / totalQuantity) * newCompleted) : 0;
+                        
+                        try {
+                            const resp = await fetch(`/employee_tasks/api/employee-tasks/${subTask.id}/`, {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': this.getCsrfToken()
+                                },
+                                body: JSON.stringify({ 
+                                    completed_quantity: subTaskNewCompleted
+                                })
+                            });
+                            
+                            if (resp.ok) {
+                                const updated = await resp.json();
+                                Object.assign(subTask, updated);
+                            }
+                        } catch (e) {
+                            subTask.completed_quantity = subTaskNewCompleted;
+                            if (subTaskNewCompleted > 0 && !subTask.completed_at) subTask.completed_at = new Date().toISOString();
+                            if (subTaskNewCompleted === 0) subTask.completed_at = null;
+                        }
+                    }
+                    
+                    // Обновляем объединенную задачу
+                    task.completed_quantity = task.combined_tasks.reduce((sum, t) => sum + (t.completed_quantity || 0), 0);
+                    if (task.completed_quantity > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
+                    if (task.completed_quantity === 0) task.completed_at = null;
+                } else {
+                    // Для обычных задач
+                    const realCompleted = this.getRealQuantity(task, 'completed');
+                    const realPlan = this.getRealQuantity(task, 'plan');
+                    const isDone = realCompleted >= realPlan;
+                    const newCompleted = isDone ? 0 : (task.quantity || 0);
+                    
+                    const resp = await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCsrfToken()
+                        },
+                        body: JSON.stringify({ 
+                            completed_quantity: newCompleted
+                        })
+                    });
+                    try {
+                        const updated = await resp.json();
+                        Object.assign(task, updated);
+                    } catch (e) {
+                        task.completed_quantity = newCompleted;
+                        if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
+                        if (newCompleted === 0) task.completed_at = null;
+                    }
                 }
             },
             isTaskVisible(task) {
