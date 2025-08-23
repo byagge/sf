@@ -1884,8 +1884,21 @@
                 this.loading = true;
                 const workshop = this.workshops[this.selectedWorkshopIdx];
                 if (!workshop) return;
-                const resp = await fetch(`/orders/api/stages/?workshop=${workshop.id}&status=in_progress`);
+                
+                // ОТЛАДКА: Показываем URL запроса
+                // Пробуем разные варианты параметров для получения order_item
+                const apiUrl = `/orders/api/stages/?workshop=${workshop.id}&status=in_progress&expand=order_item,order&include_order_item=true&include_order=true&with_order_item=true`;
+                console.log('=== DEBUG: API REQUEST ===');
+                console.log('API URL:', apiUrl);
+                console.log('Workshop ID:', workshop.id);
+                
+                const resp = await fetch(apiUrl);
+                console.log('Response status:', resp.status);
+                console.log('Response ok:', resp.ok);
+                
                 const data = await resp.json();
+                console.log('Raw API response:', data);
+                
                 this.stages = Array.isArray(data) ? data : (data.results || []);
                 
                 // ОТЛАДКА: Проверяем структуру данных этапов
@@ -1894,6 +1907,10 @@
                 if (this.stages.length > 0) {
                     console.log('First stage structure:', this.stages[0]);
                     console.log('First stage order_item:', this.stages[0].order_item);
+                    console.log('First stage order_item_id:', this.stages[0].order_item_id);
+                    console.log('First stage order_id:', this.stages[0].order_id);
+                    console.log('All stage keys:', Object.keys(this.stages[0]));
+                    
                     if (this.stages[0].order_item) {
                         console.log('First stage order_item.order:', this.stages[0].order_item.order);
                         if (this.stages[0].order_item.order) {
