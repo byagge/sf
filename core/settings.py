@@ -29,7 +29,7 @@ sys.path.insert(0, str(APPS_DIR))
 SECRET_KEY = 'django-insecure-se9x7st*@o62&^mwej@a2x%$j)44xsmjy-g@^o!sf$zj04=pt='
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['185.104.248.103', '127.0.0.1', 'localhost', 'sf.monocode.app']
 
