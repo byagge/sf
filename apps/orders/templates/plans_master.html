@@ -1820,7 +1820,16 @@
                 const data = await resp.json();
                 this.stages = Array.isArray(data) ? data : (data.results || []);
                 
-
+                // DEBUG: Log raw stage data
+                console.log('Raw Stage Data:', JSON.stringify(this.stages, null, 2));
+                if (this.stages.length > 0) {
+                    console.log('First stage:', this.stages[0]);
+                    console.log('First stage order_item:', this.stages[0].order_item);
+                    if (this.stages[0].order_item) {
+                        console.log('First stage order_item.product:', this.stages[0].order_item.product);
+                        console.log('First stage order_item.order:', this.stages[0].order_item.order);
+                    }
+                }
                 
                 this.loading = false;
                 lucide.createIcons();
