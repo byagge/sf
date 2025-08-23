@@ -12,8 +12,8 @@ from core.utils import is_mobile_device
 
 def defects_page(request):
     """Страница списка браков с автоматическим определением устройства"""
-    if is_mobile_device(request):
-        return render(request, 'defects_mobile.html')
+    # if is_mobile_device(request):
+    #     return render(request, 'defects_mobile.html')
     return render(request, 'defects.html')
 
 def defects_mobile_page(request):

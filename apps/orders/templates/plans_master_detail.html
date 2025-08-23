@@ -79,13 +79,13 @@
                             <h1 class="text-xl font-bold text-gray-900 mb-2" x-text="stage.order_name"></h1>
                             <div class="space-y-1 text-sm text-gray-600">
                                 <div><span class="font-medium">Операция:</span> <span x-text="stage.operation"></span></div>
-                                <div><span class="font-medium">План:</span> <span x-text="getDisplayQuantity(stage, 'plan')"></span></div>
-                                <div><span class="font-medium">Выполнено:</span> <span x-text="getDisplayQuantity(stage, 'done')"></span></div>
-                                <div><span class="font-medium">Осталось:</span> <span x-text="getDisplayQuantity(stage, 'remaining')"></span></div>
+                                <div><span class="font-medium">План:</span> <span x-text="stage.plan_quantity"></span></div>
+                                <div><span class="font-medium">Выполнено:</span> <span x-text="stage.done_count || 0"></span></div>
+                                <div><span class="font-medium">Осталось:</span> <span x-text="Math.max(0, stage.plan_quantity - (stage.done_count || 0))"></span></div>
                             </div>
                         </div>
                         <div class="ml-3">
-                            <div class="w-6 h-6 rounded border-2 flex items-center justify-center"
+                            <div class="w-8 h-8 rounded border-2 flex items-center justify-center"
                                  :class="(stage.done_count || 0) >= stage.plan_quantity ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'">
                                 <i data-lucide="check" class="w-5 h-5 text-white" x-show="(stage.done_count || 0) >= stage.plan_quantity"></i>
                             </div>
@@ -96,7 +96,7 @@
                     <div class="mb-3">
                         <div class="flex justify-between text-sm mb-1">
                             <span class="text-gray-600">Прогресс</span>
-                            <span class="font-medium" x-text="`${getDisplayQuantity(stage, 'done')}/${getDisplayQuantity(stage, 'plan')}`"></span>
+                            <span class="font-medium" x-text="`${stage.done_count || 0}/${stage.plan_quantity}`"></span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
                             <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
@@ -104,19 +104,19 @@
                         </div>
                     </div>
                     
-                    <!-- Task Stats -->
+                    <!-- Stage Stats -->
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div class="bg-blue-50 p-2 rounded-lg">
                             <div class="text-blue-600 font-medium">План</div>
-                            <div class="text-blue-900 font-bold" x-text="getDisplayQuantity(stage, 'plan')"></div>
+                            <div class="text-blue-900 font-bold" x-text="stage.plan_quantity"></div>
                         </div>
                         <div class="bg-green-50 p-2 rounded-lg">
                             <div class="text-green-600 font-medium">Выполнено</div>
-                            <div class="text-green-900 font-bold" x-text="getDisplayQuantity(stage, 'done')"></div>
+                            <div class="text-green-900 font-bold" x-text="stage.done_count || 0"></div>
                         </div>
                         <div class="bg-yellow-50 p-2 rounded-lg">
                             <div class="text-yellow-600 font-medium">Осталось</div>
-                            <div class="text-yellow-900 font-bold" x-text="getDisplayQuantity(stage, 'remaining')"></div>
+                            <div class="text-yellow-900 font-bold" x-text="Math.max(0, stage.plan_quantity - (stage.done_count || 0))"></div>
                         </div>
                         <div class="bg-gray-50 p-2 rounded-lg">
                             <div class="text-gray-600 font-medium">Статус</div>
@@ -457,15 +457,6 @@
             stage: null,
             stageId: null,
             
-            loadingAction: null,
-            lastActionStageId: null,
-            tooltip: null,
-            isOnline: navigator.onLine,
-            
-            get nowHour() {
-                return new Date().getHours();
-            },
-            
             async init() {
                 this.stageId = JSON.parse(document.getElementById('stage-id').textContent) || null;
                 await this.loadStage();
@@ -511,12 +502,13 @@
             
             canTransfer(stage) {
                 if ((stage.done_count || 0) >= stage.plan_quantity) return true;
-                if (this.nowHour >= 17) return true;
-                return false;
+                const nowHour = new Date().getHours();
+                return nowHour >= 17;
             },
             
             canPostpone(stage) {
-                return this.nowHour >= 17 && (stage.done_count || 0) < stage.plan_quantity;
+                const nowHour = new Date().getHours();
+                return nowHour >= 17 && (stage.done_count || 0) < stage.plan_quantity;
             },
             
             openAssignModal(stage) {
@@ -543,35 +535,6 @@
             // Функция для проверки, является ли товар текущим
             isCurrentItem(itemId, currentItemId) {
                 return itemId === currentItemId;
-            },
-
-            getDisplayQuantity(stage, type) {
-                if (!stage) return '0';
-                
-                let quantity = 0;
-                if (type === 'plan') {
-                    quantity = stage.plan_quantity || 0;
-                } else if (type === 'done') {
-                    quantity = stage.done_count || 0;
-                } else if (type === 'remaining') {
-                    quantity = Math.max(0, (stage.plan_quantity || 0) - (stage.done_count || 0));
-                }
-                
-                // Проверяем, является ли цех "распил", "чпу" или до пресса
-                const workshopName = stage.workshop_name || '';
-                const isPrePressWorkshop = workshopName.toLowerCase().includes('распил') || 
-                                         workshopName.toLowerCase().includes('чпу') ||
-                                         workshopName.toLowerCase().includes('cnc') ||
-                                         workshopName.toLowerCase().includes('резка') ||
-                                         workshopName.toLowerCase().includes('обработка') ||
-                                         workshopName.toLowerCase().includes('cutting');
-                
-                // Если это цех до пресса, количество x2
-                if (isPrePressWorkshop && quantity > 0) {
-                    return `${quantity} ×2`;
-                }
-                
-                return quantity.toString();
             }
         }
     }

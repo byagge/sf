@@ -17,80 +17,94 @@
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #e0e7ef; border-radius: 4px; }
         aside::-webkit-scrollbar { display: none; }
         [x-cloak] { display: none !important; }
+        
+        /* Мобильные стили */
+        @media (max-width: 768px) {
+            .mobile-text-sm { font-size: 0.875rem; }
+            .mobile-p-3 { padding: 0.75rem; }
+            .mobile-space-y-2 > * + * { margin-top: 0.5rem; }
+        }
+        
+        /* Улучшенные стили для мобильных устройств */
+        @media (max-width: 640px) {
+            .sm\:text-xs { font-size: 0.75rem; }
+            .sm\:p-2 { padding: 0.5rem; }
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" x-data="defectsData()" x-init="init()">
     {% include 'partials/app_header.html' %}
-    {% include 'partials/app_sidebar.html' %}
+    <div class="hidden lg:block">
+        {% include 'partials/app_sidebar.html' %}
+    </div>
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto ml-64 p-6 pt-28">
+    <main class="flex-1 overflow-auto lg:ml-64 p-4 lg:p-6 pt-20 lg:pt-28">
 
         
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 flex flex-col lg:flex-row lg:items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900 mb-2">Браки (дефекты)</h1>
-                <p class="text-gray-600">Система управления браками с подтверждением мастера</p>
-
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 lg:p-6 mb-4 lg:mb-6 flex flex-col lg:flex-row lg:items-center justify-between">
+            <div class="mb-4 lg:mb-0">
+                <h1 class="text-xl lg:text-2xl font-bold text-gray-900 mb-2">Браки (дефекты)</h1>
+                <p class="text-sm lg:text-base text-gray-600">Система управления браками с подтверждением мастера</p>
             </div>
-            <div class="flex items-center space-x-4 mt-4 lg:mt-0">
+            <div class="flex flex-col lg:flex-row items-stretch lg:items-center space-y-3 lg:space-y-0 lg:space-x-4">
                 <input type="text" placeholder="Поиск..." x-model="searchTerm"
-                    class="pl-4 pr-4 py-2 w-full lg:w-64 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <a href="/employee_tasks/defects/" class="inline-flex items-center px-3 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">
+                    class="w-full lg:w-64 px-3 lg:px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm lg:text-base">
+                <a href="/employee_tasks/defects/" class="inline-flex items-center justify-center px-3 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700">
                     <i data-lucide="wrench" class="w-4 h-4 mr-2"></i>
-                    Управление браком
+                    <span class="hidden sm:inline">Управление браком</span>
+                    <span class="sm:hidden">Управление</span>
                 </a>
-
             </div>
         </div>
         
         <!-- Статистика браков -->
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-8">
-            <div class="bg-red-50 rounded-xl p-4 flex items-center justify-between">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4 mb-6 lg:mb-8">
+            <div class="bg-red-50 rounded-xl p-3 lg:p-4 flex items-center justify-between">
                 <div>
                     <p class="text-xs text-red-600">Всего браков</p>
-                    <p class="text-xl font-bold text-red-900" x-text="stats().totalDefects || 0"></p>
+                    <p class="text-lg lg:text-xl font-bold text-red-900" x-text="stats().totalDefects || 0"></p>
                 </div>
-                <i data-lucide="alert-triangle" class="text-red-600 w-6 h-6"></i>
+                <i data-lucide="alert-triangle" class="text-red-600 w-5 h-5 lg:w-6 lg:h-6"></i>
             </div>
-            <div class="bg-yellow-50 rounded-xl p-4 flex items-center justify-between">
+            <div class="bg-yellow-50 rounded-xl p-3 lg:p-4 flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-yellow-600">Ожидают подтверждения</p>
-                    <p class="text-xl font-bold text-yellow-900" x-text="stats().pendingConfirmation || 0"></p>
+                    <p class="text-xs text-yellow-600">Ожидают</p>
+                    <p class="text-lg lg:text-xl font-bold text-yellow-900" x-text="stats().pendingConfirmation || 0"></p>
                 </div>
-                <i data-lucide="clock" class="text-yellow-600 w-6 h-6"></i>
+                <i data-lucide="clock" class="text-yellow-600 w-5 h-5 lg:w-6 lg:h-6"></i>
             </div>
-            <div class="bg-blue-50 rounded-xl p-4 flex items-center justify-between">
+            <div class="bg-blue-50 rounded-xl p-3 lg:p-4 flex items-center justify-between">
                 <div>
                     <p class="text-xs text-blue-600">Можно починить</p>
-                    <p class="text-xl font-bold text-blue-900" x-text="stats().repairable || 0"></p>
+                    <p class="text-lg lg:text-xl font-bold text-blue-900" x-text="stats().repairable || 0"></p>
                 </div>
-                <i data-lucide="wrench" class="text-blue-600 w-6 h-6"></i>
+                <i data-lucide="wrench" class="text-blue-600 w-5 h-5 lg:w-6 lg:h-6"></i>
             </div>
-            <div class="bg-green-50 rounded-xl p-4 flex items-center justify-between">
+            <div class="bg-green-50 rounded-xl p-3 lg:p-4 flex items-center justify-between">
                 <div>
                     <p class="text-xs text-green-600">Починено</p>
-                    <p class="text-xl font-bold text-green-900" x-text="stats().repaired || 0"></p>
+                    <p class="text-lg lg:text-xl font-bold text-green-900" x-text="stats().repaired || 0"></p>
                 </div>
-                <i data-lucide="check-circle" class="text-green-600 w-6 h-6"></i>
+                <i data-lucide="check-circle" class="text-green-600 w-5 h-5 lg:w-6 lg:h-6"></i>
             </div>
-            <div class="bg-orange-50 rounded-xl p-4 flex items-center justify-between">
+            <div class="bg-orange-50 rounded-xl p-3 lg:p-4 flex items-center justify-between">
                 <div>
                     <p class="text-xs text-orange-600">Неисправимые</p>
-                    <p class="text-xl font-bold text-orange-900" x-text="stats().irreparable || 0"></p>
+                    <p class="text-lg lg:text-xl font-bold text-orange-900" x-text="stats().irreparable || 0"></p>
                 </div>
-                <i data-lucide="x-circle" class="text-orange-600 w-6 h-6"></i>
+                <i data-lucide="x-circle" class="text-orange-600 w-5 h-5 lg:w-6 lg:h-6"></i>
             </div>
-            <div class="bg-gray-50 rounded-xl p-4 flex items-center justify-between">
+            <div class="bg-gray-50 rounded-xl p-3 lg:p-4 flex items-center justify-between">
                 <div>
                     <p class="text-xs text-gray-600">Закрыто</p>
-                    <p class="text-xl font-bold text-gray-900" x-text="stats().closed || 0"></p>
+                    <p class="text-lg lg:text-xl font-bold text-gray-900" x-text="stats().closed || 0"></p>
                 </div>
-                <i data-lucide="archive" class="text-gray-600 w-6 h-6"></i>
+                <i data-lucide="archive" class="text-gray-600 w-5 h-5 lg:w-6 lg:h-6"></i>
             </div>
         </div>
         
-        <!-- Таблица браков -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <!-- Таблица браков (десктоп) -->
+        <div class="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-gray-50 border-b border-gray-200">
@@ -147,37 +161,89 @@
                     </tbody>
                 </table>
             </div>
-            <div x-show="filteredDefects().length === 0" class="text-center py-12">
-                <i data-lucide="alert-triangle" class="mx-auto text-gray-400 mb-4" style="width: 48px; height: 48px;"></i>
-                <p class="text-gray-500 text-lg" x-text="searchTerm ? 'Браки не найдены по вашему запросу' : 'Браки не найдены'"></p>
-                <p x-show="searchTerm" class="text-gray-400 text-sm mt-2">Попробуйте изменить поисковый запрос</p>
-            </div>
+        </div>
+
+        <!-- Карточки браков (мобильные) -->
+        <div class="lg:hidden space-y-3">
+            <template x-for="defect in filteredDefects()" :key="defect.id">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-900 text-sm" x-text="defect.product && defect.product.name ? defect.product.name : 'Неизвестный продукт'"></h3>
+                            <p class="text-xs text-gray-600 mt-1" x-text="defect.user && defect.user.full_name ? defect.user.full_name : 'Неизвестный сотрудник'"></p>
+                        </div>
+                        <span class="px-2 py-1 text-xs rounded-full ml-2" :class="getStatusClass(defect.status)">
+                            <span x-text="defect.status_display || 'Неизвестный статус'"></span>
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-2 text-xs text-gray-600 mb-3">
+                        <div class="flex justify-between">
+                            <span>Задача:</span>
+                            <span x-text="defect.employee_task ? `#${defect.employee_task.id}` : 'Нет задачи'"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Дата:</span>
+                            <span x-text="formatDate(defect.created_at)"></span>
+                        </div>
+                        <div x-show="defect.defect_type" class="flex justify-between">
+                            <span>Тип брака:</span>
+                            <span class="px-2 py-1 text-xs rounded-full" :class="getDefectTypeClass(defect.defect_type)" x-text="defect.defect_type_display || 'Неизвестный тип'"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        <button x-show="canConfirmDefect(defect)" 
+                                @click="openConfirmationModal(defect)"
+                                class="flex-1 px-3 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                            Подтвердить
+                        </button>
+                        <button x-show="canMarkRepaired(defect)"
+                                @click="openRepairModal(defect)"
+                                class="flex-1 px-3 py-2 bg-green-600 text-white text-xs rounded hover:bg-green-700">
+                            Починен
+                        </button>
+                        <button x-show="canCloseDefect(defect)"
+                                @click="closeDefect(defect)"
+                                class="flex-1 px-3 py-2 bg-gray-600 text-white text-xs rounded hover:bg-gray-700">
+                            Закрыть
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Пустое состояние -->
+        <div x-show="filteredDefects().length === 0" class="text-center py-12">
+            <i data-lucide="alert-triangle" class="mx-auto text-gray-400 mb-4" style="width: 48px; height: 48px;"></i>
+            <p class="text-gray-500 text-lg" x-text="searchTerm ? 'Браки не найдены по вашему запросу' : 'Браки не найдены'"></p>
+            <p x-show="searchTerm" class="text-gray-400 text-sm mt-2">Попробуйте изменить поисковый запрос</p>
         </div>
     </main>
 
     <!-- Модальное окно подтверждения брака -->
     <div x-show="showConfirmationModal" 
          x-cloak
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" @click.away="closeConfirmationModal()">
+        <div class="bg-white rounded-lg p-4 lg:p-6 max-w-md w-full" @click.away="closeConfirmationModal()">
             <h3 class="text-lg font-semibold mb-4">Подтверждение брака</h3>
             
             <!-- Шаг 1: Подтверждение проверки -->
             <div x-show="confirmationStep === 1">
-                <p class="text-gray-600 mb-4">Вы подтверждаете, что подошли и тщательно проверили брак?</p>
-                <div class="flex space-x-3">
+                <p class="text-gray-600 mb-4 text-sm lg:text-base">Вы подтверждаете, что подошли и тщательно проверили брак?</p>
+                <div class="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-3">
                     <button @click="confirmationStep = 2" 
-                            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                            class="w-full lg:flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
                         Да, подтверждаю
                     </button>
                     <button @click="closeConfirmationModal()" 
-                            class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                            class="w-full lg:flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">
                         Отмена
                     </button>
                 </div>
@@ -185,14 +251,14 @@
             
             <!-- Шаг 2: Можно ли починить -->
             <div x-show="confirmationStep === 2">
-                <p class="text-gray-600 mb-4">Можно ли починить брак?</p>
-                <div class="flex space-x-3">
+                <p class="text-gray-600 mb-4 text-sm lg:text-base">Можно ли починить брак?</p>
+                <div class="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-3">
                     <button @click="confirmationStep = 3; selectedDefect.is_repairable = true" 
-                            class="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                            class="w-full lg:flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
                         Да, можно починить
                     </button>
                     <button @click="confirmationStep = 4; selectedDefect.is_repairable = false" 
-                            class="flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                            class="w-full lg:flex-1 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm">
                         Нет, нельзя починить
                     </button>
                 </div>
@@ -200,25 +266,25 @@
             
             <!-- Шаг 3: Тип брака (если нельзя починить) -->
             <div x-show="confirmationStep === 4">
-                <p class="text-gray-600 mb-4">Выберите тип брака:</p>
+                <p class="text-gray-600 mb-4 text-sm lg:text-base">Выберите тип брака:</p>
                 <div class="space-y-3 mb-4">
                     <label class="flex items-center">
                         <input type="radio" x-model="selectedDefect.defect_type" value="technical" class="mr-2">
-                        <span>Технический (штраф не списывается)</span>
+                        <span class="text-sm lg:text-base">Технический (штраф не списывается)</span>
                     </label>
                     <label class="flex items-center">
                         <input type="radio" x-model="selectedDefect.defect_type" value="manual" class="mr-2">
-                        <span>Ручной (штраф списывается с сотрудника)</span>
+                        <span class="text-sm lg:text-base">Ручной (штраф списывается с сотрудника)</span>
                     </label>
                 </div>
-                <div class="flex space-x-3">
+                <div class="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-3">
                     <button @click="confirmationStep = 5" 
                             :disabled="!selectedDefect.defect_type"
-                            class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
+                            class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 text-sm">
                         Далее
                     </button>
                     <button @click="confirmationStep = 2" 
-                            class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                            class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">
                         Назад
                     </button>
                 </div>
@@ -226,8 +292,8 @@
             
             <!-- Шаг 4: Выбор цеха для исправления -->
             <div x-show="confirmationStep === 5">
-                <p class="text-gray-600 mb-4">Выберите цех для исправления брака:</p>
-                <select x-model="selectedDefect.target_workshop_id" class="w-full p-2 border border-gray-300 rounded mb-4">
+                <p class="text-gray-600 mb-4 text-sm lg:text-base">Выберите цех для исправления брака:</p>
+                <select x-model="selectedDefect.target_workshop_id" class="w-full p-2 border border-gray-300 rounded mb-4 text-sm">
                     <option value="">Выберите цех...</option>
                     <template x-for="workshop in workshops" :key="workshop.id">
                         <option :value="workshop.id" x-text="workshop.name || 'Неизвестный цех'"></option>
@@ -236,14 +302,14 @@
                 <div x-show="workshops.length === 0" class="text-red-500 text-sm mb-4">
                     Не удалось загрузить список цехов. Попробуйте обновить страницу.
                 </div>
-                <div class="flex space-x-3">
+                <div class="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-3">
                     <button @click="confirmDefect()" 
                             :disabled="!selectedDefect.target_workshop_id || workshops.length === 0"
-                            class="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
+                            class="w-full lg:flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 text-sm">
                         Подтвердить
                     </button>
                     <button @click="confirmationStep = 4" 
-                            class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                            class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">
                         Назад
                     </button>
                 </div>
@@ -251,21 +317,21 @@
             
             <!-- Шаг 5: Комментарий -->
             <div x-show="confirmationStep === 3">
-                <p class="text-gray-600 mb-4">Добавьте комментарий (необязательно):</p>
+                <p class="text-gray-600 mb-4 text-sm lg:text-base">Добавьте комментарий (необязательно):</p>
                 <textarea x-model="selectedDefect.comment" 
                           placeholder="Комментарий мастера..."
-                          class="w-full p-2 border border-gray-300 rounded mb-4 h-20"
+                          class="w-full p-2 border border-gray-300 rounded mb-4 h-20 text-sm"
                           maxlength="500"></textarea>
-                <div class="text-sm text-gray-500 mb-4">
+                <div class="text-xs lg:text-sm text-gray-500 mb-4">
                     <span x-text="(selectedDefect.comment || '').length"></span>/500 символов
                 </div>
-                <div class="flex space-x-3">
+                <div class="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-3">
                     <button @click="confirmDefect()" 
-                            class="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                            class="w-full lg:flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
                         Подтвердить
                     </button>
                     <button @click="confirmationStep = 2" 
-                            class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                            class="w-full px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">
                         Назад
                     </button>
                 </div>
@@ -276,30 +342,30 @@
     <!-- Модальное окно отметки починки -->
     <div x-show="showRepairModal" 
          x-cloak
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4" @click.away="closeRepairModal()">
+        <div class="bg-white rounded-lg p-4 lg:p-6 max-w-md w-full" @click.away="closeRepairModal()">
             <h3 class="text-lg font-semibold mb-4">Отметить брак как починенный</h3>
-            <p class="text-gray-600 mb-4">Добавьте комментарий по починке (необязательно):</p>
+            <p class="text-gray-600 mb-4 text-sm lg:text-base">Добавьте комментарий по починке (необязательно):</p>
             <textarea x-model="repairComment" 
                       placeholder="Комментарий по починке..."
-                      class="w-full p-2 border border-gray-300 rounded mb-4 h-20"
+                      class="w-full p-2 border border-gray-300 rounded mb-4 h-20 text-sm"
                       maxlength="500"></textarea>
-            <div class="text-sm text-gray-500 mb-4">
+            <div class="text-xs lg:text-sm text-gray-500 mb-4">
                 <span x-text="(repairComment || '').length"></span>/500 символов
             </div>
-            <div class="flex space-x-3">
+            <div class="flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-3">
                 <button @click="markAsRepaired()" 
-                        class="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                        class="w-full lg:flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm">
                     Отметить как починенный
                 </button>
                 <button @click="closeRepairModal()" 
-                        class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                        class="w-full lg:flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm">
                     Отмена
                 </button>
             </div>

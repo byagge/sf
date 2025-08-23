@@ -10,8 +10,6 @@ class Order(models.Model):
         ('stock', 'На складе'),
         ('shipped', 'Отправлен клиенту'),
         ('new', 'Новая'),
-        ('pending', 'Ожидает распределения'),
-        ('in_progress', 'В работе'),
     ]
     name = models.CharField('Название заявки', max_length=200)
     client = models.ForeignKey('clients.Client', on_delete=models.CASCADE, related_name='orders', verbose_name='Клиент')
@@ -150,13 +148,13 @@ class OrderStage(models.Model):
     status = models.CharField('Статус', max_length=30, choices=STAGE_STATUS_CHOICES, default='in_progress')
     parallel_group = models.PositiveIntegerField('Группа параллельной обработки', null=True, blank=True, help_text='Для параллельных потоков (например, стекло)')
     
-    # Спецификации цеха
-    cutting_specs = models.TextField('Спецификации распила', blank=True, null=True)
+    # Поля для спецификаций
     cnc_specs = models.TextField('Спецификации ЧПУ', blank=True, null=True)
+    cutting_specs = models.TextField('Спецификации распила', blank=True, null=True)
     paint_type = models.CharField('Тип краски', max_length=100, blank=True, null=True)
     paint_color = models.CharField('Цвет краски', max_length=100, blank=True, null=True)
     
-    # Временные метки
+    # Поля для отслеживания времени
     created_at = models.DateTimeField('Дата создания', auto_now_add=True)
     updated_at = models.DateTimeField('Дата обновления', auto_now=True)
 
@@ -201,7 +199,7 @@ class OrderStage(models.Model):
 
     def get_workshop_info(self):
         """Возвращает информацию для цеха на основе связанной позиции заказа"""
-        if self.order_item:
+        if self.order_item and self.order_item.product:
             return self.order_item.get_workshop_info(self.workshop.name if self.workshop else '')
         return {}
     
@@ -553,97 +551,136 @@ class OrderItem(models.Model):
         verbose_name_plural = 'Позиции заявки'
 
     def __str__(self):
-        details = []
-        if self.size:
-            details.append(self.size)
-        if self.color:
-            details.append(self.color)
-        if self.glass_type:
-            details.append(f"стекло: {self.get_glass_type_display()}")
-        suffix = f" ({', '.join(details)})" if details else ''
-        return f"{self.product} x{self.quantity}{suffix}"
+        try:
+            details = []
+            if self.size:
+                details.append(self.size)
+            if self.color:
+                details.append(self.color)
+            if self.glass_type:
+                details.append(f"стекло: {self.get_glass_type_display()}")
+            suffix = f" ({', '.join(details)})" if details else ''
+            product_name = self.product.name if self.product else 'Не указан'
+            return f"{product_name} x{self.quantity}{suffix}"
+        except:
+            return f"Товар x{self.quantity}"
     
     def get_workshop_info(self, workshop_name):
         """Возвращает информацию, необходимую для конкретного цеха"""
-        info = {
-            'size': self.size,
-            'color': self.color,
-            'quantity': self.quantity,
-        }
-        
-        if 'распил' in workshop_name.lower():
-            info.update({
-                'cutting_specs': self.cutting_specs,
-                'size': self.size,
-            })
-        elif 'чпу' in workshop_name.lower():
-            info.update({
-                'cnc_specs': self.cnc_specs,
-                'size': self.size,
-                'photo': self.product.img if self.product.img else None,
-            })
-        elif 'краск' in workshop_name.lower() or 'окрасочн' in workshop_name.lower():
-            info.update({
-                'paint_type': self.paint_type,
-                'paint_color': self.paint_color,
-                'size': self.size,
-                'photo': self.product.img if self.product.img else None,
-            })
-        elif 'упаковк' in workshop_name.lower():
-            info.update({
+        try:
+            info = {
                 'size': self.size,
                 'color': self.color,
-                'glass_type': self.glass_type,
-                'paint_type': self.paint_type,
-                'paint_color': self.paint_color,
-                'packaging_notes': self.packaging_notes,
-                'photo': self.product.img if self.product.img else None,
-            })
-        
-        return info
+                'quantity': self.quantity,
+            }
+            
+            # Проверяем, что product существует
+            if not self.product:
+                return info
+            
+            if 'распил' in workshop_name.lower():
+                info.update({
+                    'cutting_specs': self.cutting_specs,
+                    'size': self.size,
+                })
+            elif 'чпу' in workshop_name.lower():
+                info.update({
+                    'cnc_specs': self.cnc_specs,
+                    'size': self.size,
+                    'photo': self.product.img.url if self.product.img else None,
+                })
+            elif 'краск' in workshop_name.lower() or 'окрасочн' in workshop_name.lower():
+                info.update({
+                    'paint_type': self.paint_type,
+                    'paint_color': self.paint_color,
+                    'size': self.size,
+                    'photo': self.product.img.url if self.product.img else None,
+                })
+            elif 'упаковк' in workshop_name.lower():
+                info.update({
+                    'size': self.size,
+                    'color': self.color,
+                    'glass_type': self.glass_type,
+                    'paint_type': self.paint_type,
+                    'paint_color': self.paint_color,
+                    'packaging_notes': self.packaging_notes,
+                    'photo': self.product.img.url if self.product.img else None,
+                })
+            
+            return info
+        except:
+            return {
+                'size': self.size,
+                'color': self.color,
+                'quantity': self.quantity,
+            }
     
     def get_glass_type_display(self):
         """Возвращает человекочитаемое название типа стекла"""
         if not self.glass_type:
             return ""
         
-        glass_types = dict(self.product.GLASS_TYPES) if self.product else {}
-        return glass_types.get(self.glass_type, self.glass_type)
+        try:
+            glass_types = dict(self.product.GLASS_TYPES) if self.product else {}
+            return glass_types.get(self.glass_type, self.glass_type)
+        except:
+            return self.glass_type or ""
     
     def save(self, *args, **kwargs):
         """Автоматически заполняем тип стекла при создании стеклянного изделия"""
-        if self.product and self.product.is_glass and not self.glass_type:
-            # По умолчанию устанавливаем пескоструйный тип
-            self.glass_type = 'sandblasted'
+        try:
+            if self.product and self.product.is_glass and not self.glass_type:
+                # По умолчанию устанавливаем пескоструйный тип
+                self.glass_type = 'sandblasted'
+        except:
+            pass
         super().save(*args, **kwargs)
     
     def record_packaging_receipt(self, received_quantity):
         """Записывает количество товара, полученного в упаковке"""
-        self.packaging_received_quantity = received_quantity
-        self.save()
+        try:
+            self.packaging_received_quantity = received_quantity
+            self.save()
+        except:
+            pass
     
     def get_packaging_summary(self):
         """Возвращает сводку для упаковки"""
-        summary = {
-            'product': self.product.name,
-            'quantity': self.quantity,
-            'size': self.size,
-            'color': self.color,
-            'glass_type': self.get_glass_type_display(),
-            'paint_type': self.paint_type,
-            'paint_color': self.paint_color,
-            'packaging_notes': self.packaging_notes,
-            'photo': self.product.img if self.product.img else None,
-            'glass_cutting_completed': self.glass_cutting_completed,
-            'glass_cutting_quantity': self.glass_cutting_quantity,
-        }
-        
-        # Добавляем информацию о стекле, если это стеклянное изделие
-        if self.product and self.product.is_glass:
-            summary['is_glass'] = True
-            summary['glass_type_code'] = self.glass_type
-        
-        return summary
+        try:
+            summary = {
+                'product': self.product.name if self.product else 'Не указан',
+                'quantity': self.quantity,
+                'size': self.size,
+                'color': self.color,
+                'glass_type': self.get_glass_type_display(),
+                'paint_type': self.paint_type,
+                'paint_color': self.paint_color,
+                'packaging_notes': self.packaging_notes,
+                'photo': self.product.img.url if self.product and self.product.img else None,
+                'glass_cutting_completed': self.glass_cutting_completed,
+                'glass_cutting_quantity': self.glass_cutting_quantity,
+            }
+            
+            # Добавляем информацию о стекле, если это стеклянное изделие
+            if self.product and self.product.is_glass:
+                summary['is_glass'] = True
+                summary['glass_type_code'] = self.glass_type
+            
+            return summary
+        except:
+            return {
+                'product': 'Не указан',
+                'quantity': self.quantity,
+                'size': self.size,
+                'color': self.color,
+                'glass_type': '',
+                'paint_type': '',
+                'paint_color': '',
+                'packaging_notes': '',
+                'photo': None,
+                'glass_cutting_completed': False,
+                'glass_cutting_quantity': 0,
+            }
 
 ORDER_WORKFLOW = [
     # Основной поток для обычных изделий
@@ -672,30 +709,55 @@ def create_order_stages(order):
     order_items = order.items.all()
     
     if not order_items.exists():
-        # Если нет позиций, используем старую логику для одиночного продукта
-        if not ORDER_WORKFLOW:
-            return
-    step = ORDER_WORKFLOW[0]
-    workshop = Workshop.objects.get(pk=step["workshop"])
-    now = timezone.now()
-    deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
-    if now.hour >= 18:
-        deadline_dt += timedelta(days=1)
-    OrderStage.objects.create(
-        order=order,
-        workshop=workshop,
-        operation=step["operation"],
-        sequence=1,
-        stage_type='workshop',
-        plan_quantity=order.total_quantity,
-        deadline=deadline_dt.date(),
-        status='in_progress',
-        )
-    return
+        # Если нет позиций, не создаем этапы
+        print(f"Warning: No items found for order {order.id}, skipping stage creation")
+        return
     
-    # Создаем этапы для каждой позиции заказа
+    # Сначала попробуем создать этапы по стандартному workflow
+    try:
+        for item in order_items:
+            _create_stages_for_item(order, item)
+        return
+    except Exception as e:
+        print(f"Error creating stages with standard workflow: {e}")
+        print("Falling back to simple stage creation...")
+    
+    # Если стандартный workflow не работает, создаем простые этапы
+    try:
+        _create_simple_stages(order, order_items)
+    except Exception as e:
+        print(f"Error creating simple stages: {e}")
+        # Не создаем этапы, но не прерываем выполнение
+
+def _create_simple_stages(order, order_items):
+    """Создает простые этапы заказа с существующими цехами"""
+    from apps.operations.workshops.models import Workshop
+    
+    # Получаем все активные цехи
+    workshops = Workshop.objects.filter(is_active=True).order_by('id')[:3]  # Берем первые 3
+    
+    if not workshops.exists():
+        print("No active workshops found, skipping stage creation")
+        return
+    
     for item in order_items:
-        _create_stages_for_item(order, item)
+        for i, workshop in enumerate(workshops):
+            now = timezone.now()
+            deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
+            if now.hour >= 18:
+                deadline_dt += timedelta(days=1)
+            
+            OrderStage.objects.create(
+                order=order,
+                workshop=workshop,
+                operation=f"Этап {i+1}",
+                sequence=i+1,
+                stage_type='workshop',
+                plan_quantity=item.quantity,
+                deadline=deadline_dt.date(),
+                status='in_progress',
+                order_item=item,
+            )
 
 def _create_stages_for_item(order, item):
     """Создает этапы для конкретной позиции заказа"""
@@ -708,7 +770,13 @@ def _create_stages_for_item(order, item):
     main_workflow = [step for step in ORDER_WORKFLOW if step.get("parallel_group") is None]
     
     for step in main_workflow:
-        workshop = Workshop.objects.get(pk=step["workshop"])
+        try:
+            workshop = Workshop.objects.get(pk=step["workshop"])
+        except Workshop.DoesNotExist:
+            # Если цех не найден, пропускаем этот этап
+            print(f"Warning: Workshop with ID {step['workshop']} not found, skipping stage '{step['operation']}'")
+            continue
+            
         now = timezone.now()
         deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
         if now.hour >= 18:
@@ -731,7 +799,13 @@ def _create_stages_for_item(order, item):
         glass_workflow = [step for step in ORDER_WORKFLOW if step.get("parallel_group") == 1]
         
         for step in glass_workflow:
-            workshop = Workshop.objects.get(pk=step["workshop"])
+            try:
+                workshop = Workshop.objects.get(pk=step["workshop"])
+            except Workshop.DoesNotExist:
+                # Если цех не найден, пропускаем этот этап
+                print(f"Warning: Workshop with ID {step['workshop']} not found, skipping glass stage '{step['operation']}'")
+                continue
+                
             now = timezone.now()
             deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
             if now.hour >= 18:
@@ -748,7 +822,7 @@ def _create_stages_for_item(order, item):
                 status='in_progress',
                 order_item=item,  # Привязываем к конкретной позиции
                 parallel_group=1,
-    )
+            )
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -756,6 +830,6 @@ from django.dispatch import receiver
 @receiver(post_save, sender=Order)
 def create_stages_on_order(sender, instance, created, **kwargs):
     if created and not instance.stages.exists():
-        # Создаем этапы только если уже есть позиции или задан одиночный продукт
-        if instance.items.exists() or (instance.product_id and instance.quantity > 0):
+        # Создаем этапы только если есть позиции заказа
+        if instance.items.exists():
             create_order_stages(instance)

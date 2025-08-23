@@ -204,20 +204,23 @@
                     quantity = task.defective_quantity || 0;
                 }
                 
-                // Проверяем, является ли цех "распил", "чпу" или до пресса
-                const workshopName = task.workshop_info?.workshop_name || '';
-                const isPrePressWorkshop = workshopName.toLowerCase().includes('распил') || 
-                                        workshopName.toLowerCase().includes('чпу') ||
-                                        workshopName.toLowerCase().includes('cnc') ||
-                                        workshopName.toLowerCase().includes('резка') ||
-                                        workshopName.toLowerCase().includes('обработка');
+                return quantity.toString();
+            },
+            
+            // Функция для получения реального количества работы (для расчетов)
+            getRealQuantity(task, type) {
+                if (!task) return 0;
                 
-                // Если это цех до пресса, количество x2
-                if (isPrePressWorkshop && quantity > 0) {
-                    return `${quantity} ×2`;
+                let quantity = 0;
+                if (type === 'plan') {
+                    quantity = task.quantity || 0;
+                } else if (type === 'completed') {
+                    quantity = task.completed_quantity || 0;
+                } else if (type === 'defective') {
+                    quantity = task.defective_quantity || 0;
                 }
                 
-                return quantity.toString();
+                return quantity;
             }
         }
     }

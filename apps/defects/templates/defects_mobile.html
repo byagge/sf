@@ -14,9 +14,6 @@
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; }
         [x-cloak] { display: none !important; }
-        
-        /* Дополнительная защита от показа модальных окон до инициализации Alpine.js */
-        .modal-hidden { display: none !important; }
     </style>
 </head>
 <body class="min-h-screen bg-gray-50">
@@ -52,7 +49,22 @@
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
             <input type="text" placeholder="Поиск по продукту или сотруднику..." x-model="searchTerm"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <!-- Тестовая кнопка для отладки -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+            <button @click="testModal()" class="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 mb-2">
+                Тест модального окна
+            </button>
+            <button @click="showConfirmationModal = !showConfirmationModal" class="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-2">
+                Переключить модальное окно
+            </button>
+            <div class="text-xs text-gray-500">
+                Статус модального окна: <span x-text="showConfirmationModal"></span><br>
+                Текущий пользователь: <span x-text="currentUser ? currentUser.role : 'Не загружен'"></span><br>
+                Количество браков: <span x-text="defects.length"></span>
             </div>
+        </div>
         
 
         
@@ -125,9 +137,8 @@
     </main>
 
     <!-- Модальное окно подтверждения брака -->
-    <div x-show="showConfirmationModal === true" 
-         x-cloak
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-hidden">
+    <div :style="showConfirmationModal ? 'display: flex' : 'display: none'"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
 
         <div class="bg-white rounded-lg p-4 w-full max-w-sm" @click.away="closeConfirmationModal()">
             <h3 class="text-lg font-semibold mb-4">Подтверждение брака</h3>
@@ -238,9 +249,8 @@
     </div>
 
     <!-- Модальное окно отметки починки -->
-    <div x-show="showRepairModal === true" 
-         x-cloak
-         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-hidden"
+    <div :style="showRepairModal ? 'display: flex' : 'display: none'"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -307,9 +317,11 @@
             
             async fetchDefects() {
                 try {
+                    console.log('Fetching defects...');
                     const resp = await fetch('/defects/api/defects/');
                     if (resp.ok) {
                         const data = await resp.json();
+                        console.log('Defects data received:', data);
                         // Проверяем структуру данных
                         if (data && Array.isArray(data)) {
                             this.defects = data;
@@ -319,9 +331,12 @@
                             this.defects = [];
                         }
                     } else {
+                        console.log('Defects fetch failed with status:', resp.status);
                         this.defects = [];
                     }
+                    console.log('Defects set to:', this.defects.length, 'items');
                 } catch (error) {
+                    console.error('Error fetching defects:', error);
                     this.defects = [];
                 }
             },
@@ -343,15 +358,18 @@
                         this.workshops = [];
                     }
                 } catch (error) {
+                    console.error('Error fetching workshops:', error);
                     this.workshops = [];
                 }
             },
             
             async fetchCurrentUser() {
                 try {
+                    console.log('Fetching current user...');
                     const resp = await fetch('/accounts/api/profile/');
                     if (resp.ok) {
                         const data = await resp.json();
+                        console.log('User data received:', data);
                         // Проверяем структуру данных
                         if (data && typeof data === 'object') {
                             this.currentUser = data;
@@ -359,9 +377,12 @@
                             this.currentUser = null;
                         }
                     } else {
+                        console.log('User fetch failed with status:', resp.status);
                         this.currentUser = null;
                     }
+                    console.log('Current user set to:', this.currentUser);
                 } catch (error) {
+                    console.error('Error fetching current user:', error);
                     this.currentUser = null;
                 }
             },
@@ -419,6 +440,14 @@
                 if (!this.currentUser || !defect) return false;
                 // Check for master role - handle different possible role formats
                 const userRole = this.currentUser.role || this.currentUser.role_name || this.currentUser.user_role;
+                
+                console.log('canConfirmDefect check:', {
+                    currentUser: this.currentUser,
+                    userRole: userRole,
+                    defectStatus: defect.status,
+                    canConfirm: userRole && (userRole === 'master' || userRole === 'Master') && defect.status === 'pending'
+                });
+                
                 if (!userRole || (userRole !== 'master' && userRole !== 'Master')) return false;
                 return defect.status === 'pending';
             },
@@ -436,30 +465,73 @@
             
             openConfirmationModal(defect) {
                 if (!defect) return;
-                this.selectedDefect = { ...defect };
-                this.confirmationStep = 1;
-                this.showConfirmationModal = true;
-                this.showRepairModal = false; // Закрываем другое модальное окна
+                try {
+                    console.log('openConfirmationModal called with defect:', defect);
+                    console.log('Current modal state before:', {
+                        showConfirmationModal: this.showConfirmationModal,
+                        showRepairModal: this.showRepairModal
+                    });
+                    
+                    // Проверяем, что DOM готов
+                    if (document.readyState === 'loading') {
+                        console.warn('DOM not ready, waiting...');
+                        document.addEventListener('DOMContentLoaded', () => {
+                            this.openConfirmationModal(defect);
+                        });
+                        return;
+                    }
+                    
+                    this.selectedDefect = { ...defect };
+                    this.confirmationStep = 1;
+                    this.showConfirmationModal = true;
+                    this.showRepairModal = false; // Закрываем другое модальное окна
+                    
+                    console.log('Modal state after setting:', {
+                        showConfirmationModal: this.showConfirmationModal,
+                        showRepairModal: this.showRepairModal,
+                        selectedDefect: this.selectedDefect
+                    });
+                    
+                    // Принудительно обновляем DOM
+                    this.$nextTick(() => {
+                        console.log('DOM updated, modal should be visible');
+                    });
+                    
+                } catch (error) {
+                    console.error('Error opening confirmation modal:', error);
+                }
             },
             
             openRepairModal(defect) {
                 if (!defect) return;
-                this.selectedDefect = defect;
-                this.repairComment = '';
-                this.showRepairModal = true;
-                this.showConfirmationModal = false; // Закрываем другое модальное окно
+                try {
+                    this.selectedDefect = defect;
+                    this.repairComment = '';
+                    this.showRepairModal = true;
+                    this.showConfirmationModal = false; // Закрываем другое модальное окно
+                } catch (error) {
+                    console.error('Error opening repair modal:', error);
+                }
             },
             
             closeConfirmationModal() {
-                this.showConfirmationModal = false;
-                this.confirmationStep = 1;
-                this.selectedDefect = {};
+                try {
+                    this.showConfirmationModal = false;
+                    this.confirmationStep = 1;
+                    this.selectedDefect = {};
+                } catch (error) {
+                    console.error('Error closing confirmation modal:', error);
+                }
             },
             
             closeRepairModal() {
-                this.showRepairModal = false;
-                this.repairComment = '';
-                this.selectedDefect = {};
+                try {
+                    this.showRepairModal = false;
+                    this.repairComment = '';
+                    this.selectedDefect = {};
+                } catch (error) {
+                    console.error('Error closing repair modal:', error);
+                }
             },
             
             async confirmDefect() {
@@ -613,10 +685,47 @@
                 alert(message);
             },
             
+            testModal() {
+                console.log('Test modal button clicked');
+                console.log('Current state:', {
+                    showConfirmationModal: this.showConfirmationModal,
+                    showRepairModal: this.showRepairModal,
+                    currentUser: this.currentUser,
+                    defects: this.defects
+                });
+                
+                // Тестируем открытие модального окна
+                this.showConfirmationModal = true;
+                this.confirmationStep = 1;
+                this.selectedDefect = { id: 'test', product: { name: 'Test Product' } };
+                
+                console.log('After setting test modal state:', {
+                    showConfirmationModal: this.showConfirmationModal,
+                    confirmationStep: this.confirmationStep
+                });
+                
+                // Принудительно обновляем DOM
+                this.$nextTick(() => {
+                    console.log('DOM updated, checking modal visibility...');
+                    const modal = document.querySelector('.fixed.inset-0');
+                    if (modal) {
+                        console.log('Modal element found:', modal);
+                        console.log('Modal computed style:', window.getComputedStyle(modal));
+                        console.log('Modal display style:', modal.style.display);
+                    } else {
+                        console.log('Modal element not found');
+                    }
+                });
+                
+                alert('Модальное окно должно быть открыто!');
+            },
+            
 
             
             async init() {
                 try {
+                    console.log('Initializing defects data...');
+                    
                     // Явно устанавливаем модальные окна в скрытое состояние
                     this.showConfirmationModal = false;
                     this.showRepairModal = false;
@@ -624,10 +733,23 @@
                     this.selectedDefect = {};
                     this.repairComment = '';
                     
+                    console.log('Initial modal state:', {
+                        showConfirmationModal: this.showConfirmationModal,
+                        showRepairModal: this.showRepairModal
+                    });
+                    
                     // Дополнительная проверка - принудительно скрываем модальные окна
                     setTimeout(() => {
-                        this.showConfirmationModal = false;
-                        this.showRepairModal = false;
+                        if (this.showConfirmationModal !== undefined) {
+                            this.showConfirmationModal = false;
+                        }
+                        if (this.showRepairModal !== undefined) {
+                            this.showRepairModal = false;
+                        }
+                        console.log('Modal state after timeout:', {
+                            showConfirmationModal: this.showConfirmationModal,
+                            showRepairModal: this.showRepairModal
+                        });
                     }, 100);
                     
                     await Promise.all([
@@ -636,15 +758,36 @@
                         this.fetchCurrentUser()
                     ]);
                     
-                    this.$nextTick(() => {
+                    console.log('All data fetched, final state:', {
+                        defectsCount: this.defects.length,
+                        workshopsCount: this.workshops.length,
+                        currentUser: this.currentUser,
+                        showConfirmationModal: this.showConfirmationModal,
+                        showRepairModal: this.showRepairModal
+                    });
+                    
+                    // Безопасное создание иконок
+                    if (typeof lucide !== 'undefined' && lucide.createIcons) {
                         try {
-                            lucide.createIcons();
+                            // Проверяем, что DOM готов
+                            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                                lucide.createIcons();
+                            } else {
+                                // Ждем загрузки DOM
+                                document.addEventListener('DOMContentLoaded', () => {
+                                    try {
+                                        lucide.createIcons();
+                                    } catch (error) {
+                                        // Игнорируем ошибки создания иконок
+                                    }
+                                });
+                            }
                         } catch (error) {
                             // Игнорируем ошибки создания иконок
                         }
-                    });
+                    }
                 } catch (error) {
-                    // Игнорируем ошибки инициализации
+                    console.error('Error in init:', error);
                 }
             },
             
@@ -686,7 +829,13 @@
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            lucide.createIcons();
+            try {
+                if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                    lucide.createIcons();
+                }
+            } catch (error) {
+                // Игнорируем ошибки создания иконок
+            }
         });
     </script>
 </body>

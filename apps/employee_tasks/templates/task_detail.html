@@ -85,7 +85,7 @@
             <span class="text-base font-semibold text-gray-900">Детали задачи</span>
         </div>
         <div class="flex items-center space-x-2">
-            <template x-if="task && task.completed_quantity >= task.quantity">
+            <template x-if="task && getRealQuantity(task, 'completed') >= getRealQuantity(task, 'plan')">
                 <div class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
                     <i data-lucide="check-circle" class="w-3 h-3 inline mr-1"></i>
                     Выполнено
@@ -120,7 +120,7 @@
                             </div>
                         </div>
                     </div>
-                    
+                                        
                     <!-- Progress -->
                     <div class="mb-3">
                         <div class="flex justify-between text-sm mb-1">
@@ -129,7 +129,7 @@
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
                             <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
-                                 :style="`width: ${Math.min(100, (task.completed_quantity / task.quantity) * 100)}%`"></div>
+                                 :style="`width: ${Math.min(100, (getRealQuantity(task, 'completed') / getRealQuantity(task, 'plan')) * 100)}%`"></div>
                         </div>
                     </div>
                     
@@ -182,6 +182,11 @@
                                 <span class="font-semibold text-gray-900" x-text="task.order_item.product ? task.order_item.product.name : 'Не указан'"></span>
                             </div>
                             
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Количество плана:</span>
+                                <span class="font-semibold text-gray-900" x-text="task.quantity || 0"></span>
+                            </div>
+                            
                             <template x-if="task.order_item.size">
                                 <div class="flex items-center justify-between">
                                     <span class="text-gray-600">Размер:</span>
@@ -232,6 +237,16 @@
                                 </div>
                             </template>
                         </div>
+                        
+                        <!-- Disclaimer for workshops ID 1 and 3 -->
+                        <template x-if="shouldShowWarning(task)">
+                            <div class="bg-yellow-50 p-3 rounded-lg mt-3">
+                                <div class="text-yellow-800 text-sm">
+                                    <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                                    <strong>Примечание:</strong> Указано количество дверей, в вашем цехе 1 дверь это две детали, то есть ваша работа количество нужно сделать в виде <strong class="text-yellow-900" x-text="(task.quantity || 0) * 2"></strong>.
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </template>
                 
@@ -802,6 +817,24 @@
                         console.log('Task defective_quantity:', this.task.defective_quantity);
                         console.log('Task earnings:', this.task.earnings);
                         console.log('Task workshop_info:', this.task.workshop_info);
+                        console.log('Task workshop:', this.task.workshop);
+                        console.log('Task stage object:', this.task.stage);
+                        console.log('Task title:', this.task.title);
+                        
+                        // Проверяем структуру данных для поиска информации о цехе
+                        console.log('=== DEBUG: WORKSHOP DATA SEARCH ===');
+                        if (this.task.workshop_info) {
+                            console.log('workshop_info keys:', Object.keys(this.task.workshop_info));
+                        }
+                        if (this.task.workshop) {
+                            console.log('workshop keys:', Object.keys(this.task.workshop));
+                        }
+                        if (this.task.stage) {
+                            console.log('stage keys:', Object.keys(this.task.stage));
+                            if (this.task.stage.workshop) {
+                                console.log('stage.workshop keys:', Object.keys(this.task.stage.workshop));
+                            }
+                        }
                         
                         // Проверяем, изменился ли order_item после исправления сериализатора
                         console.log('=== DEBUG: ORDER_ITEM CHECK AFTER FIX ===');
@@ -935,13 +968,16 @@
                     return;
                 }
                 
-                this.doneInput = this.task.completed_quantity >= this.task.quantity;
+                // Используем реальные количества для проверки завершения
+                const realCompleted = this.getRealQuantity(this.task, 'completed');
+                const realPlan = this.getRealQuantity(this.task, 'plan');
+                this.doneInput = realCompleted >= realPlan;
                 this.defectiveInput = this.task.defective_quantity || 0;
                 
                 console.log('Initial doneInput:', this.doneInput);
                 console.log('Initial defectiveInput:', this.defectiveInput);
-                console.log('Task completed_quantity:', this.task.completed_quantity);
-                console.log('Task quantity:', this.task.quantity);
+                console.log('Real completed quantity:', realCompleted);
+                console.log('Real plan quantity:', realPlan);
                 console.log('Task defective_quantity:', this.task.defective_quantity);
                 
                 this.showCompleteModal = true;
@@ -964,6 +1000,8 @@
                 console.log('- completedQty:', completedQty);
                 console.log('- defectiveInput:', this.defectiveInput);
                 console.log('- task.quantity:', this.task.quantity);
+                console.log('- Real plan quantity:', this.getRealQuantity(this.task, 'plan'));
+                console.log('- Real completed quantity:', this.getRealQuantity(this.task, 'completed'));
                 
                 try {
                     const requestData = {
@@ -1166,20 +1204,34 @@
                     quantity = task.defective_quantity || 0;
                 }
                 
-                // Проверяем, является ли цех "распил", "чпу" или до пресса
-                const workshopName = task.workshop_info?.workshop_name || '';
-                const isPrePressWorkshop = workshopName.toLowerCase().includes('распил') || 
-                                        workshopName.toLowerCase().includes('чпу') ||
-                                        workshopName.toLowerCase().includes('cnc') ||
-                                        workshopName.toLowerCase().includes('резка') ||
-                                        workshopName.toLowerCase().includes('обработка');
+                return quantity.toString();
+            },
+            
+            // Функция для получения реального количества работы (для расчетов)
+            getRealQuantity(task, type) {
+                if (!task) return 0;
                 
-                // Если это цех до пресса, количество x2
-                if (isPrePressWorkshop && quantity > 0) {
-                    return `${quantity} ×2`;
+                let quantity = 0;
+                if (type === 'plan') {
+                    quantity = task.quantity || 0;
+                } else if (type === 'completed') {
+                    quantity = task.completed_quantity || 0;
+                } else if (type === 'defective') {
+                    quantity = task.defective_quantity || 0;
                 }
                 
-                return quantity.toString();
+                return quantity;
+            },
+            
+            // Проверяем, нужно ли показать предупреждение для цехов ID 1 и 3
+            shouldShowWarning(task) {
+                if (!task) return false;
+                
+                // Проверяем название задачи
+                const taskName = (task.stage_name || task.title || '').toLowerCase();
+                
+                // Показываем предупреждение если задача называется "резка" или содержит "обработка на станках с чпу"
+                return taskName.includes('резка') || taskName.includes('обработка на станках с чпу');
             }
         }
     }

@@ -28,9 +28,9 @@ class WorkshopShortSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    product = ProductFullSerializer(read_only=True)
-    product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True, source='product')
-    glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
+    product = ProductFullSerializer(read_only=True, allow_null=True)
+    product_id = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), write_only=True, source='product', required=False, allow_null=True)
+    glass_type_display = serializers.SerializerMethodField()
     order = serializers.SerializerMethodField()
 
     class Meta:
@@ -43,25 +43,60 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'order'
         ]
     
+    def get_glass_type_display(self, obj):
+        """Безопасно возвращает отображение типа стекла"""
+        try:
+            return obj.get_glass_type_display()
+        except:
+            return obj.glass_type or ""
+    
     def get_order(self, obj):
         # Минимальная информация о заказе для отображения в шаблонах
         if not obj.order:
             return None
-        client = obj.order.client
-        return {
-            'id': obj.order.id,
-            'name': obj.order.name,
-            'created_at': obj.order.created_at,
-            'status_display': obj.order.status_display,
-            'comment': obj.order.comment,
-            'client': {'id': client.id, 'name': client.name} if client else None,
-        }
+        try:
+            client = obj.order.client
+            # Получаем все товары заказа без рекурсивной сериализации
+            items = []
+            if obj.order.items.exists():
+                for item in obj.order.items.all():
+                    items.append({
+                        'id': item.id,
+                        'quantity': item.quantity,
+                        'size': item.size,
+                        'color': item.color,
+                        'product': {
+                            'id': item.product.id if item.product else None,
+                            'name': item.product.name if item.product else 'Не указан',
+                            'is_glass': item.product.is_glass if item.product else False
+                        } if item.product else None
+                    })
+            return {
+                'id': obj.order.id,
+                'name': obj.order.name,
+                'created_at': obj.order.created_at,
+                'status_display': obj.order.status_display,
+                'comment': obj.order.comment,
+                'client': {'id': client.id, 'name': client.name} if client else None,
+                'items': items
+            }
+        except Exception as e:
+            # В случае ошибки возвращаем минимальную информацию
+            return {
+                'id': obj.order.id if obj.order else None,
+                'name': obj.order.name if obj.order else 'Не указано',
+                'created_at': obj.order.created_at if obj.order else None,
+                'status_display': 'Не указан',
+                'comment': '',
+                'client': None,
+                'items': []
+            }
 
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
     assigned = EmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
     order_name = serializers.CharField(source='order.name', read_only=True)
-    order_item = OrderItemSerializer(read_only=True)
+    order_item = OrderItemSerializer(read_only=True, allow_null=True)
     done_count = serializers.IntegerField(read_only=True)
     defective_count = serializers.IntegerField(read_only=True)
     workshop_info = serializers.SerializerMethodField()
@@ -77,7 +112,18 @@ class OrderStageSerializer(serializers.ModelSerializer):
     
     def get_workshop_info(self, obj):
         """Возвращает информацию для цеха"""
-        return obj.get_workshop_info()
+        try:
+            return obj.get_workshop_info()
+        except:
+            return {}
+    
+    def to_representation(self, instance):
+        """Переопределяем для безопасной обработки null значений"""
+        data = super().to_representation(instance)
+        # Убеждаемся, что order_item не вызывает ошибок
+        if not instance.order_item:
+            data['order_item'] = None
+        return data
 
 class OrderDefectSerializer(serializers.ModelSerializer):
     workshop = WorkshopFullSerializer(read_only=True)
@@ -119,12 +165,15 @@ class OrderSerializer(serializers.ModelSerializer):
         return [OrderItemSerializer(item).data for item in obj.regular_items]
 
     def validate(self, attrs):
-        # Allow either legacy product/quantity or items list
-        items = self.initial_data.get('items') or self.initial_data.get('items_data')
-        product = attrs.get('product')
-        quantity = attrs.get('quantity')
-        if not items and not (product and quantity):
-            raise serializers.ValidationError('Нужно указать либо product_id и quantity, либо список items.')
+        # Для создания заказа требуем либо items, либо product+quantity
+        if self.instance is None:  # Создание нового заказа
+            items = self.initial_data.get('items') or self.initial_data.get('items_data')
+            product = attrs.get('product')
+            quantity = attrs.get('quantity')
+            if not items and not (product and quantity):
+                raise serializers.ValidationError('Нужно указать либо product_id и quantity, либо список items.')
+        
+        # Для обновления заказа валидация не требуется
         return attrs
 
     def create(self, validated_data):
@@ -140,6 +189,33 @@ class OrderSerializer(serializers.ModelSerializer):
         elif order.product and order.quantity:
             OrderItem.objects.create(order=order, product=order.product, quantity=order.quantity)
         return order
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', [])
+        
+        # Обновляем основные поля заказа (только те, которые есть в модели)
+        allowed_fields = ['name', 'client', 'status', 'comment']
+        for attr, value in validated_data.items():
+            if attr in allowed_fields and hasattr(instance, attr):
+                setattr(instance, attr, value)
+        instance.save()
+        
+        # Обновляем товары заказа только если переданы новые данные
+        if items_data is not None:
+            # Удаляем старые товары
+            instance.items.all().delete()
+            # Создаем новые товары
+            for item in items_data:
+                OrderItem.objects.create(order=instance, **item)
+            # Пересоздаем этапы если нужно
+            if not instance.stages.exists():
+                try:
+                    create_order_stages(instance)
+                except Exception as e:
+                    print(f"Warning: Error creating order stages in serializer: {e}")
+                    # Продолжаем выполнение, этапы не критичны
+        
+        return instance
 
 class OrderStageConfirmSerializer(serializers.Serializer):
     completed_quantity = serializers.IntegerField(min_value=0) 

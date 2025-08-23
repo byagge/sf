@@ -1,6 +1,6 @@
 from rest_framework.routers import DefaultRouter
 from .views import OrderViewSet, OrderPageView, OrderCreateAPIView, OrderStageConfirmAPIView, StageViewSet, OrderStageTransferAPIView, OrderStagePostponeAPIView, OrderStageNoTransferAPIView, DashboardOverviewAPIView, DashboardRevenueChartAPIView, PlansMasterView, PlansMasterDetailView
-from .api import WorkshopStagesView, StageDetailView, NewRequestsView, AssignRequestToWorkshopView
+from .api import WorkshopStagesView, StageDetailView
 from django.urls import path, include
 from django.views.generic import TemplateView
 
@@ -17,11 +17,6 @@ urlpatterns = [
     path('api/stages/<int:stage_id>/confirm/', OrderStageConfirmAPIView.as_view(), name='order-stage-confirm'),
     path('api/stages/<int:stage_id>/', StageDetailView.as_view(), name='stage-detail'),
     path('api/stages/', WorkshopStagesView.as_view()),
-    
-    # Новые API endpoints для заявок
-    path('api/new-requests/', NewRequestsView.as_view(), name='new-requests'),
-    path('api/requests/<int:pk>/assign-workshop/', AssignRequestToWorkshopView.as_view(), name='assign-request-workshop'),
-    
     path('', OrderPageView.as_view(), name='orders-page'),
     path('plans/master/', PlansMasterView.as_view(), name='plans-master'),
     path('plans/master/<int:stage_id>/', PlansMasterDetailView.as_view(), name='plans-master-detail'),

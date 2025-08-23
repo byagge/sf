@@ -19,10 +19,76 @@ from rest_framework.decorators import api_view, permission_classes
 
 # Create your views here.
 
-class OrderViewSet(viewsets.ReadOnlyModelViewSet):
+class OrderViewSet(viewsets.ModelViewSet):
 	queryset = Order.objects.select_related('client', 'workshop', 'product').prefetch_related('items__product', 'stages__workshop', 'order_defects__workshop').all().order_by('-created_at')
 	serializer_class = OrderSerializer
 	permission_classes = [permissions.IsAuthenticated]
+	
+	def update(self, request, *args, **kwargs):
+		instance = self.get_object()
+		data = request.data.copy()
+		
+		# Обрабатываем позиции заказа отдельно
+		items_data = data.pop('items_data', None)
+		
+		# Обновляем основные поля заказа
+		serializer = self.get_serializer(instance, data=data, partial=True)
+		serializer.is_valid(raise_exception=True)
+		self.perform_update(serializer)
+		
+		# Если переданы новые позиции, обновляем их
+		if items_data is not None:
+			# Удаляем старые позиции
+			instance.items.all().delete()
+			
+			# Создаем новые позиции
+			for item_data in items_data:
+				product_id = item_data.get('product_id')
+				quantity = item_data.get('quantity', 1)
+				size = item_data.get('size', '')
+				color = item_data.get('color', '')
+				glass_type = item_data.get('glass_type', '')
+				paint_type = item_data.get('paint_type', '')
+				paint_color = item_data.get('paint_color', '')
+				cnc_specs = item_data.get('cnc_specs', '')
+				cutting_specs = item_data.get('cutting_specs', '')
+				packaging_notes = item_data.get('packaging_notes', '')
+				
+				# Проверяем что product_id существует и валиден
+				if not product_id:
+					continue
+					
+				from apps.products.models import Product
+				try:
+					product = Product.objects.get(pk=product_id)
+				except Product.DoesNotExist:
+					continue  # Пропускаем несуществующие товары
+				
+				OrderItem.objects.create(
+					order=instance,
+					product=product,
+					quantity=quantity,
+					size=size,
+					color=color,
+					glass_type=glass_type,
+					paint_type=paint_type,
+					paint_color=paint_color,
+					cnc_specs=cnc_specs,
+					cutting_specs=cutting_specs,
+					packaging_notes=packaging_notes
+				)
+			
+			# Удаляем старые этапы и создаем новые
+			instance.stages.all().delete()
+			from .models import create_order_stages
+			try:
+				create_order_stages(instance)
+			except Exception as e:
+				print(f"Warning: Error creating order stages: {e}")
+				# Продолжаем выполнение, этапы не критичны для обновления заказа
+		
+		# Возвращаем обновленный заказ
+		return Response(OrderSerializer(instance).data)
 
 class OrderCreateAPIView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
@@ -50,6 +116,7 @@ class OrderCreateAPIView(APIView):
 			)
 			
 			# Создаем позиции заказа
+			created_items = []
 			for item_data in items_data:
 				product_id = item_data.get('product_id')
 				quantity = item_data.get('quantity', 1)
@@ -65,7 +132,7 @@ class OrderCreateAPIView(APIView):
 				from apps.products.models import Product
 				product = get_object_or_404(Product, pk=product_id)
 				
-				OrderItem.objects.create(
+				item = OrderItem.objects.create(
 					order=order,
 					product=product,
 					quantity=quantity,
@@ -78,8 +145,9 @@ class OrderCreateAPIView(APIView):
 					cutting_specs=cutting_specs,
 					packaging_notes=packaging_notes
 				)
+				created_items.append(item)
 			
-			# Автоматически создаем этапы заказа
+			# Автоматически создаем этапы заказа после создания всех позиций
 			from .models import create_order_stages
 			create_order_stages(order)
 			
