@@ -120,27 +120,44 @@
                             <span class="text-xs text-green-700 font-semibold" x-text="order.total_done_count"></span>
                             <span class="text-gray-400 text-xs ml-2">Брак:</span>
                             <span class="text-xs text-red-600 font-semibold" x-text="order.total_defective_count"></span>
-                        </div>
-                        <div class="mb-2">
-                            <span class="text-gray-400 text-xs">Этапы:</span>
-                            <span class="text-xs text-gray-700" x-text="order.stages && order.stages.length ? order.stages.map(s => s.workshop && s.workshop.name ? s.workshop.name : '').filter(Boolean).join(', ') : (order.workshop && order.workshop.name ? order.workshop.name : '')"></span>
+                            <template x-if="order.stages && order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length > 0">
+                                <span class="text-gray-400 text-xs ml-2">Активных этапов:</span>
+                                <span class="text-xs text-blue-600 font-semibold" x-text="order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length"></span>
+                            </template>
                         </div>
                         <template x-if="order.stages && order.stages.length">
                             <div class="mb-2">
-                                <span class="text-gray-400 text-xs">Детализация этапов:</span>
-                                <ul class="text-xs text-gray-700 list-disc pl-4">
-                                    <template x-for="stage in order.stages" :key="stage.id">
-                                        <li>
-                                            <b x-text="stage.workshop && stage.workshop.name ? stage.workshop.name : ''"></b>:
-                                            В работе: <span x-text="stage.in_progress"></span>,
-                                            Передано: <span x-text="stage.completed"></span>,
-                                            <span class="text-green-700">Выполнено: <span x-text="stage.done_count"></span></span>,
-                                            <span class="text-red-600">Брак: <span x-text="stage.defective_count"></span></span>,
-                                            <span x-text="formatDate(stage.date)"></span>
-                                            <template x-if="stage.comment"><span class="text-gray-400"> — </span><span x-text="stage.comment"></span></template>
-                                        </li>
-                                    </template>
-                                </ul>
+                                <span class="text-gray-400 text-xs">Активные этапы:</span>
+                                <template x-if="order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length > 0">
+                                    <ul class="text-xs text-gray-700 list-disc pl-4">
+                                        <template x-for="stage in order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0)" :key="stage.id">
+                                            <li>
+                                                <b x-text="stage.workshop && stage.workshop.name ? stage.workshop.name : ''"></b>:
+                                                <template x-if="stage.in_progress > 0">
+                                                    <span class="text-blue-600">В работе: <span x-text="stage.in_progress"></span></span>
+                                                </template>
+                                                <template x-if="stage.completed > 0">
+                                                    <span class="text-purple-600">Передано: <span x-text="stage.completed"></span></span>
+                                                </template>
+                                                <template x-if="stage.done_count > 0">
+                                                    <span class="text-green-700">Выполнено: <span x-text="stage.done_count"></span></span>
+                                                </template>
+                                                <template x-if="stage.defective_count > 0">
+                                                    <span class="text-red-600">Брак: <span x-text="stage.defective_count"></span></span>
+                                                </template>
+                                                <template x-if="stage.date">
+                                                    <span class="text-gray-500"> — <span x-text="formatDate(stage.date)"></span></span>
+                                                </template>
+                                                <template x-if="stage.comment">
+                                                    <span class="text-gray-400"> — <span x-text="stage.comment"></span></span>
+                                                </template>
+                                            </li>
+                                        </template>
+                                    </ul>
+                                </template>
+                                <template x-if="order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length === 0">
+                                    <span class="text-xs text-gray-500">Пока нет активных этапов</span>
+                                </template>
                             </div>
                         </template>
                         <template x-if="order.defects && order.defects.length">
@@ -244,19 +261,40 @@
                                 <!-- Шаг 3: Этапы заказа -->
                                 <template x-if="orderStep === 3">
                                     <div class="mb-3">
-                                        <h3 class="font-semibold text-gray-900 text-xs mb-1">Этапы заказа</h3>
-                                        <ul class="text-xs text-gray-700 list-disc pl-4 space-y-0.5">
-                                            <template x-for="stage in selectedOrder.stages" :key="stage.id">
-                                                <li>
-                                                    <b x-text="stage.workshop && stage.workshop.name"></b>:
-                                                    В работе: <span x-text="stage.in_progress"></span>,
-                                                    Передано: <span x-text="stage.completed"></span>,
-                                                    Брак: <span x-text="stage.defective"></span>,
-                                                    <span x-text="formatDate(stage.date)"></span>
-                                                    <template x-if="stage.comment"><span class="text-gray-400"> — </span><span x-text="stage.comment"></span></template>
-                                                </li>
-                                            </template>
-                                        </ul>
+                                        <h3 class="font-semibold text-gray-900 text-xs mb-1">Активные этапы заказа</h3>
+                                        <template x-if="selectedOrder.stages && selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length > 0">
+                                            <ul class="text-xs text-gray-700 list-disc pl-4 space-y-0.5">
+                                                <template x-for="stage in selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0)" :key="stage.id">
+                                                    <li>
+                                                        <b x-text="stage.workshop && stage.workshop.name"></b>:
+                                                        <template x-if="stage.in_progress > 0">
+                                                            <span class="text-blue-600">В работе: <span x-text="stage.in_progress"></span></span>
+                                                        </template>
+                                                        <template x-if="stage.completed > 0">
+                                                            <span class="text-purple-600">Передано: <span x-text="stage.completed"></span></span>
+                                                        </template>
+                                                        <template x-if="stage.done_count > 0">
+                                                            <span class="text-green-700">Выполнено: <span x-text="stage.done_count"></span></span>
+                                                        </template>
+                                                        <template x-if="stage.defective_count > 0">
+                                                            <span class="text-red-600">Брак: <span x-text="stage.defective_count"></span></span>
+                                                        </template>
+                                                        <template x-if="stage.date">
+                                                            <span class="text-gray-500"> — <span x-text="formatDate(stage.date)"></span></span>
+                                                        </template>
+                                                        <template x-if="stage.comment">
+                                                            <span class="text-gray-400"> — <span x-text="stage.comment"></span></span>
+                                                        </template>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </template>
+                                        <template x-if="!selectedOrder.stages || selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length === 0">
+                                            <div class="text-center py-4">
+                                                <div class="text-gray-400 text-xs">Пока нет активных этапов</div>
+                                                <div class="text-gray-300 text-xs mt-1">Заказ еще не поступил в производство</div>
+                                            </div>
+                                        </template>
                                     </div>
                                 </template>
                                 <!-- Шаг 4: Браки -->
