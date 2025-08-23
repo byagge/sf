@@ -683,23 +683,8 @@ class OrderItem(models.Model):
             }
 
 ORDER_WORKFLOW = [
-    # Основной поток для обычных изделий
+    # Только один этап на цех ID 1 для всех заказов
     {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": None},
-    {"workshop": 3, "operation": "Обработка на станках с ЧПУ", "sequence": 2, "parallel_group": None},
-    {"workshop": 4, "operation": "Заготовка досок", "sequence": 3, "parallel_group": None},
-    {"workshop": 5, "operation": "Пресс", "sequence": 4, "parallel_group": None},
-    {"workshop": 1, "operation": "Распил (места)", "sequence": 5, "parallel_group": None},
-    {"workshop": 6, "operation": "Кромка", "sequence": 6, "parallel_group": None},
-    {"workshop": 7, "operation": "Шкурка аппаратная", "sequence": 7, "parallel_group": None},
-    {"workshop": 8, "operation": "Шкурка сухой", "sequence": 8, "parallel_group": None},
-    {"workshop": 9, "operation": "Грунтовка", "sequence": 9, "parallel_group": None},
-    {"workshop": 10, "operation": "Шкурка белый", "sequence": 10, "parallel_group": None},
-    {"workshop": 11, "operation": "Покраска", "sequence": 11, "parallel_group": None},
-    {"workshop": 12, "operation": "Упаковка", "sequence": 12, "parallel_group": None},
-    
-    # Параллельный поток для стеклянных изделий (группа 1)
-    {"workshop": 2, "operation": "Распил стекла", "sequence": 1, "parallel_group": 1, "glass_only": True},
-    {"workshop": 12, "operation": "Упаковка стекла", "sequence": 2, "parallel_group": 1, "glass_only": True},
 ]
 
 def create_order_stages(order):
@@ -713,116 +698,45 @@ def create_order_stages(order):
         print(f"Warning: No items found for order {order.id}, skipping stage creation")
         return
     
-    # Сначала попробуем создать этапы по стандартному workflow
+    # Создаем только один этап на цех ID 1 для всего заказа
     try:
-        for item in order_items:
-            _create_stages_for_item(order, item)
-        return
+        _create_single_stage_for_order(order)
     except Exception as e:
-        print(f"Error creating stages with standard workflow: {e}")
-        print("Falling back to simple stage creation...")
-    
-    # Если стандартный workflow не работает, создаем простые этапы
-    try:
-        _create_simple_stages(order, order_items)
-    except Exception as e:
-        print(f"Error creating simple stages: {e}")
+        print(f"Error creating single stage: {e}")
         # Не создаем этапы, но не прерываем выполнение
 
-def _create_simple_stages(order, order_items):
-    """Создает простые этапы заказа с существующими цехами"""
+def _create_single_stage_for_order(order):
+    """Создает один этап на цех ID 1 для всего заказа"""
     from apps.operations.workshops.models import Workshop
     
-    # Получаем все активные цехи
-    workshops = Workshop.objects.filter(is_active=True).order_by('id')[:3]  # Берем первые 3
-    
-    if not workshops.exists():
-        print("No active workshops found, skipping stage creation")
+    try:
+        workshop = Workshop.objects.get(pk=1)  # Цех ID 1
+    except Workshop.DoesNotExist:
+        print("Workshop with ID 1 not found, skipping stage creation")
         return
     
-    for item in order_items:
-        for i, workshop in enumerate(workshops):
-            now = timezone.now()
-            deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
-            if now.hour >= 18:
-                deadline_dt += timedelta(days=1)
-            
-            OrderStage.objects.create(
-                order=order,
-                workshop=workshop,
-                operation=f"Этап {i+1}",
-                sequence=i+1,
-                stage_type='workshop',
-                plan_quantity=item.quantity,
-                deadline=deadline_dt.date(),
-                status='in_progress',
-                order_item=item,
-            )
-
-def _create_stages_for_item(order, item):
-    """Создает этапы для конкретной позиции заказа"""
-    from apps.operations.workshops.models import Workshop
-    
-    # Определяем, нужно ли создавать параллельные этапы для стекла
-    is_glass_item = item.product.is_glass if item.product else False
-    
-    # Создаем основные этапы для позиции
-    main_workflow = [step for step in ORDER_WORKFLOW if step.get("parallel_group") is None]
-    
-    for step in main_workflow:
-        try:
-            workshop = Workshop.objects.get(pk=step["workshop"])
-        except Workshop.DoesNotExist:
-            # Если цех не найден, пропускаем этот этап
-            print(f"Warning: Workshop with ID {step['workshop']} not found, skipping stage '{step['operation']}'")
-            continue
+    # Вычисляем общее количество товаров в заказе
+    total_quantity = sum(item.quantity for item in order.items.all())
             
         now = timezone.now()
         deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
         if now.hour >= 18:
             deadline_dt += timedelta(days=1)
         
+    # Создаем один этап для всего заказа
         OrderStage.objects.create(
             order=order,
             workshop=workshop,
-            operation=step["operation"],
-            sequence=step["sequence"],
+        operation="Резка",
+        sequence=1,
             stage_type='workshop',
-            plan_quantity=item.quantity,
+        plan_quantity=total_quantity,  # Общее количество всех товаров
             deadline=deadline_dt.date(),
             status='in_progress',
-            order_item=item,  # Привязываем к конкретной позиции
-        )
-    
-    # Если это стеклянное изделие, создаем параллельные этапы
-    if is_glass_item:
-        glass_workflow = [step for step in ORDER_WORKFLOW if step.get("parallel_group") == 1]
-        
-        for step in glass_workflow:
-            try:
-                workshop = Workshop.objects.get(pk=step["workshop"])
-            except Workshop.DoesNotExist:
-                # Если цех не найден, пропускаем этот этап
-                print(f"Warning: Workshop with ID {step['workshop']} not found, skipping glass stage '{step['operation']}'")
-                continue
-                
-            now = timezone.now()
-            deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
-            if now.hour >= 18:
-                deadline_dt += timedelta(days=1)
-            
-            OrderStage.objects.create(
-                order=order,
-                workshop=workshop,
-                operation=step["operation"],
-                sequence=step["sequence"],
-                stage_type='workshop',
-                plan_quantity=item.quantity,
-                deadline=deadline_dt.date(),
-                status='in_progress',
-                order_item=item,  # Привязываем к конкретной позиции
-                parallel_group=1,
-            )
+        # Не привязываем к конкретной позиции, чтобы этап был общим для всего заказа
+    )
+
+
 
 from django.db.models.signals import post_save
 from django.dispatch import receiver

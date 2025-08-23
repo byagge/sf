@@ -378,28 +378,28 @@
                     if (task.completed_quantity === 0) task.completed_at = null;
                 } else {
                     // Для обычных задач
-                    const realCompleted = this.getRealQuantity(task, 'completed');
-                    const realPlan = this.getRealQuantity(task, 'plan');
-                    const isDone = realCompleted >= realPlan;
-                    const newCompleted = isDone ? 0 : (task.quantity || 0);
-                    
-                    const resp = await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': this.getCsrfToken()
-                        },
-                        body: JSON.stringify({ 
-                            completed_quantity: newCompleted
-                        })
-                    });
-                    try {
-                        const updated = await resp.json();
-                        Object.assign(task, updated);
-                    } catch (e) {
-                        task.completed_quantity = newCompleted;
-                        if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
-                        if (newCompleted === 0) task.completed_at = null;
+                const realCompleted = this.getRealQuantity(task, 'completed');
+                const realPlan = this.getRealQuantity(task, 'plan');
+                const isDone = realCompleted >= realPlan;
+                const newCompleted = isDone ? 0 : (task.quantity || 0);
+                
+                const resp = await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCsrfToken()
+                    },
+                    body: JSON.stringify({ 
+                        completed_quantity: newCompleted
+                    })
+                });
+                try {
+                    const updated = await resp.json();
+                    Object.assign(task, updated);
+                } catch (e) {
+                task.completed_quantity = newCompleted;
+                    if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
+                    if (newCompleted === 0) task.completed_at = null;
                     }
                 }
             },

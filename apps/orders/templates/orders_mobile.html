@@ -129,10 +129,10 @@
                             <div class="mb-2">
                                 <span class="text-gray-400 text-xs">Активные этапы:</span>
                                 <template x-if="order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length > 0">
-                                    <ul class="text-xs text-gray-700 list-disc pl-4">
+                                <ul class="text-xs text-gray-700 list-disc pl-4">
                                         <template x-for="stage in order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0)" :key="stage.id">
-                                            <li>
-                                                <b x-text="stage.workshop && stage.workshop.name ? stage.workshop.name : ''"></b>:
+                                        <li>
+                                            <b x-text="stage.workshop && stage.workshop.name ? stage.workshop.name : ''"></b>:
                                                 <template x-if="stage.in_progress > 0">
                                                     <span class="text-blue-600">В работе: <span x-text="stage.in_progress"></span></span>
                                                 </template>
@@ -151,9 +151,9 @@
                                                 <template x-if="stage.comment">
                                                     <span class="text-gray-400"> — <span x-text="stage.comment"></span></span>
                                                 </template>
-                                            </li>
-                                        </template>
-                                    </ul>
+                                        </li>
+                                    </template>
+                                </ul>
                                 </template>
                                 <template x-if="order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length === 0">
                                     <span class="text-xs text-gray-500">Пока нет активных этапов</span>
@@ -263,10 +263,10 @@
                                     <div class="mb-3">
                                         <h3 class="font-semibold text-gray-900 text-xs mb-1">Активные этапы заказа</h3>
                                         <template x-if="selectedOrder.stages && selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length > 0">
-                                            <ul class="text-xs text-gray-700 list-disc pl-4 space-y-0.5">
+                                        <ul class="text-xs text-gray-700 list-disc pl-4 space-y-0.5">
                                                 <template x-for="stage in selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0)" :key="stage.id">
-                                                    <li>
-                                                        <b x-text="stage.workshop && stage.workshop.name"></b>:
+                                                <li>
+                                                    <b x-text="stage.workshop && stage.workshop.name"></b>:
                                                         <template x-if="stage.in_progress > 0">
                                                             <span class="text-blue-600">В работе: <span x-text="stage.in_progress"></span></span>
                                                         </template>
@@ -285,9 +285,9 @@
                                                         <template x-if="stage.comment">
                                                             <span class="text-gray-400"> — <span x-text="stage.comment"></span></span>
                                                         </template>
-                                                    </li>
-                                                </template>
-                                            </ul>
+                                                </li>
+                                            </template>
+                                        </ul>
                                         </template>
                                         <template x-if="!selectedOrder.stages || selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length === 0">
                                             <div class="text-center py-4">
