@@ -717,22 +717,22 @@ def _create_single_stage_for_order(order):
     
     # Вычисляем общее количество товаров в заказе
     total_quantity = sum(item.quantity for item in order.items.all())
-            
-        now = timezone.now()
-        deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
-        if now.hour >= 18:
-            deadline_dt += timedelta(days=1)
-        
+    
+    now = timezone.now()
+    deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
+    if now.hour >= 18:
+        deadline_dt += timedelta(days=1)
+    
     # Создаем один этап для всего заказа
-        OrderStage.objects.create(
-            order=order,
-            workshop=workshop,
+    OrderStage.objects.create(
+        order=order,
+        workshop=workshop,
         operation="Резка",
         sequence=1,
-            stage_type='workshop',
+        stage_type='workshop',
         plan_quantity=total_quantity,  # Общее количество всех товаров
-            deadline=deadline_dt.date(),
-            status='in_progress',
+        deadline=deadline_dt.date(),
+        status='in_progress',
         # Не привязываем к конкретной позиции, чтобы этап был общим для всего заказа
     )
 
