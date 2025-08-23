@@ -131,11 +131,11 @@
                                 <!-- Клиент и операция -->
                                 <div class="flex items-center space-x-3 text-xs text-gray-600 mb-2">
                                     <template x-if="stage.order_item && stage.order_item.order && stage.order_item.order.client">
-                                        <span class="text-blue-600">
-                                            <i data-lucide="user" class="w-3 h-3 inline mr-1"></i>
-                                            <span x-text="stage.order_item.order.client.name"></span>
-                                        </span>
-                                    </template>
+                                            <span class="text-blue-600">
+                                                <i data-lucide="user" class="w-3 h-3 inline mr-1"></i>
+                                                <span x-text="stage.order_item.order.client.name"></span>
+                                            </span>
+                                        </template>
                                     <span class="font-medium" x-text="stage.operation"></span>
                                     <template x-if="stage.sequence && stage.sequence > 1">
                                         <span class="text-gray-500">#<span x-text="stage.sequence"></span></span>
@@ -145,23 +145,23 @@
                                 <!-- Товар и фото -->
                                 <div class="flex items-center space-x-3 mb-3">
                                     <template x-if="stage.order_item && stage.order_item.product && stage.order_item.product.img">
-                                        <img :src="stage.order_item.product.img" 
-                                             :alt="stage.order_item.product.name"
+                                                <img :src="stage.order_item.product.img" 
+                                                     :alt="stage.order_item.product.name"
                                              class="w-12 h-12 object-cover rounded border border-gray-200">
-                                    </template>
+                                        </template>
                                     <div class="flex-1">
                                         <div class="text-sm font-medium text-gray-900" x-text="stage.order_item && stage.order_item.product ? stage.order_item.product.name : 'Товар не указан'"></div>
                                         <div class="text-xs text-gray-500">
                                             <template x-if="stage.order_item && stage.order_item.size">
                                                 <span x-text="stage.order_item.size"></span>
-                                            </template>
+                                        </template>
                                             <template x-if="stage.order_item && stage.order_item.color">
                                                 <span class="ml-1">• <span x-text="stage.order_item.color"></span></span>
-                                            </template>
+                                        </template>
                                             <template x-if="stage.order_item && stage.order_item.quantity && stage.order_item.quantity > 1">
                                                 <span class="ml-1">• <span x-text="stage.order_item.quantity"></span> шт.</span>
-                                            </template>
-                                        </div>
+                                        </template>
+                                    </div>
                                     </div>
                                 </div>
                                 
@@ -1204,30 +1204,30 @@
                             <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items)">
                                 <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
                                     <div class="text-xs font-medium text-gray-700 mb-2">Все товары будут назначены разом:</div>
-                                    <div class="space-y-2">
-                                        <template x-for="item in stages.find(s => s.id === assignForm.stage_id).order_item.order.items" :key="item.id">
+                                <div class="space-y-2">
+                                    <template x-for="item in stages.find(s => s.id === assignForm.stage_id).order_item.order.items" :key="item.id">
                                             <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200">
                                                 <div class="flex items-center space-x-2">
-                                                    <!-- Фото товара -->
-                                                    <template x-if="item.product && item.product.img">
+                                                <!-- Фото товара -->
+                                                <template x-if="item.product && item.product.img">
                                                         <img :src="item.product.img" 
                                                              :alt="item.product.name"
                                                              class="w-8 h-8 object-cover rounded border border-gray-200">
-                                                    </template>
+                                                </template>
                                                     <div>
                                                         <div class="text-sm font-medium text-gray-900" x-text="item.product && item.product.name ? item.product.name : 'Не указан'"></div>
                                                         <div class="text-xs text-gray-600">
                                                             <span x-text="item.quantity"></span> шт.
                                                             <template x-if="item.size"> • <span x-text="item.size"></span></template>
                                                             <template x-if="item.color"> • <span x-text="item.color"></span></template>
-                                                        </div>
-                                                    </div>
+                                            </div>
+                                            </div>
                                                 </div>
                                                 <div class="text-xs text-gray-500">
                                                     <span x-text="item.quantity"></span> шт.
                                                 </div>
                                             </div>
-                                        </template>
+                                    </template>
                                     </div>
                                     <div class="mt-2 text-xs text-gray-600">
                                         <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
@@ -1987,20 +1987,20 @@
                     let errorCount = 0;
                     
                     for (const item of orderItems) {
-                        try {
-                            const payload = { 
-                                stage: this.assignForm.stage_id, 
-                                employee: this.assignForm.employee_id, 
-                                quantity: this.assignForm.quantity,
+                try {
+                    const payload = { 
+                        stage: this.assignForm.stage_id, 
+                        employee: this.assignForm.employee_id, 
+                        quantity: this.assignForm.quantity,
                                 order_item: item.id
-                            };
-                            const resp = await fetch('/employee_tasks/assign/', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
-                                body: JSON.stringify(payload)
-                            });
-                            
-                            if (resp.ok) {
+                    };
+                    const resp = await fetch('/employee_tasks/assign/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (resp.ok) {
                                 successCount++;
                             } else {
                                 errorCount++;
@@ -2010,8 +2010,8 @@
                         }
                     }
                     
-                    await this.loadStages();
-                    this.showAssignModal = false;
+                        await this.loadStages();
+                        this.showAssignModal = false;
                     
                     if (errorCount === 0) {
                         this.showToast(`Задачи успешно назначены для всех товаров (${successCount} товаров)!`, 'success');
