@@ -698,15 +698,16 @@ def create_order_stages(order):
         print(f"Warning: No items found for order {order.id}, skipping stage creation")
         return
     
-    # Создаем только один этап на цех ID 1 для всего заказа
-    try:
-        _create_single_stage_for_order(order)
-    except Exception as e:
-        print(f"Error creating single stage: {e}")
-        # Не создаем этапы, но не прерываем выполнение
+    # Создаем этапы для каждой позиции заказа
+    for item in order_items:
+        try:
+            _create_stage_for_order_item(order, item)
+        except Exception as e:
+            print(f"Error creating stage for item {item.id}: {e}")
+            # Продолжаем с другими позициями
 
-def _create_single_stage_for_order(order):
-    """Создает один этап на цех ID 1 для всего заказа"""
+def _create_stage_for_order_item(order, order_item):
+    """Создает этап для конкретной позиции заказа"""
     from apps.operations.workshops.models import Workshop
     
     try:
@@ -715,25 +716,22 @@ def _create_single_stage_for_order(order):
         print("Workshop with ID 1 not found, skipping stage creation")
         return
     
-    # Вычисляем общее количество товаров в заказе
-    total_quantity = sum(item.quantity for item in order.items.all())
-    
     now = timezone.now()
     deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
     if now.hour >= 18:
         deadline_dt += timedelta(days=1)
     
-    # Создаем один этап для всего заказа
+    # Создаем этап для конкретной позиции заказа
     OrderStage.objects.create(
         order=order,
+        order_item=order_item,  # Привязываем к конкретной позиции
         workshop=workshop,
         operation="Резка",
         sequence=1,
         stage_type='workshop',
-        plan_quantity=total_quantity,  # Общее количество всех товаров
+        plan_quantity=order_item.quantity,  # Количество из позиции заказа
         deadline=deadline_dt.date(),
         status='in_progress',
-        # Не привязываем к конкретной позиции, чтобы этап был общим для всего заказа
     )
 
 

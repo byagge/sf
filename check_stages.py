@@ -8,23 +8,24 @@ django.setup()
 
 from apps.orders.models import OrderStage, Order, OrderItem
 
-# Check specific stages
-stage_ids = [190, 191, 192]
-stages = OrderStage.objects.filter(id__in=stage_ids)
-
-print("Checking stages:")
+# Check all stages
+print("All stages:")
+stages = OrderStage.objects.all()
 for s in stages:
-    print(f"Stage {s.id}:")
-    print(f"  order: {s.order}")
-    print(f"  order_item: {s.order_item}")
-    if s.order:
-        print(f"  order.items count: {s.order.items.count()}")
-        if s.order.items.exists():
-            print(f"  first order item: {s.order.items.first()}")
-    print()
+    print(f"Stage {s.id}: order={s.order}, order_item={s.order_item}, workshop={s.workshop}, status={s.status}")
+
+print("\nStages with null order_item:")
+null_stages = OrderStage.objects.filter(order_item__isnull=True)
+for s in null_stages:
+    print(f"Stage {s.id}: order={s.order}, workshop={s.workshop}, status={s.status}")
+
+print("\nStages in workshop 1 with status in_progress:")
+in_progress_stages = OrderStage.objects.filter(workshop_id=1, status='in_progress')
+for s in in_progress_stages:
+    print(f"Stage {s.id}: order={s.order}, order_item={s.order_item}, workshop={s.workshop}, status={s.status}")
 
 # Check all orders with their items
-print("All orders:")
+print("\nAll orders:")
 orders = Order.objects.all()
 for order in orders:
     print(f"Order {order.id} ({order.name}):")
