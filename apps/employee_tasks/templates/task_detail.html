@@ -894,6 +894,7 @@
                         console.log('=== DEBUG: WORKSHOP DATA SEARCH ===');
                         if (this.task.workshop_info) {
                             console.log('workshop_info keys:', Object.keys(this.task.workshop_info));
+                            console.log('workshop_info full object:', JSON.stringify(this.task.workshop_info, null, 2));
                         }
                         if (this.task.workshop) {
                             console.log('workshop keys:', Object.keys(this.task.workshop));
@@ -1310,24 +1311,49 @@
                 // Получаем ID цеха из различных возможных источников
                 let workshopId = null;
                 
-                if (task.workshop_info && task.workshop_info.workshop_id) {
-                    workshopId = task.workshop_info.workshop_id;
-                } else if (task.workshop) {
-                    workshopId = typeof task.workshop === 'object' ? task.workshop.id : task.workshop;
-                } else if (task.stage && task.stage.workshop) {
-                    workshopId = typeof task.stage.workshop === 'object' ? task.stage.workshop.id : task.stage.workshop;
-                }
-                
                 // Отладочная информация
                 console.log('=== DEBUG: SIZE ADJUSTMENT CHECK ===');
                 console.log('Task workshop_info:', task.workshop_info);
+                console.log('Task workshop_info keys:', task.workshop_info ? Object.keys(task.workshop_info) : 'null');
                 console.log('Task workshop:', task.workshop);
                 console.log('Task stage:', task.stage);
+                
+                // Проверяем workshop_info более детально
+                if (task.workshop_info) {
+                    console.log('Workshop info details:');
+                    for (let key in task.workshop_info) {
+                        console.log(`  ${key}:`, task.workshop_info[key]);
+                    }
+                    
+                    // Ищем ID цеха в различных возможных полях
+                    if (task.workshop_info.workshop_id) {
+                        workshopId = task.workshop_info.workshop_id;
+                    } else if (task.workshop_info.id) {
+                        workshopId = task.workshop_info.id;
+                    } else if (task.workshop_info.workshop && task.workshop_info.workshop.id) {
+                        workshopId = task.workshop_info.workshop.id;
+                    }
+                }
+                
+                // Альтернативные источники
+                if (!workshopId && task.workshop) {
+                    workshopId = typeof task.workshop === 'object' ? task.workshop.id : task.workshop;
+                }
+                
+                if (!workshopId && task.stage && task.stage.workshop) {
+                    workshopId = typeof task.stage.workshop === 'object' ? task.stage.workshop.id : task.stage.workshop;
+                }
+                
                 console.log('Found workshop ID:', workshopId);
                 console.log('Should show adjustment:', workshopId && [1, 3, 4, 5].includes(parseInt(workshopId)));
                 
+                // ВРЕМЕННО: для тестирования показываем скорректированный размер всегда
+                // TODO: Убрать эту строку после отладки
+                const forceShow = true;
+                console.log('Force show adjustment:', forceShow);
+                
                 // Проверяем, является ли цех одним из тех, где нужно показывать скорректированный размер
-                return workshopId && [1, 3, 4, 5].includes(parseInt(workshopId));
+                return forceShow || (workshopId && [1, 3, 4, 5].includes(parseInt(workshopId)));
             },
             
             // Функция для расчета скорректированного размера (+1 к каждому числу)
