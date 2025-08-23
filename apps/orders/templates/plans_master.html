@@ -1264,6 +1264,13 @@
                         </div>
                         <div class="text-xs mt-1" :class="maxAssignableQuantity <= 5 ? 'text-red-500 font-semibold' : 'text-gray-500'">
                             Доступно для назначения: <span x-text="maxAssignableQuantity"></span>
+                            <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
+                                <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
+                                    <span class="ml-1 text-blue-600">
+                                        (из <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0)"></span> товаров заказа)
+                                    </span>
+                                </template>
+                            </template>
                             <template x-if="maxAssignableQuantity <= 5 && maxAssignableQuantity > 0">
                                 <span class="ml-1">⚠️ Осталось мало!</span>
                             </template>
@@ -1843,18 +1850,38 @@
             get maxAssignableQuantity() {
                 const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
                 if (!stage) return 1;
+                
+                // Получаем общее количество всех товаров заказа
+                let totalOrderItemsQuantity = 0;
+                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                
+                // Используем общее количество товаров заказа, если оно больше плана этапа
+                const totalQuantity = Math.max(stage.plan_quantity, totalOrderItemsQuantity);
                 const assigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
-                const available = Math.max(0, stage.plan_quantity - assigned);
-                // Дополнительная проверка: если уже назначено больше плана, возвращаем 0
-                return assigned >= stage.plan_quantity ? 0 : available;
+                const available = Math.max(0, totalQuantity - assigned);
+                
+                // Дополнительная проверка: если уже назначено больше общего количества, возвращаем 0
+                return assigned >= totalQuantity ? 0 : available;
             },
             get maxEditableQuantity() {
                 const stage = this.stages.find(s => s.id === this.editAssignForm.stage_id);
                 if (!stage) return 1;
+                
+                // Получаем общее количество всех товаров заказа
+                let totalOrderItemsQuantity = 0;
+                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                
+                // Используем общее количество товаров заказа, если оно больше плана этапа
+                const totalQuantity = Math.max(stage.plan_quantity, totalOrderItemsQuantity);
                 const otherAssigned = (stage.assigned || []).filter(a => a.id !== this.editAssignForm.id).reduce((sum, a) => sum + a.quantity, 0);
-                const available = Math.max(1, stage.plan_quantity - otherAssigned);
-                // Дополнительная проверка: если другие назначения уже превышают план, возвращаем 1
-                return otherAssigned >= stage.plan_quantity ? 1 : available;
+                const available = Math.max(1, totalQuantity - otherAssigned);
+                
+                // Дополнительная проверка: если другие назначения уже превышают общее количество, возвращаем 1
+                return otherAssigned >= totalQuantity ? 1 : available;
             },
             get nowHour() {
                 return new Date().getHours();
@@ -1875,9 +1902,18 @@
             },
             
             async openAssignModal(stage) {
+                // Получаем общее количество всех товаров заказа
+                let totalOrderItemsQuantity = 0;
+                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                
+                // Используем общее количество товаров заказа, если оно больше плана этапа
+                const totalQuantity = Math.max(stage.plan_quantity, totalOrderItemsQuantity);
+                
                 // Проверяем, можно ли еще назначать задачи
                 const assigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
-                if (assigned >= stage.plan_quantity) {
+                if (assigned >= totalQuantity) {
                     this.showToast('Все задачи уже назначены!', 'error');
                     return;
                 }
@@ -1911,8 +1947,16 @@
                     return;
                 }
                 
+                // Получаем общее количество всех товаров заказа
+                let totalOrderItemsQuantity = 0;
+                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                
+                // Используем общее количество товаров заказа, если оно больше плана этапа
+                const totalQuantity = Math.max(stage.plan_quantity, totalOrderItemsQuantity);
                 const currentAssigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
-                const availableQuantity = stage.plan_quantity - currentAssigned;
+                const availableQuantity = totalQuantity - currentAssigned;
                 
                 // Проверяем, не назначен ли уже этот сотрудник
                 const isAlreadyAssigned = (stage.assigned || []).some(a => a.employee_id === this.assignForm.employee_id);
