@@ -206,10 +206,7 @@
                                     <span class="text-gray-600">Размер:</span>
                                     <div class="flex items-center space-x-1">
                                         <i data-lucide="ruler" class="w-4 h-4 text-blue-600"></i>
-                                        <span class="font-medium text-gray-900" x-text="task.order_item.size"></span>
-                                        <template x-if="shouldShowSizeAdjustment(task)">
-                                            <span class="text-xs text-blue-600 font-medium ml-1" x-text="'(' + getAdjustedSize(task.order_item.size) + ')'"></span>
-                                        </template>
+                                        <span class="font-medium text-gray-900" x-text="shouldShowSizeAdjustment(task) ? getAdjustedSize(task.order_item.size) : task.order_item.size"></span>
                                     </div>
                                 </div>
                             </template>
@@ -1347,13 +1344,8 @@
                 console.log('Found workshop ID:', workshopId);
                 console.log('Should show adjustment:', workshopId && [1, 3, 4, 5].includes(parseInt(workshopId)));
                 
-                // ВРЕМЕННО: для тестирования показываем скорректированный размер всегда
-                // TODO: Убрать эту строку после отладки
-                const forceShow = true;
-                console.log('Force show adjustment:', forceShow);
-                
                 // Проверяем, является ли цех одним из тех, где нужно показывать скорректированный размер
-                return forceShow || (workshopId && [1, 3, 4, 5].includes(parseInt(workshopId)));
+                return workshopId && [1, 3, 4, 5].includes(parseInt(workshopId));
             },
             
             // Функция для расчета скорректированного размера (+1 к каждому числу)
