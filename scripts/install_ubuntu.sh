@@ -98,7 +98,7 @@ systemctl enable redis-server
 # 6. Клонирование проекта (если не существует)
 if [ ! -d "$APP_DIR" ]; then
     print_info "Клонирование проекта..."
-    sudo -u $APP_USER git clone https://github.com/your-repo/smart-factory.git $APP_DIR
+    sudo -u $APP_USER git clone https://github.com/byagge/sf.git $APP_DIR
 else
     print_warning "Директория проекта уже существует"
 fi
