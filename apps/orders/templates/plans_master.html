@@ -1800,6 +1800,14 @@
                 </div>
                 
                 <!-- Кнопки действий -->
+                <!-- Информация о заработке -->
+                <div class="bg-blue-50 p-3 rounded-lg mt-4 border border-blue-200">
+                    <div class="text-xs text-blue-800">
+                        <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
+                        <strong>Важно:</strong> При сохранении выполнения автоматически обновится заработок сотрудника в системе учета.
+                    </div>
+                </div>
+                
                 <div class="flex justify-end space-x-3 pt-4 mt-6">
                     <button type="button" @click="showMarkCompletionModal = false" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
                     <button type="button" @click="submitMarkCompletion()" 
@@ -2428,11 +2436,88 @@
                     
                     await Promise.all(updatePromises);
                     
+                    // Теперь обновляем соответствующие задачи сотрудников для правильного расчета заработка
+                    const employeeTaskPromises = this.markCompletionStage.assigned.map(async (assign) => {
+                        try {
+                            console.log(`Обновляем задачи для сотрудника ${assign.employee_id} на этапе ${this.markCompletionStage.id}`);
+                            
+                            // Находим соответствующую задачу сотрудника
+                            // Сначала пробуем найти по stage ID
+                            let employeeTaskResp = await fetch(`/employee_tasks/api/employee-tasks/?employee=${assign.employee_id}&stage=${this.markCompletionStage.id}`);
+                            let employeeTasks = [];
+                            
+                            if (employeeTaskResp.ok) {
+                                const employeeTaskData = await employeeTaskResp.json();
+                                employeeTasks = Array.isArray(employeeTaskData) ? employeeTaskData : (employeeTaskData.results || []);
+                                console.log(`Найдено ${employeeTasks.length} задач для сотрудника ${assign.employee_id} по stage ID`);
+                            }
+                            
+                            // Если не нашли по stage ID, пробуем найти по order_item
+                            if (employeeTasks.length === 0 && this.markCompletionStage.order_item) {
+                                employeeTaskResp = await fetch(`/employee_tasks/api/employee-tasks/?employee=${assign.employee_id}&order_item=${this.markCompletionStage.order_item.id}`);
+                                if (employeeTaskResp.ok) {
+                                    const employeeTaskData = await employeeTaskResp.json();
+                                    employeeTasks = Array.isArray(employeeTaskData) ? employeeTaskData : (employeeTaskData.results || []);
+                                    console.log(`Найдено ${employeeTasks.length} задач для сотрудника ${assign.employee_id} по order_item ID`);
+                                }
+                            }
+                            
+                            // Если все еще не нашли, пробуем найти все задачи сотрудника и фильтровать по названию операции
+                            if (employeeTasks.length === 0) {
+                                employeeTaskResp = await fetch(`/employee_tasks/api/employee-tasks/?employee=${assign.employee_id}`);
+                                if (employeeTaskResp.ok) {
+                                    const employeeTaskData = await employeeTaskResp.json();
+                                    const allTasks = Array.isArray(employeeTaskData) ? employeeTaskData : (employeeTaskData.results || []);
+                                    employeeTasks = allTasks.filter(task => 
+                                        task.stage_name === this.markCompletionStage.operation ||
+                                        task.title === this.markCompletionStage.operation
+                                    );
+                                    console.log(`Найдено ${employeeTasks.length} задач для сотрудника ${assign.employee_id} по названию операции`);
+                                }
+                            }
+                            
+                            console.log(`Итого найдено ${employeeTasks.length} задач для сотрудника ${assign.employee_id}`);
+                            
+                            // Обновляем каждую найденную задачу сотрудника
+                            for (const employeeTask of employeeTasks) {
+                                const taskPayload = {
+                                    completed_quantity: assign.completed_quantity || 0,
+                                    defective_quantity: assign.defective_quantity || 0
+                                };
+                                
+                                console.log(`Обновляем задачу ${employeeTask.id} с данными:`, taskPayload);
+                                
+                                const updateTaskResp = await fetch(`/employee_tasks/api/employee-tasks/${employeeTask.id}/`, {
+                                    method: 'PATCH',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': this.getCsrfToken()
+                                    },
+                                    body: JSON.stringify(taskPayload)
+                                });
+                                
+                                if (updateTaskResp.ok) {
+                                    console.log(`Задача ${employeeTask.id} успешно обновлена`);
+                                } else {
+                                    console.warn(`Не удалось обновить задачу сотрудника ${employeeTask.id}, статус: ${updateTaskResp.status}`);
+                                }
+                            }
+                            
+                            if (employeeTasks.length === 0) {
+                                console.warn(`Не найдено задач для сотрудника ${assign.employee_id} на этапе ${this.markCompletionStage.id}`);
+                            }
+                        } catch (error) {
+                            console.warn('Ошибка при обновлении задач сотрудников:', error);
+                        }
+                    });
+                    
+                    await Promise.all(employeeTaskPromises);
+                    
                     // Обновляем список этапов
                     await this.loadStages();
                     
                     this.showMarkCompletionModal = false;
-                    this.showToast('Выполнение успешно отмечено!', 'success');
+                    this.showToast('Выполнение успешно отмечено! Заработок обновлен.', 'success');
                     
                 } catch (error) {
                     console.error('Ошибка при отметке выполнения:', error);
