@@ -326,6 +326,24 @@ def master_dashboard_page(request):
 	
 	return render(request, 'workshop_master.html')
 
+def master_workshops_page(request):
+	"""
+	Страница "Цеха" для мастера - список всех его цехов с статистикой
+	"""
+	if request.user.role != 'master':
+		# Перенаправляем на обычную страницу цехов
+		return workshops_list(request)
+	
+	# Простая проверка мобильного устройства по User-Agent
+	user_agent = request.META.get('HTTP_USER_AGENT', '')
+	ua_lower = user_agent.lower()
+	is_mobile = any(token in ua_lower for token in ['mobile', 'android', 'iphone', 'ipad'])
+	
+	if is_mobile:
+		return render(request, 'workshop_mobile.html')
+	
+	return render(request, 'master_workshops.html')
+
 def workshops_list(request):
 	from apps.employees.models import EmployeeStatistics
 	from apps.employee_tasks.models import EmployeeTask

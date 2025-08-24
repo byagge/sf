@@ -1,22 +1,22 @@
 <!DOCTYPE html>
-<html lang="ru" x-data="masterDashboard()" x-init="init()">
+<html lang="ru" x-data="masterWorkshops()" x-init="init()">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель мастера — Smart Factory</title>
+    <title>Цеха — Панель мастера</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
         .card { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
-        .stat-card { transition: all 0.3s ease; }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1); }
         .workshop-card { transition: all 0.3s ease; }
         .workshop-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1); }
         .progress-bar { transition: width 0.6s ease; }
-        .chart-container { position: relative; height: 300px; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .stat-badge { transition: all 0.2s ease; }
+        .stat-badge:hover { transform: scale(1.05); }
     </style>
 </head>
 <body class="min-h-screen">
@@ -25,19 +25,18 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center space-x-3">
+                    <a href="/workshops/master/" class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                        <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    </a>
                     <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                        <span class="text-white font-bold text-2xl">M</span>
+                        <span class="text-white font-bold text-2xl">Ц</span>
                     </div>
                     <div>
-                        <h1 class="text-xl font-semibold text-gray-900">Панель мастера</h1>
+                        <h1 class="text-xl font-semibold text-gray-900">Мои цеха</h1>
                         <p class="text-sm text-gray-600" x-text="userName"></p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="/workshops/master/workshops/" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
-                        <i data-lucide="factory" class="w-4 h-4 inline mr-1"></i>
-                        Цеха
-                    </a>
                     <button @click="refreshData()" class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
                         <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                     </button>
@@ -60,36 +59,36 @@
 
         <!-- Dashboard Content -->
         <template x-if="!loading">
-            <div class="space-y-8">
+            <div class="space-y-8 fade-in">
                 <!-- Overview Stats -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="stat-card card bg-white rounded-xl p-6">
+                    <div class="card bg-white rounded-xl p-6">
                         <div class="flex items-center">
-                            <div class="p-2 bg-blue-100 rounded-lg">
+                            <div class="p-3 bg-blue-100 rounded-lg">
                                 <i data-lucide="factory" class="w-6 h-6 text-blue-600"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-600">Цеха</p>
+                                <p class="text-sm font-medium text-gray-600">Всего цехов</p>
                                 <p class="text-2xl font-bold text-gray-900" x-text="overview.total_workshops"></p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="stat-card card bg-white rounded-xl p-6">
+                    <div class="card bg-white rounded-xl p-6">
                         <div class="flex items-center">
-                            <div class="p-2 bg-green-100 rounded-lg">
+                            <div class="p-3 bg-green-100 rounded-lg">
                                 <i data-lucide="users" class="w-6 h-6 text-green-600"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-600">Сотрудники</p>
+                                <p class="text-sm font-medium text-gray-600">Сотрудников</p>
                                 <p class="text-2xl font-bold text-gray-900" x-text="overview.total_employees"></p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="stat-card card bg-white rounded-xl p-6">
+                    <div class="card bg-white rounded-xl p-6">
                         <div class="flex items-center">
-                            <div class="p-2 bg-purple-100 rounded-lg">
+                            <div class="p-3 bg-purple-100 rounded-lg">
                                 <i data-lucide="clipboard-list" class="w-6 h-6 text-purple-600"></i>
                             </div>
                             <div class="ml-4">
@@ -99,20 +98,20 @@
                         </div>
                     </div>
 
-                    <div class="stat-card card bg-white rounded-xl p-6">
+                    <div class="card bg-white rounded-xl p-6">
                         <div class="flex items-center">
-                            <div class="p-2 bg-orange-100 rounded-lg">
+                            <div class="p-3 bg-orange-100 rounded-lg">
                                 <i data-lucide="target" class="w-6 h-6 text-orange-600"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-600">Задач в день</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="overview.tasks_per_day"></p>
+                                <p class="text-sm font-medium text-gray-600">Задач</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="overview.total_active_tasks"></p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quality and Production Stats -->
+                <!-- Production Summary -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="card bg-white rounded-xl p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Производство за 30 дней</h3>
@@ -133,9 +132,16 @@
                     </div>
 
                     <div class="card bg-white rounded-xl p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">График производительности</h3>
-                        <div class="chart-container">
-                            <canvas id="productivityChart"></canvas>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Эффективность</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Задач в день</span>
+                                <span class="text-lg font-semibold text-blue-600" x-text="overview.tasks_per_day"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">Средняя загрузка</span>
+                                <span class="text-lg font-semibold text-purple-600" x-text="Math.round(overview.total_active_tasks / overview.total_employees * 100) + '%'"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -143,42 +149,56 @@
                 <!-- Workshops List -->
                 <div class="card bg-white rounded-xl p-6">
                     <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-lg font-semibold text-gray-900">Мои цеха</h3>
+                        <h3 class="text-lg font-semibold text-gray-900">Детальная информация по цехам</h3>
                         <span class="text-sm text-gray-500" x-text="`${workshops.length} цехов`"></span>
                     </div>
                     
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <template x-for="workshop in workshops" :key="workshop.id">
-                            <div class="workshop-card bg-gray-50 rounded-xl p-6 border border-gray-200 cursor-pointer"
-                                 @click="selectWorkshop(workshop)">
+                            <div class="workshop-card bg-gray-50 rounded-xl p-6 border border-gray-200">
                                 <div class="flex items-start justify-between mb-4">
                                     <div class="flex-1">
-                                        <h4 class="font-semibold text-gray-900 mb-1" x-text="workshop.name"></h4>
-                                        <p class="text-sm text-gray-600" x-text="workshop.description"></p>
+                                        <div class="flex items-center space-x-2 mb-2">
+                                            <h4 class="font-semibold text-gray-900" x-text="workshop.name"></h4>
+                                            <template x-if="workshop.is_main_manager">
+                                                <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Главный</span>
+                                            </template>
+                                        </div>
+                                        <p class="text-sm text-gray-600 mb-3" x-text="workshop.description"></p>
                                     </div>
-                                    <div class="flex items-center space-x-2">
-                                        <template x-if="workshop.is_main_manager">
-                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Главный</span>
-                                        </template>
-                                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
-                                    </div>
+                                    <button @click="selectWorkshop(workshop)" 
+                                            class="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                                        <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                                    </button>
                                 </div>
                                 
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div class="text-center">
+                                <!-- Workshop Stats -->
+                                <div class="grid grid-cols-2 gap-4 mb-4">
+                                    <div class="bg-white rounded-lg p-3 text-center">
                                         <div class="text-lg font-semibold text-gray-900" x-text="workshop.employees_count"></div>
                                         <div class="text-xs text-gray-600">Сотрудников</div>
                                     </div>
-                                    <div class="text-center">
+                                    <div class="bg-white rounded-lg p-3 text-center">
                                         <div class="text-lg font-semibold text-gray-900" x-text="workshop.active_tasks"></div>
                                         <div class="text-xs text-gray-600">Задач</div>
                                     </div>
                                 </div>
                                 
-                                <div class="mt-4 pt-4 border-t border-gray-200">
+                                <!-- Active Orders -->
+                                <div class="bg-white rounded-lg p-3">
                                     <div class="flex items-center justify-between text-sm">
                                         <span class="text-gray-600">Активные заказы</span>
                                         <span class="font-medium text-gray-900" x-text="workshop.active_orders"></span>
+                                    </div>
+                                    <div class="mt-2">
+                                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                                            <span>Загрузка цеха</span>
+                                            <span x-text="Math.round(workshop.active_tasks / Math.max(workshop.employees_count, 1) * 100) + '%'"></span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2">
+                                            <div class="bg-blue-500 h-2 rounded-full progress-bar" 
+                                                 :style="`width: ${Math.min(100, Math.round(workshop.active_tasks / Math.max(workshop.employees_count, 1) * 100))}%`"></div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -296,7 +316,7 @@
     </template>
 
     <script>
-        function masterDashboard() {
+        function masterWorkshops() {
             return {
                 loading: true,
                 overview: {},
@@ -306,12 +326,10 @@
                 workshopDetailsLoading: false,
                 userName: '',
                 userInitial: '',
-                productivityChart: null,
                 
                 async init() {
                     lucide.createIcons();
                     await this.loadData();
-                    this.initChart();
                 },
                 
                 async loadData() {
@@ -362,54 +380,6 @@
                     } finally {
                         this.workshopDetailsLoading = false;
                     }
-                },
-                
-                initChart() {
-                    const ctx = document.getElementById('productivityChart');
-                    if (!ctx) return;
-                    
-                    this.productivityChart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
-                            datasets: [{
-                                label: 'Производительность',
-                                data: [65, 78, 90, 85, 95, 70, 88],
-                                borderColor: '#3B82F6',
-                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                                borderWidth: 3,
-                                tension: 0.4,
-                                fill: true,
-                                pointBackgroundColor: '#3B82F6',
-                                pointBorderColor: '#fff',
-                                pointBorderWidth: 2,
-                                pointRadius: 6,
-                                pointHoverRadius: 8
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    display: false
-                                }
-                            },
-                            scales: {
-                                x: {
-                                    grid: {
-                                        display: false
-                                    }
-                                },
-                                y: {
-                                    beginAtZero: true,
-                                    grid: {
-                                        color: 'rgba(0, 0, 0, 0.1)'
-                                    }
-                                }
-                            }
-                        }
-                    });
                 }
             }
         }
@@ -419,4 +389,4 @@
         });
     </script>
 </body>
-</html>
+</html> 

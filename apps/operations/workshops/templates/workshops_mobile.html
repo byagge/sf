@@ -32,10 +32,16 @@
         <div class="flex items-center space-x-2">
             <!-- Кнопка для мастера -->
             <template x-if="isMaster">
-                <a href="/workshops/master/" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
-                    <i data-lucide="user-check" class="w-4 h-4 inline mr-1"></i>
-                    Мастер
-                </a>
+                <div class="flex space-x-2">
+                    <a href="/workshops/master/" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4 inline mr-1"></i>
+                        Дашборд
+                    </a>
+                    <a href="/workshops/master/workshops/" class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium">
+                        <i data-lucide="factory" class="w-4 h-4 inline mr-1"></i>
+                        Цеха
+                    </a>
+                </div>
             </template>
             <button @click="showOrdersInfo = !showOrdersInfo; if(showOrdersInfo) loadWorkshopsOrdersInfo()" 
                     class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium">
