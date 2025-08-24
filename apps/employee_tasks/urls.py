@@ -14,6 +14,7 @@ from .api import (
     approve_defects_by_order,
     replenish_defects_by_order,
     replenish_defect,
+    recalculate_employee_earnings,
 )
 
 router = DefaultRouter()
@@ -32,6 +33,7 @@ urlpatterns = [
     path('api/earnings/employee/<int:employee_id>/', employee_earnings_stats, name='api_employee_earnings'),
     path('api/earnings/workshop/<int:workshop_id>/', workshop_earnings_stats, name='api_workshop_earnings'),
     path('api/earnings/top/', top_earners, name='api_top_earners'),
+    path('api/earnings/recalculate/<int:employee_id>/', recalculate_employee_earnings, name='api_recalculate_earnings'),
     
     # API endpoints для управления браком
     path('api/defects/', defects_list, name='api_defects_list'),

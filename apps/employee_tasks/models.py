@@ -25,13 +25,26 @@ class EmployeeTask(models.Model):
     # Связь с услугой через цех
     @property
     def service(self):
-        """Получаем услугу через цех этапа"""
-        if self.stage.workshop:
+        """Получаем услугу через цех этапа и название операции"""
+        if self.stage and self.stage.workshop and self.stage.operation:
             from apps.services.models import Service
             try:
-                # Получаем первую активную услугу для цеха
-                return Service.objects.filter(workshop=self.stage.workshop, is_active=True).first()
-            except Service.DoesNotExist:
+                # Сначала ищем услугу по цеху и названию операции
+                service = Service.objects.filter(
+                    workshop=self.stage.workshop, 
+                    name=self.stage.operation,
+                    is_active=True
+                ).first()
+                
+                # Если не найдена, ищем первую активную услугу для цеха
+                if not service:
+                    service = Service.objects.filter(
+                        workshop=self.stage.workshop, 
+                        is_active=True
+                    ).first()
+                
+                return service
+            except Exception:
                 return None
         return None
 
@@ -44,19 +57,24 @@ class EmployeeTask(models.Model):
 
     def calculate_earnings(self):
         """Рассчитывает заработок, штрафы и чистый заработок"""
-        if not self.service:
-            # Если услуга не найдена, устанавливаем нулевые значения
-            self.earnings = Decimal('0.00')
-            self.penalties = Decimal('0.00')
-            self.net_earnings = Decimal('0.00')
-            return
+        # Базовая ставка за единицу работы (если услуга не найдена)
+        BASE_RATE = Decimal('100.00')  # 100 рублей за единицу
+        BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
+        
+        if self.service:
+            # Используем цены из услуги
+            service_price = self.service.service_price
+            penalty_rate = self.service.defect_penalty
+        else:
+            # Используем базовые ставки
+            service_price = BASE_RATE
+            penalty_rate = BASE_PENALTY_RATE
         
         # Заработок за выполненную работу
-        self.earnings = Decimal(str(self.completed_quantity)) * self.service.service_price
+        self.earnings = Decimal(str(self.completed_quantity)) * service_price
         
-        # Штрафы теперь начисляются только после подтверждения мастером
-        # Здесь оставляем только уже примененные штрафы (из системы браков)
-        # self.penalties остается как есть - обновляется только при подтверждении брака мастером
+        # Штрафы за брак
+        self.penalties = Decimal(str(self.defective_quantity)) * penalty_rate
         
         # Чистый заработок
         self.net_earnings = self.earnings - self.penalties

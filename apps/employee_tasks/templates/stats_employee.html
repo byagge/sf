@@ -15,6 +15,11 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script id="user-id" type="application/json">{{ request.user.id|default:'null' }}</script>
+    <script id="csrf-token" type="application/json">{{ csrf_token }}</script>
+    <script>
+      window.user_id = JSON.parse(document.getElementById('user-id').textContent);
+      window.csrf_token = JSON.parse(document.getElementById('csrf-token').textContent);
+    </script>
     <style>
         body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
         .nav-active { color: #2563eb; }
@@ -41,21 +46,40 @@
             <div class="bg-white rounded-lg p-3 shadow-sm">
                 <div class="text-xs text-gray-500 mb-1">Заработок</div>
                 <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_earnings)"></div>
+                <div class="text-xs text-gray-400" x-text="'Raw: ' + overview.total_earnings"></div>
             </div>
             <div class="bg-white rounded-lg p-3 shadow-sm">
                 <div class="text-xs text-gray-500 mb-1">Штрафы</div>
                 <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_penalties)"></div>
+                <div class="text-xs text-gray-400" x-text="'Raw: ' + overview.total_penalties"></div>
             </div>
             <div class="bg-white rounded-lg p-3 shadow-sm">
                 <div class="text-xs text-gray-500 mb-1">Чистый доход</div>
                 <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_net_earnings)"></div>
+                <div class="text-xs text-gray-400" x-text="'Raw: ' + overview.total_net_earnings"></div>
             </div>
             <div class="bg-white rounded-lg p-3 shadow-sm">
                 <div class="text-xs text-gray-500 mb-1">Задачи</div>
                 <div class="text-lg font-bold text-gray-900" x-text="`${overview.completed_tasks}/${overview.total_tasks}`"></div>
+                <div class="text-xs text-gray-400" x-text="'Raw: ' + JSON.stringify(overview)"></div>
             </div>
         </div>
         
+        <!-- Debug Info and Actions -->
+        <div class="bg-white rounded-lg p-3 shadow-sm mb-4" x-show="!loading">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="font-semibold text-gray-900">Отладка</h3>
+                <button @click="recalculateEarnings()" class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                    Пересчитать
+                </button>
+            </div>
+            <div class="text-xs text-gray-600 space-y-1">
+                <div>User ID: <span x-text="userId"></span></div>
+                <div>Tasks count: <span x-text="tasks.length"></span></div>
+                <div>Overview: <span x-text="JSON.stringify(overview)"></span></div>
+            </div>
+        </div>
+
         <!-- Loading State -->
         <template x-if="loading">
             <div class="space-y-3 animate-pulse">
@@ -77,6 +101,9 @@
                         <div class="font-medium text-gray-900" x-text="formatMoney(m.total_net)"></div>
                     </div>
                 </template>
+            </div>
+            <div class="text-xs text-gray-400 mt-2">
+                Raw monthly data: <span x-text="JSON.stringify(monthly)"></span>
             </div>
         </div>
 
@@ -112,6 +139,13 @@
                                             <span>Завершено: <span x-text="formatDate(task.completed_at)"></span></span>
                                         </span>
                                     </template>
+                                </div>
+                                <div class="text-xs text-gray-400 mt-1">
+                                    <span>Заработок: <span x-text="formatMoney(task.earnings || 0)"></span></span>
+                                    <span class="mx-1">•</span>
+                                    <span>Штрафы: <span x-text="formatMoney(task.penalties || 0)"></span></span>
+                                    <span class="mx-1">•</span>
+                                    <span>Чистый: <span x-text="formatMoney(task.net_earnings || 0)"></span></span>
                                 </div>
                             </div>
                             <div class="text-right ml-3">
@@ -165,8 +199,11 @@
             },
             async loadStats() {
                 if (!this.userId) return;
+                console.log('Loading stats for user:', this.userId);
                 const resp = await fetch(`/employee_tasks/api/earnings/employee/${this.userId}/`);
+                console.log('Response status:', resp.status);
                 const data = await resp.json();
+                console.log('Response data:', data);
                 this.overview = data.overview || this.overview;
                 this.monthly = (data.monthly_stats || []).map(x => ({
                     month: x.month,
@@ -174,6 +211,8 @@
                     total_penalties: x.total_penalties,
                     total_net: x.total_net
                 }));
+                console.log('Updated overview:', this.overview);
+                console.log('Updated monthly:', this.monthly);
             },
             async loadTasks() {
                 if (!this.userId) return;
@@ -221,6 +260,31 @@
                 }
                 
                 return quantity;
+            },
+            async recalculateEarnings() {
+                if (!this.userId) {
+                    alert('User ID not available.');
+                    return;
+                }
+                try {
+                    const resp = await fetch(`/employee_tasks/api/earnings/recalculate/${this.userId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': window.csrf_token
+                        }
+                    });
+                    if (resp.ok) {
+                        const result = await resp.json();
+                        alert(`Заработок пересчитан успешно! ${result.message}`);
+                        await this.loadStats(); // Reload stats to update earnings
+                    } else {
+                        const error = await resp.json();
+                        alert(`Ошибка при пересчете заработка: ${error.detail || 'Неизвестная ошибка'}`);
+                    }
+                } catch (error) {
+                    alert(`Произошла ошибка при пересчете заработка: ${error.message}`);
+                }
             }
         }
     }

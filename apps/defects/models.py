@@ -103,22 +103,48 @@ class Defect(models.Model):
     
     def can_be_confirmed_by(self, user):
         """Проверяет, может ли пользователь подтвердить этот брак"""
+        # Проверяем роль пользователя
         if user.role != User.Role.MASTER:
+            print(f"DEBUG: User {user.username} has role {user.role}, not master")
             return False
         
-        # Мастер должен быть привязан к какому-либо цеху
-        if not user.workshop_id:
+        # Получаем все цеха, где пользователь является мастером
+        user_workshops = set()
+        
+        # Основной цех пользователя
+        if user.workshop_id:
+            user_workshops.add(user.workshop_id)
+        
+        # Цеха, где пользователь является главным мастером
+        try:
+            managed_workshops = user.operation_managed_workshops.values_list('id', flat=True)
+            user_workshops.update(managed_workshops)
+        except:
+            pass
+        
+        # Цеха, где пользователь является дополнительным мастером
+        try:
+            additional_workshops = user.workshop_master_roles.filter(is_active=True).values_list('workshop_id', flat=True)
+            user_workshops.update(additional_workshops)
+        except:
+            pass
+        
+        if not user_workshops:
+            print(f"DEBUG: User {user.username} (master) has no workshops")
             return False
         
         # Разрешаем, если брак создан сотрудником из цеха мастера
         defect_workshop = self.get_workshop()
-        if defect_workshop and defect_workshop.id == user.workshop_id:
+        if defect_workshop and defect_workshop.id in user_workshops:
+            print(f"DEBUG: Defect workshop {defect_workshop.id} matches user workshops {user_workshops}")
             return True
         
         # Также разрешаем, если целевой цех брака совпадает с цехом мастера
-        if self.target_workshop_id and self.target_workshop_id == user.workshop_id:
+        if self.target_workshop_id and self.target_workshop_id in user_workshops:
+            print(f"DEBUG: Target workshop {self.target_workshop_id} matches user workshops {user_workshops}")
             return True
         
+        print(f"DEBUG: No workshop match found. User workshops: {user_workshops}, Defect workshop: {defect_workshop.id if defect_workshop else None}, Target workshop: {self.target_workshop_id}")
         return False
     
     def confirm_defect(self, master, is_repairable, defect_type=None, target_workshop=None, comment=''):

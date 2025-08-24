@@ -34,6 +34,14 @@ def employee_earnings_stats(request, employee_id):
             total_earnings = tasks.aggregate(s=Sum('earnings'))['s'] or 0
             total_penalties = tasks.aggregate(s=Sum('penalties'))['s'] or 0
             total_net_earnings = tasks.aggregate(s=Sum('net_earnings'))['s'] or 0
+            
+            # Отладочная информация
+            print(f"Employee {employee.username}: total_earnings={total_earnings}, total_penalties={total_penalties}, total_net={total_net_earnings}")
+            
+            # Проверяем отдельные задачи
+            for task in tasks[:5]:  # Первые 5 задач для отладки
+                print(f"Task {task.id}: earnings={task.earnings}, penalties={task.penalties}, net={task.net_earnings}, completed={task.completed_quantity}, service={task.service}")
+                
         except Exception as e:
             print(f"Error aggregating earnings: {e}")
             total_earnings = 0
@@ -499,4 +507,58 @@ def replenish_defect(request, defect_id: int):
     except OrderDefect.DoesNotExist:
         return Response({'error': 'Брак не найден'}, status=404)
     except Exception as e:
+        return Response({'error': str(e)}, status=500) 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def recalculate_employee_earnings(request, employee_id):
+    """Принудительно пересчитывает заработок для сотрудника"""
+    try:
+        employee = User.objects.get(id=employee_id)
+        tasks = EmployeeTask.objects.filter(employee=employee)
+        
+        updated_count = 0
+        total_earnings = 0
+        total_penalties = 0
+        total_net = 0
+        
+        for task in tasks:
+            try:
+                # Сохраняем старые значения
+                old_earnings = task.earnings
+                old_penalties = task.penalties
+                old_net = task.net_earnings
+                
+                # Пересчитываем заработок
+                task.calculate_earnings()
+                
+                # Обновляем в базе
+                EmployeeTask.objects.filter(pk=task.pk).update(
+                    earnings=task.earnings,
+                    penalties=task.penalties,
+                    net_earnings=task.net_earnings
+                )
+                
+                updated_count += 1
+                total_earnings += float(task.earnings)
+                total_penalties += float(task.penalties)
+                total_net += float(task.net_earnings)
+                
+            except Exception as e:
+                print(f"Error recalculating task {task.id}: {e}")
+                continue
+        
+        return Response({
+            'success': True,
+            'message': f'Пересчитано задач: {updated_count}',
+            'updated_count': updated_count,
+            'total_earnings': total_earnings,
+            'total_penalties': total_penalties,
+            'total_net': total_net
+        })
+        
+    except User.DoesNotExist:
+        return Response({'error': 'Сотрудник не найден'}, status=404)
+    except Exception as e:
+        print(f"Error in recalculate_employee_earnings: {e}")
         return Response({'error': str(e)}, status=500) 

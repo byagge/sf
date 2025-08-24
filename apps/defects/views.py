@@ -94,8 +94,33 @@ def confirm_defect(request, defect_id):
     try:
         defect = Defect.objects.get(id=defect_id)
         
+        # Добавляем отладочную информацию
+        print(f"DEBUG: User {request.user.username} (role: {request.user.role}) trying to confirm defect {defect_id}")
+        print(f"DEBUG: User workshop_id: {getattr(request.user, 'workshop_id', None)}")
+        
+        # Проверяем все цеха пользователя
+        user_workshops = set()
+        if request.user.workshop_id:
+            user_workshops.add(request.user.workshop_id)
+        try:
+            managed_workshops = request.user.operation_managed_workshops.values_list('id', flat=True)
+            user_workshops.update(managed_workshops)
+        except:
+            pass
+        try:
+            additional_workshops = request.user.workshop_master_roles.filter(is_active=True).values_list('workshop_id', flat=True)
+            user_workshops.update(additional_workshops)
+        except:
+            pass
+        print(f"DEBUG: User workshops: {user_workshops}")
+        
+        print(f"DEBUG: Defect user: {defect.user.username if defect.user else 'None'}")
+        print(f"DEBUG: Defect user workshop: {defect.user.workshop.name if defect.user and defect.user.workshop else 'None'}")
+        print(f"DEBUG: Defect user workshop id: {defect.user.workshop.id if defect.user and defect.user.workshop else 'None'}")
+        
         # Проверяем права мастера
         if not defect.can_be_confirmed_by(request.user):
+            print(f"DEBUG: Permission denied for user {request.user.username}")
             return Response(
                 {'error': 'У вас нет прав для подтверждения этого брака'}, 
                 status=status.HTTP_403_FORBIDDEN

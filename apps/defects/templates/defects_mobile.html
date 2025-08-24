@@ -366,7 +366,7 @@
             async fetchCurrentUser() {
                 try {
                     console.log('Fetching current user...');
-                    const resp = await fetch('/accounts/api/profile/');
+                    const resp = await fetch('/users/api/profile/');
                     if (resp.ok) {
                         const data = await resp.json();
                         console.log('User data received:', data);
