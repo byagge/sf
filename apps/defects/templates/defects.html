@@ -387,186 +387,93 @@
             
             async fetchDefects() {
                 try {
-                    console.log('DEBUG: Fetching defects...');
                     const resp = await fetch('/defects/api/defects/');
-                    console.log('DEBUG: Defects response status:', resp.status);
-                    console.log('DEBUG: Defects response headers:', Object.fromEntries(resp.headers.entries()));
-                    
                     if (resp.ok) {
                         const data = await resp.json();
-                        console.log('DEBUG: Defects data received:', data);
-                        console.log('DEBUG: Defects data type:', typeof data);
-                        console.log('DEBUG: Defects data keys:', Object.keys(data || {}));
-                        
                         // Проверяем структуру данных
                         if (data && Array.isArray(data)) {
                             this.defects = data;
-                            console.log('DEBUG: Defects set from array:', this.defects.length);
-                            if (this.defects.length > 0) {
-                                console.log('DEBUG: First defect sample:', this.defects[0]);
-                            }
                         } else if (data && data.results && Array.isArray(data.results)) {
                             this.defects = data.results;
-                            console.log('DEBUG: Defects set from results:', this.defects.length);
-                            if (this.defects.length > 0) {
-                                console.log('DEBUG: First defect sample:', this.defects[0]);
-                            }
                         } else {
                             this.defects = [];
-                            console.log('DEBUG: No valid defects data structure found');
                         }
                     } else {
-                        console.log('DEBUG: Defects fetch failed with status:', resp.status);
-                        const errorText = await resp.text();
-                        console.log('DEBUG: Error response text:', errorText);
                         this.defects = [];
                     }
                 } catch (error) {
-                    console.error('DEBUG: Error fetching defects:', error);
                     this.defects = [];
                 }
             },
             
             async fetchWorkshops() {
                 try {
-                    console.log('DEBUG: Fetching workshops...');
                     const resp = await fetch('/workshops/api/workshops/');
-                    console.log('DEBUG: Workshops response status:', resp.status);
-                    console.log('DEBUG: Workshops response headers:', Object.fromEntries(resp.headers.entries()));
-                    
                     if (resp.ok) {
                         const data = await resp.json();
-                        console.log('DEBUG: Workshops data received:', data);
-                        console.log('DEBUG: Workshops data type:', typeof data);
-                        console.log('DEBUG: Workshops data keys:', Object.keys(data || {}));
-                        
                         // Проверяем структуру данных
                         if (data && Array.isArray(data)) {
                             this.workshops = data;
-                            console.log('DEBUG: Workshops set from array:', this.workshops.length);
-                            if (this.workshops.length > 0) {
-                                console.log('DEBUG: First workshop sample:', this.workshops[0]);
-                            }
                         } else if (data && data.results && Array.isArray(data.results)) {
                             this.workshops = data.results;
-                            console.log('DEBUG: Workshops set from results:', this.workshops.length);
-                            if (this.workshops.length > 0) {
-                                console.log('DEBUG: First workshop sample:', this.workshops[0]);
-                            }
                         } else {
                             this.workshops = [];
-                            console.log('DEBUG: No valid workshops data structure found');
                         }
                     } else {
-                        console.log('DEBUG: Workshops fetch failed with status:', resp.status);
-                        const errorText = await resp.text();
-                        console.log('DEBUG: Error response text:', errorText);
                         this.workshops = [];
                     }
                 } catch (error) {
-                    console.error('DEBUG: Error fetching workshops:', error);
                     this.workshops = [];
                 }
             },
             
             async fetchCurrentUser() {
                 try {
-                    console.log('DEBUG: Fetching current user...');
-                    const resp = await fetch('/users/api/profile/');
-                    console.log('DEBUG: User response status:', resp.status);
-                    console.log('DEBUG: User response headers:', Object.fromEntries(resp.headers.entries()));
+                    const resp = await fetch('/accounts/api/profile/');
                     
                     if (resp.ok) {
                         const data = await resp.json();
-                        console.log('DEBUG: User data received:', data);
-                        console.log('DEBUG: User data type:', typeof data);
-                        console.log('DEBUG: User data keys:', Object.keys(data || {}));
                         
                         // Проверяем структуру данных
                         if (data && typeof data === 'object') {
                             this.currentUser = data;
-                            console.log('DEBUG: Current user set to:', this.currentUser);
-                            console.log('DEBUG: User role:', this.currentUser.role);
-                            console.log('DEBUG: User workshop:', this.currentUser.workshop);
                         } else {
                             this.currentUser = null;
-                            console.log('DEBUG: Invalid user data format');
                         }
                     } else {
-                        console.log('DEBUG: User fetch failed with status:', resp.status);
-                        const errorText = await resp.text();
-                        console.log('DEBUG: Error response text:', errorText);
                         this.currentUser = null;
                     }
                 } catch (error) {
-                    console.error('DEBUG: Error fetching current user:', error);
                     this.currentUser = null;
                 }
             },
             
             filteredDefects() {
                 if (!this.defects || this.defects.length === 0) {
-                    console.log('DEBUG: No defects to filter');
                     return [];
                 }
                 
                 const term = this.searchTerm.toLowerCase();
-                const filtered = this.defects.filter(d => {
-                    const productMatch = (d.product && d.product.name ? d.product.name : '').toLowerCase().includes(term);
-                    const userMatch = (d.user && d.user.full_name ? d.user.full_name : '').toLowerCase().includes(term);
-                    const taskMatch = (d.employee_task ? `задача ${d.employee_task.id}` : '').toLowerCase().includes(term);
-                    
-                    const matches = productMatch || userMatch || taskMatch;
-                    
-                    if (term && matches) {
-                        console.log('DEBUG: Defect matches search:', {
-                            defectId: d.id,
-                            productMatch,
-                            userMatch,
-                            taskMatch,
-                            searchTerm: term
-                        });
-                    }
-                    
-                    return matches;
-                });
-                
-                console.log('DEBUG: Filtered defects:', {
-                    total: this.defects.length,
-                    filtered: filtered.length,
-                    searchTerm: term
-                });
-                
-                return filtered;
+                return this.defects.filter(d =>
+                    (d.product && d.product.name ? d.product.name : '').toLowerCase().includes(term) ||
+                    (d.user && d.user.full_name ? d.user.full_name : '').toLowerCase().includes(term) ||
+                    (d.employee_task ? `задача ${d.employee_task.id}` : '').toLowerCase().includes(term)
+                );
             },
             
             formatDate(dateStr) {
-                if (!dateStr) {
-                    console.log('DEBUG: No date string provided to formatDate');
-                    return 'Дата не указана';
-                }
-                
+                if (!dateStr) return 'Дата не указана';
                 try {
-                    const d = new Date(dateStr);
-                    if (isNaN(d.getTime())) {
-                        console.log('DEBUG: Invalid date string:', dateStr);
-                        return 'Неверная дата';
-                    }
-                    
-                    const result = d.toLocaleString('ru-RU');
-                    console.log('DEBUG: formatDate result:', { dateStr, result });
-                    return result;
+                const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) return 'Неверная дата';
+                return d.toLocaleString('ru-RU');
                 } catch (error) {
-                    console.error('DEBUG: Error formatting date:', error);
                     return 'Ошибка даты';
                 }
             },
             
             getStatusClass(status) {
-                if (!status) {
-                    console.log('DEBUG: No status provided to getStatusClass');
-                    return 'bg-gray-100 text-gray-800';
-                }
+                if (!status) return 'bg-gray-100 text-gray-800';
                 
                 const classes = {
                     'pending': 'bg-yellow-100 text-yellow-800',
@@ -577,151 +484,68 @@
                     'repaired': 'bg-green-100 text-green-800',
                     'closed': 'bg-gray-100 text-gray-800'
                 };
-                
-                const result = classes[status] || 'bg-gray-100 text-gray-800';
-                console.log('DEBUG: getStatusClass result:', { status, result });
-                return result;
+                return classes[status] || 'bg-gray-100 text-gray-800';
             },
             
             getDefectTypeClass(type) {
-                if (!type) {
-                    console.log('DEBUG: No defect type provided to getDefectTypeClass');
-                    return 'bg-gray-100 text-gray-800';
-                }
+                if (!type) return 'bg-gray-100 text-gray-800';
                 
                 const classes = {
                     'technical': 'bg-blue-100 text-blue-800',
                     'manual': 'bg-red-100 text-red-800'
                 };
-                
-                const result = classes[type] || 'bg-gray-100 text-gray-800';
-                console.log('DEBUG: getDefectTypeClass result:', { type, result });
-                return result;
+                return classes[type] || 'bg-gray-100 text-gray-800';
             },
             
             canConfirmDefect(defect) {
                 if (!this.currentUser || !defect) {
-                    console.log('DEBUG: canConfirmDefect check failed:', { currentUser: this.currentUser, defect: defect });
                     return false;
                 }
                 
-                // Проверяем роль пользователя (может приходить в разных форматах)
-                const userRole = this.currentUser.role;
-                console.log('DEBUG: Checking canConfirmDefect:', {
-                    currentUser: this.currentUser,
-                    userRole: userRole,
-                    defectStatus: defect.status,
-                    defectId: defect.id
-                });
-                
-                if (userRole !== 'master' && userRole !== 'Master') {
-                    console.log('DEBUG: User role is not master:', userRole);
+                if (this.currentUser.role !== 'master') {
                     return false;
                 }
                 
-                if (defect.status !== 'pending') {
-                    console.log('DEBUG: Defect status is not pending:', defect.status);
-                    return false;
-                }
-                
-                console.log('DEBUG: User can confirm defect');
-                return true;
+                return defect.status === 'pending';
             },
             
             canMarkRepaired(defect) {
-                if (!this.currentUser || !defect) {
-                    console.log('DEBUG: canMarkRepaired check failed:', { currentUser: this.currentUser, defect: defect });
-                    return false;
-                }
-                
-                const canMark = defect.status === 'repairable' || defect.status === 'transferred';
-                console.log('DEBUG: canMarkRepaired result:', { 
-                    defectId: defect.id,
-                    defectStatus: defect.status, 
-                    canMark 
-                });
-                return canMark;
+                if (!this.currentUser || !defect) return false;
+                return defect.status === 'repairable' || defect.status === 'transferred';
             },
             
             canCloseDefect(defect) {
-                if (!this.currentUser || !defect) {
-                    console.log('DEBUG: canCloseDefect check failed:', { currentUser: this.currentUser, defect: defect });
-                    return false;
-                }
-                
+                if (!this.currentUser || !defect) return false;
                 const adminRoles = ['founder', 'director', 'admin', 'master'];
-                const hasRole = adminRoles.includes(this.currentUser.role);
-                const canClose = hasRole && defect.status === 'repaired';
-                
-                console.log('DEBUG: canCloseDefect result:', { 
-                    defectId: defect.id,
-                    userRole: this.currentUser.role, 
-                    hasRole, 
-                    defectStatus: defect.status, 
-                    canClose 
-                });
-                
-                return canClose;
+                return adminRoles.includes(this.currentUser.role) && defect.status === 'repaired';
             },
             
             openConfirmationModal(defect) {
-                if (!defect) {
-                    console.log('DEBUG: No defect provided to openConfirmationModal');
-                    return;
-                }
-                
-                console.log('DEBUG: Opening confirmation modal for defect:', defect);
-                console.log('DEBUG: Current user state:', this.currentUser);
-                console.log('DEBUG: Can confirm defect check:', this.canConfirmDefect(defect));
-                
+                if (!defect) return;
                 this.selectedDefect = { ...defect };
                 this.confirmationStep = 1;
                 this.showConfirmationModal = true;
                 this.showRepairModal = false; // Закрываем другое модальное окно
-                
-                console.log('DEBUG: Modal state set:', {
-                    selectedDefect: this.selectedDefect,
-                    confirmationStep: this.confirmationStep,
-                    showConfirmationModal: this.showConfirmationModal
-                });
             },
             
             openRepairModal(defect) {
-                if (!defect) {
-                    console.log('DEBUG: No defect provided to openRepairModal');
-                    return;
-                }
-                
-                console.log('DEBUG: Opening repair modal for defect:', defect);
-                console.log('DEBUG: Current user state:', this.currentUser);
-                console.log('DEBUG: Can mark repaired check:', this.canMarkRepaired(defect));
-                
+                if (!defect) return;
                 this.selectedDefect = defect;
                 this.repairComment = '';
                 this.showRepairModal = true;
                 this.showConfirmationModal = false; // Закрываем другое модальное окно
-                
-                console.log('DEBUG: Repair modal state set:', {
-                    selectedDefect: this.selectedDefect,
-                    repairComment: this.repairComment,
-                    showRepairModal: this.showRepairModal
-                });
             },
             
             closeConfirmationModal() {
-                console.log('DEBUG: Closing confirmation modal');
                 this.showConfirmationModal = false;
                 this.confirmationStep = 1;
                 this.selectedDefect = {};
-                console.log('DEBUG: Modal state reset');
             },
             
             closeRepairModal() {
-                console.log('DEBUG: Closing repair modal');
                 this.showRepairModal = false;
                 this.repairComment = '';
                 this.selectedDefect = {};
-                console.log('DEBUG: Repair modal state reset');
             },
             
             async confirmDefect() {
@@ -744,13 +568,6 @@
                     comment: this.selectedDefect.comment || ''
                 };
                 
-                console.log('DEBUG: Sending confirmDefect request:', {
-                    defectId: this.selectedDefect.id,
-                    requestBody: requestBody,
-                    csrfToken: csrfToken ? 'present' : 'missing',
-                    currentUser: this.currentUser
-                });
-                
                 try {
                     const response = await fetch(`/defects/api/defects/${this.selectedDefect.id}/confirm/`, {
                         method: 'POST',
@@ -761,34 +578,25 @@
                         body: JSON.stringify(requestBody)
                     });
                     
-                                    console.log('DEBUG: Response status:', response.status);
-                console.log('DEBUG: Response headers:', Object.fromEntries(response.headers.entries()));
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('DEBUG: Success response:', result);
-                    this.closeConfirmationModal();
-                    await this.fetchDefects();
-                    this.showNotification('Брак успешно подтвержден', 'success');
-                } else {
-                    const errorText = await response.text();
-                    console.log('DEBUG: Error response text:', errorText);
-                    console.log('DEBUG: Error response status:', response.status);
-                    let errorMessage = 'Ошибка при подтверждении брака';
-                    
-                    try {
-                        const errorData = JSON.parse(errorText);
-                        errorMessage = errorData.error || errorData.message || errorMessage;
-                        console.log('DEBUG: Parsed error data:', errorData);
-                    } catch (e) {
-                        errorMessage = `Ошибка ${response.status}: ${errorText}`;
-                        console.log('DEBUG: Failed to parse error response as JSON');
+                    if (response.ok) {
+                        const result = await response.json();
+                        this.closeConfirmationModal();
+                        await this.fetchDefects();
+                        this.showNotification('Брак успешно подтвержден', 'success');
+                    } else {
+                        const errorText = await response.text();
+                        let errorMessage = 'Ошибка при подтверждении брака';
+                        
+                        try {
+                            const errorData = JSON.parse(errorText);
+                            errorMessage = errorData.error || errorData.message || errorMessage;
+                        } catch (e) {
+                            errorMessage = `Ошибка ${response.status}: ${errorText}`;
+                        }
+                        
+                        this.showNotification(errorMessage, 'error');
                     }
-                    
-                    this.showNotification(errorMessage, 'error');
-                }
                 } catch (error) {
-                    console.error('DEBUG: Exception during confirmDefect:', error);
                     this.showNotification(`Ошибка при подтверждении брака: ${error.message}`, 'error');
                 }
             },
@@ -798,11 +606,6 @@
                     this.showNotification('Ошибка: брак не выбран', 'error');
                     return;
                 }
-                
-                console.log('DEBUG: Marking defect as repaired:', {
-                    defectId: this.selectedDefect.id,
-                    comment: this.repairComment
-                });
                 
                 try {
                     const response = await fetch(`/defects/api/defects/${this.selectedDefect.id}/mark_repaired/`, {
@@ -816,23 +619,15 @@
                         })
                     });
                     
-                    console.log('DEBUG: Mark repaired response status:', response.status);
-                    console.log('DEBUG: Mark repaired response headers:', Object.fromEntries(response.headers.entries()));
-                    
                     if (response.ok) {
-                        const result = await response.json();
-                        console.log('DEBUG: Mark repaired success response:', result);
                         this.closeRepairModal();
                         await this.fetchDefects();
                         this.showNotification('Брак отмечен как починенный', 'success');
                     } else {
                         const error = await response.json();
-                        console.log('DEBUG: Mark repaired error response:', error);
-                        console.log('DEBUG: Mark repaired error status:', response.status);
                         this.showNotification(error.error || 'Ошибка при отметке брака', 'error');
                     }
                 } catch (error) {
-                    console.error('DEBUG: Exception during markAsRepaired:', error);
                     this.showNotification('Ошибка при отметке брака', 'error');
                 }
             },
@@ -845,10 +640,6 @@
                 
                 if (!confirm('Вы уверены, что хотите закрыть этот брак?')) return;
                 
-                console.log('DEBUG: Closing defect:', { defectId: defect.id });
-                console.log('DEBUG: Current user state:', this.currentUser);
-                console.log('DEBUG: Can close defect check:', this.canCloseDefect(defect));
-                
                 try {
                     const response = await fetch(`/defects/api/defects/${defect.id}/close/`, {
                         method: 'POST',
@@ -858,35 +649,23 @@
                         }
                     });
                     
-                    console.log('DEBUG: Close defect response status:', response.status);
-                    console.log('DEBUG: Close defect response headers:', Object.fromEntries(response.headers.entries()));
-                    
                     if (response.ok) {
-                        const result = await response.json();
-                        console.log('DEBUG: Close defect success response:', result);
                         await this.fetchDefects();
                         this.showNotification('Брак закрыт', 'success');
                     } else {
                         const error = await response.json();
-                        console.log('DEBUG: Close defect error response:', error);
-                        console.log('DEBUG: Close defect error status:', response.status);
                         this.showNotification(error.error || 'Ошибка при закрытии брака', 'error');
                     }
                 } catch (error) {
-                    console.error('DEBUG: Exception during closeDefect:', error);
                     this.showNotification('Ошибка при закрытии брака', 'error');
                 }
             },
             
             getCSRFToken() {
-                console.log('DEBUG: Getting CSRF token...');
-                
                 // Сначала пытаемся получить из meta тега
                 const metaToken = document.querySelector('meta[name="csrf-token"]');
                 if (metaToken) {
-                    const token = metaToken.getAttribute('content');
-                    console.log('DEBUG: CSRF token found in meta tag:', token ? 'present' : 'missing');
-                    return token;
+                    return metaToken.getAttribute('content');
                 }
                 
                 // Затем из cookie
@@ -904,39 +683,25 @@
                 }
                 
                 if (cookieValue) {
-                    console.log('DEBUG: CSRF token found in cookie:', cookieValue ? 'present' : 'missing');
                     return cookieValue;
                 }
                 
                 // Если ничего не найдено, попробуем получить из Django формы
                 const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
                 if (csrfInput) {
-                    const token = csrfInput.value;
-                    console.log('DEBUG: CSRF token found in form input:', token ? 'present' : 'missing');
-                    return token;
+                    return csrfInput.value;
                 }
                 
-                console.log('DEBUG: No CSRF token found');
                 return null;
             },
             
             showNotification(message, type) {
-                console.log('DEBUG: Showing notification:', { message, type });
                 // Простое уведомление
                 alert(message);
             },
             
             async init() {
                 try {
-                    console.log('DEBUG: Initializing defects data...');
-                    console.log('DEBUG: Initial state:', {
-                        showConfirmationModal: this.showConfirmationModal,
-                        showRepairModal: this.showRepairModal,
-                        confirmationStep: this.confirmationStep,
-                        selectedDefect: this.selectedDefect,
-                        repairComment: this.repairComment
-                    });
-                    
                     // Явно устанавливаем модальные окна в скрытое состояние
                     this.showConfirmationModal = false;
                     this.showRepairModal = false;
@@ -944,40 +709,26 @@
                     this.selectedDefect = {};
                     this.repairComment = '';
                     
-                    console.log('DEBUG: Modal state reset');
-                    
-                    console.log('DEBUG: Fetching data...');
                     await Promise.all([
                         this.fetchDefects(),
                         this.fetchWorkshops(),
                         this.fetchCurrentUser()
                     ]);
                     
-                    console.log('DEBUG: Data fetched, current state:', {
-                        defectsCount: this.defects.length,
-                        workshopsCount: this.workshops.length,
-                        currentUser: this.currentUser
-                    });
-                    
-                    console.log('DEBUG: Creating icons...');
                     this.$nextTick(() => {
                         try {
                             lucide.createIcons();
-                            console.log('DEBUG: Icons created successfully');
                         } catch (error) {
-                            console.error('DEBUG: Error creating icons:', error);
+                            // Игнорируем ошибки создания иконок
                         }
                     });
-                    
-                    console.log('DEBUG: Initialization complete');
                 } catch (error) {
-                    console.error('DEBUG: Error during initialization:', error);
+                    // Игнорируем ошибки инициализации
                 }
             },
             
             stats() {
                 if (!this.defects || this.defects.length === 0) {
-                    console.log('DEBUG: No defects data available for stats');
                     return {
                         totalDefects: 0,
                         pendingConfirmation: 0,
@@ -995,7 +746,7 @@
                 const irreparable = this.defects.filter(d => d.status === 'irreparable').length;
                 const closed = this.defects.filter(d => d.status === 'closed').length;
                 
-                const stats = { 
+                return { 
                     totalDefects, 
                     pendingConfirmation, 
                     repairable, 
@@ -1003,9 +754,6 @@
                     irreparable,
                     closed
                 };
-                
-                console.log('DEBUG: Calculated stats:', stats);
-                return stats;
             }
         }
     }
