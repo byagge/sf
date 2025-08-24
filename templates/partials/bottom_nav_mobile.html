@@ -1,28 +1,34 @@
 <nav class="mobile-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center h-14 z-40 px-4 relative">
-  <a href="/dashboard/" class="flex flex-col items-center justify-center flex-1 text-gray-500" :class="currentPath === '/dashboard/' ? 'text-blue-600' : ''">
-    <i data-lucide="home" class="w-5 h-5"></i>
-    <span class="text-xs">Главная</span>
-  </a>
-
-  <a href="/clients/" class="flex flex-col items-center justify-center flex-1 text-gray-500" :class="currentPath === '/clients/' ? 'text-blue-600' : ''">
-    <i data-lucide="user" class="w-5 h-5"></i>
-    <span class="text-xs">Клиенты</span>
-  </a>
-
-  <!-- УДАЛИЛИ: wrapper с flex-1 -->
-  <!-- Абсолютно позиционированная центровая кнопка -->
-  <a href="/orders/?create=1/" 
-     class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-600 rounded-full shadow-lg flex items-center justify-center z-50">
-    <i data-lucide="plus" class="w-6 h-6 text-white"></i>
-  </a>
-
-  <a href="/inventory/" class="flex flex-col items-center justify-center flex-1 text-gray-500" :class="currentPath === '/inventory/' ? 'text-blue-600' : ''">
-    <i data-lucide="archive" class="w-5 h-5"></i>
-    <span class="text-xs">Склад</span>
-  </a>
-
-  <a href="/menu/" class="flex flex-col items-center justify-center flex-1 text-gray-500" :class="currentPath === '/menu/' ? 'text-blue-600' : ''">
-    <i data-lucide="menu" class="w-5 h-5"></i>
-    <span class="text-xs">Другое</span>
-  </a>
-</nav>
+	<!-- Левая группа (2 элемента) -->
+	<div class="flex items-center flex-1 justify-evenly gap-0">
+	  <a href="/dashboard/" class="flex flex-col items-center justify-center flex-none m-0 p-0" :class="currentPath === '/dashboard/' ? 'text-blue-600' : 'text-gray-500'">
+		<i data-lucide="home" class="w-5 h-5"></i>
+		<span class="text-xs">Главная</span>
+	  </a>
+  
+	  <a href="/clients/" class="flex flex-col items-center justify-center flex-none m-0 p-0" :class="currentPath === '/clients/' ? 'text-blue-600' : 'text-gray-500'">
+		<i data-lucide="user" class="w-5 h-5"></i>
+		<span class="text-xs">Клиенты</span>
+	  </a>
+	</div>
+  
+	<!-- Абсолютно позиционированная центровая кнопка -->
+	<a href="/orders/?create=1/" 
+	   class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-600 rounded-full shadow-lg flex items-center justify-center z-50 m-0 p-0">
+	  <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+	</a>
+  
+	<!-- Правая группа (2 элемента) -->
+	<div class="flex items-center flex-1 justify-evenly gap-0">
+	  <a href="/inventory/" class="flex flex-col items-center justify-center flex-none m-0 p-0" :class="currentPath === '/inventory/' ? 'text-blue-600' : 'text-gray-500'">
+		<i data-lucide="archive" class="w-5 h-5"></i>
+		<span class="text-xs">Склад</span>
+	  </a>
+  
+	  <a href="/menu/" class="flex flex-col items-center justify-center flex-none m-0 p-0" :class="currentPath === '/menu/' ? 'text-blue-600' : 'text-gray-500'">
+		<i data-lucide="menu" class="w-5 h-5"></i>
+		<span class="text-xs">Другое</span>
+	  </a>
+	</div>
+  </nav>
+  
