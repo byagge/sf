@@ -10,15 +10,33 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Smart Factory">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Статистика (Мастер)</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script id="user-id" type="application/json">{{ request.user.id|default:'null' }}</script>
-    <script id="csrf-token" type="application/json">{{ csrf_token }}</script>
     <script>
       window.user_id = JSON.parse(document.getElementById('user-id').textContent);
-      window.csrf_token = JSON.parse(document.getElementById('csrf-token').textContent);
+      
+      // Функция для получения CSRF токена из cookies
+      function getCookie(name) {
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== '') {
+              const cookies = document.cookie.split(';');
+              for (let i = 0; i < cookies.length; i++) {
+                  const cookie = cookies[i].trim();
+                  if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                      cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                      break;
+                  }
+              }
+          }
+          return cookieValue;
+      }
+      
+      // Получаем CSRF токен из мета-тега или cookies
+      window.csrf_token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || getCookie('csrftoken');
     </script>
     <style>
         body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
