@@ -64,15 +64,55 @@
         <div class="card">
             <h3>Статистика по цехам ({{ stats.workshops|length }}):</h3>
             {% for workshop in stats.workshops %}
-                <div style="border: 1px solid #eee; padding: 10px; margin: 5px 0; border-radius: 3px;">
-                    <h4>{{ workshop.name }}</h4>
-                    <p><strong>Описание:</strong> {{ workshop.description|default:"Не указано" }}</p>
-                    <p><strong>Всего задач:</strong> {{ workshop.total_tasks }}</p>
-                    <p><strong>Выполнено:</strong> {{ workshop.completed_tasks }}</p>
-                    <p><strong>Брака:</strong> {{ workshop.defects }}</p>
-                    <p><strong>Активных этапов:</strong> {{ workshop.active_stages }}</p>
-                    <p><strong>Сотрудников:</strong> {{ workshop.employees_count }}</p>
-                    <p><strong>Эффективность:</strong> {{ workshop.efficiency|floatformat:1 }}%</p>
+                <div style="border: 1px solid #eee; padding: 15px; margin: 10px 0; border-radius: 5px; background: #fafafa;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: #2563eb; font-size: 18px;">🏭 {{ workshop.name }}</h4>
+                        <div style="text-align: right;">
+                            <div style="font-size: 20px; font-weight: bold; color: #2563eb;">{{ workshop.efficiency|floatformat:1 }}%</div>
+                            <div style="font-size: 12px; color: #666;">Эффективность</div>
+                        </div>
+                    </div>
+                    
+                    <p style="color: #666; font-size: 14px; margin-bottom: 15px;">{{ workshop.description|default:"Описание отсутствует" }}</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div style="background: #eff6ff; padding: 10px; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #2563eb;">{{ workshop.total_tasks }}</div>
+                            <div style="font-size: 12px; color: #666;">Всего задач</div>
+                        </div>
+                        <div style="background: #ecfdf5; padding: 10px; border-radius: 5px; text-align: center;">
+                            <div style="font-size: 18px; font-weight: bold; color: #059669;">{{ workshop.completed_tasks }}</div>
+                            <div style="font-size: 12px; color: #666;">Выполнено</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                            <span style="color: #666;">Активных этапов:</span>
+                            <span style="font-weight: bold;">{{ workshop.active_stages }}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 14px;">
+                            <span style="color: #666;">Брака:</span>
+                            <span style="font-weight: bold; color: #dc2626;">{{ workshop.defects }}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 5px;">
+                            <span>0%</span>
+                            <span>100%</span>
+                        </div>
+                        <div style="width: 100%; background: #e5e7eb; border-radius: 10px; height: 8px; overflow: hidden;">
+                            <div style="background: #2563eb; height: 100%; border-radius: 10px; transition: width 0.3s; width: {{ workshop.efficiency }}%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: right;">
+                        <a href="/workshops/api/workshops/{{ workshop.id }}/orders/" 
+                           style="color: #2563eb; text-decoration: none; font-size: 14px; font-weight: 500;">
+                            Подробнее →
+                        </a>
+                    </div>
                 </div>
             {% endfor %}
         </div>
