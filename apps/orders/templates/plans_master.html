@@ -422,8 +422,11 @@
                                                     </template>
                                                     <template x-if="stage.assigned.length > 3">
                                                         <div class="text-xs text-gray-500 text-center">
-                                                            <i data-lucide="more-horizontal" class="w-3 h-3 inline mr-1"></i>
-                                                            И еще <span x-text="stage.assigned.length - 3"></span> назначений
+                                                            <button @click.stop="openAllAssignmentsModal(stage)" 
+                                                                    class="text-blue-600 hover:text-blue-700 hover:underline">
+                                                                <i data-lucide="more-horizontal" class="w-3 h-3 inline mr-1"></i>
+                                                                Показать все <span x-text="stage.assigned.length"></span> назначений
+                                                            </button>
                                                         </div>
                                                     </template>
                                                 </div>
@@ -1722,6 +1725,92 @@
         </div>
     </template>
     
+    <!-- Модальное окно всех назначений -->
+    <template x-if="showAllAssignmentsModal">
+        <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showAllAssignmentsModal = false">
+            <div class="modal-content bg-white rounded-t-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">Все назначения</h2>
+                    <button @click="showAllAssignmentsModal = false" class="text-gray-400 hover:text-gray-600">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Информация о заказе -->
+                    <template x-if="allAssignmentsStage">
+                        <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                            <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
+                            <div class="space-y-1 text-xs text-blue-700">
+                                <div><span class="font-medium">Заявка:</span> <span x-text="allAssignmentsStage.order_name || 'Не указано'"></span></div>
+                                <div><span class="font-medium">Операция:</span> <span x-text="allAssignmentsStage.operation || 'Не указано'"></span></div>
+                                <div><span class="font-medium">План:</span> <span x-text="allAssignmentsStage.plan_quantity || 0"></span></div>
+                                <div><span class="font-medium">Выполнено:</span> <span x-text="allAssignmentsStage.done_count || 0"></span></div>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- Список всех назначений -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Назначения сотрудников</label>
+                        <template x-if="allAssignmentsStage && allAssignmentsStage.assigned && allAssignmentsStage.assigned.length > 0">
+                            <div class="space-y-3">
+                                <template x-for="assign in allAssignmentsStage.assigned" :key="assign.id">
+                                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex-1">
+                                                <div class="font-medium text-gray-900" x-text="assign.employee_name"></div>
+                                                <div class="text-sm text-gray-600 mt-1">
+                                                    Назначено: <span class="font-medium" x-text="assign.quantity"></span> шт.
+                                                    <template x-if="assign.completed_quantity !== undefined">
+                                                        <span class="ml-3 text-green-600">
+                                                            Выполнено: <span class="font-medium" x-text="assign.completed_quantity"></span> шт.
+                                                        </span>
+                                                    </template>
+                                                    <template x-if="assign.defective_quantity && assign.defective_quantity > 0">
+                                                        <span class="ml-3 text-red-600">
+                                                            Брак: <span class="font-medium" x-text="assign.defective_quantity"></span> шт.
+                                                        </span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div class="flex space-x-2 ml-3">
+                                                <button @click="openEditAssignModal(allAssignmentsStage, assign)" 
+                                                        class="text-blue-600 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-colors">
+                                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                                </button>
+                                                <button @click="deleteAssign(allAssignmentsStage, assign)" 
+                                                        class="text-red-500 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
+                                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="!allAssignmentsStage || !allAssignmentsStage.assigned || allAssignmentsStage.assigned.length === 0">
+                            <div class="text-center py-6 text-gray-500">
+                                <i data-lucide="user-x" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
+                                <div>Нет назначений</div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Кнопки действий -->
+                <div class="flex justify-end space-x-3 pt-4 mt-6">
+                    <button type="button" @click="showAllAssignmentsModal = false" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700">Закрыть</button>
+                    <button type="button" @click="openAssignModal(allAssignmentsStage)" 
+                            class="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                        <i data-lucide="user-plus" class="w-4 h-4 inline mr-2"></i>
+                        Добавить назначение
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
     <!-- Модальное окно отметки выполнения -->
     <template x-if="showMarkCompletionModal">
         <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showMarkCompletionModal = false">
@@ -1946,6 +2035,8 @@
             showMarkCompletionModal: false,
             markCompletionStage: null,
             isSubmittingMarkCompletion: false,
+            showAllAssignmentsModal: false,
+            allAssignmentsStage: null,
             toast: { show: false, message: '', type: 'success', timeout: null },
             showToast(msg, type = 'success') {
                 this.toast.message = msg;
@@ -2194,6 +2285,7 @@
                     
                         await this.loadStages();
                         this.showAssignModal = false;
+                        this.showAllAssignmentsModal = false; // Закрываем модальное окно всех назначений
                     
                     if (errorCount === 0) {
                         this.showToast(`Задачи успешно назначены для всех товаров (${successCount} товаров)!`, 'success');
@@ -2221,6 +2313,11 @@
                 
                 this.editAssignForm = { id: assign.id, stage_id: stage.id, employee_id: assign.employee_id, employee_name: assign.employee_name, quantity: assign.quantity };
                 this.showEditAssignModal = true;
+                lucide.createIcons();
+            },
+            openAllAssignmentsModal(stage) {
+                this.allAssignmentsStage = { ...stage };
+                this.showAllAssignmentsModal = true;
                 lucide.createIcons();
             },
             async submitEditAssign() {
@@ -2259,7 +2356,8 @@
                 if (resp.ok) {
                     await this.loadStages();
                     this.showEditAssignModal = false;
-                        this.showToast('Назначение успешно обновлено!', 'success');
+                    this.showAllAssignmentsModal = false; // Закрываем модальное окно всех назначений
+                    this.showToast('Назначение успешно обновлено!', 'success');
                     lucide.createIcons();
                     } else {
                         const data = await resp.json();
@@ -2286,7 +2384,8 @@
                 });
                 if (resp.ok) {
                     await this.loadStages();
-                        this.showToast('Назначение удалено!', 'success');
+                    this.showAllAssignmentsModal = false; // Закрываем модальное окно всех назначений
+                    this.showToast('Назначение удалено!', 'success');
                     lucide.createIcons();
                     } else {
                         const data = await resp.json();

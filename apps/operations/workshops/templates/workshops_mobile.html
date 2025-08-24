@@ -25,10 +25,17 @@
             </div>
             <span class="text-lg font-semibold text-gray-900">Цеха</span>
         </div>
-        <button @click="showOrdersInfo = !showOrdersInfo; if(showOrdersInfo) loadWorkshopsOrdersInfo()" 
-                class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium">
-            <span x-text="showOrdersInfo ? 'Скрыть' : 'Заказы'"></span>
-        </button>
+        <div class="flex items-center space-x-2">
+            {% if request.user.role == 'master' %}
+            <a href="/workshops/master/" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
+                Панель мастера
+            </a>
+            {% endif %}
+            <button @click="showOrdersInfo = !showOrdersInfo; if(showOrdersInfo) loadWorkshopsOrdersInfo()" 
+                    class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium">
+                <span x-text="showOrdersInfo ? 'Скрыть' : 'Заказы'"></span>
+            </button>
+        </div>
     </header>
 
     <!-- Main Content -->

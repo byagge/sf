@@ -300,7 +300,7 @@
                 async loadData() {
                     try {
                         // Загружаем статистику мастера
-                        const response = await fetch('/workshops/api/master-stats/');
+                        const response = await fetch('/api/workshops/master-stats/');
                         const data = await response.json();
                         
                         this.totalStats = data.total_stats || {};
