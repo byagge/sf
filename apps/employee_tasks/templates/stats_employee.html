@@ -217,11 +217,8 @@
             },
             async loadStats() {
                 if (!this.userId) return;
-                console.log('Loading stats for user:', this.userId);
                 const resp = await fetch(`/employee_tasks/api/earnings/employee/${this.userId}/`);
-                console.log('Response status:', resp.status);
                 const data = await resp.json();
-                console.log('Response data:', data);
                 this.overview = data.overview || this.overview;
                 this.monthly = (data.monthly_stats || []).map(x => ({
                     month: x.month,

@@ -913,8 +913,8 @@
                         'Цех': service.workshop_name || 'Не указан',
                         'Единица измерения': service.unit || 'услуга',
                         'Материалы': (service.materials_info || []).map(mat => `${mat.name} (${mat.amount} ${mat.unit || 'шт'})`).join('; '),
-                        'Оплата за услугу (₽)': service.service_price || 0,
-                        'Штраф за брак (₽)': service.defect_penalty || 0,
+                        'Оплата за услугу (⃀)': service.service_price || 0,
+                        'Штраф за брак (⃀)': service.defect_penalty || 0,
                         'Статус': service.is_active ? 'Активна' : 'Неактивна',
                         'Дата создания': service.created_at ? new Date(service.created_at).toLocaleDateString('ru-RU') : 'Не указана',
                         'Последнее изменение': service.updated_at ? new Date(service.updated_at).toLocaleDateString('ru-RU') : 'Не указана'
@@ -984,10 +984,10 @@
 
                     // Создаем лист со статистикой
                     const statsData = [
-                        { 'Показатель': 'Общая оплата (₽)', 'Значение': this.stats().totalValue.toLocaleString() },
+                        { 'Показатель': 'Общая оплата (⃀)', 'Значение': this.stats().totalValue.toLocaleString() },
                         { 'Показатель': 'Всего услуг', 'Значение': this.stats().totalItems },
                         { 'Показатель': 'Активные услуги', 'Значение': this.stats().activeServices },
-                        { 'Показатель': 'Средняя оплата (₽)', 'Значение': this.stats().avgPrice.toLocaleString() }
+                        { 'Показатель': 'Средняя оплата (⃀)', 'Значение': this.stats().avgPrice.toLocaleString() }
                     ];
                     
                     const statsWs = XLSX.utils.json_to_sheet(statsData);

@@ -617,7 +617,7 @@
                                                 <template x-if="selectedStage.order_item.order.expenses">
                                                     <div class="flex justify-between">
                                                         <span class="text-blue-700 font-medium">Расходы:</span>
-                                                        <span class="text-blue-900" x-text="selectedStage.order_item.order.expenses.toLocaleString() + ' ₽'"></span>
+                                                        <span class="text-blue-900" x-text="selectedStage.order_item.order.expenses.toLocaleString() + ' ⃀'"></span>
                                                     </div>
                                                 </template>
                                                 <template x-if="selectedStage.order_item.order.total_quantity || selectedStage.order_item.order.quantity">
@@ -697,7 +697,7 @@
                                             <template x-if="selectedStage.order_item.product && selectedStage.order_item.product.price">
                                                 <div>
                                                     <span class="text-gray-600 font-medium">Цена:</span>
-                                                    <div class="text-gray-900 font-semibold" x-text="selectedStage.order_item.product.price + ' ₽'"></div>
+                                                    <div class="text-gray-900 font-semibold" x-text="selectedStage.order_item.product.price + ' ⃀'"></div>
                                                 </div>
                                             </template>
                                         </div>
