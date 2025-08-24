@@ -10,6 +10,7 @@ class User(AbstractUser):
         ACCOUNTANT = 'accountant', 'Бухгалтер'
         MASTER = 'master', 'Мастер (руководитель цеха)'
         WORKER = 'worker', 'Рабочий'
+        HELPER = 'helper', 'Помощник'
 
     role = models.CharField(
         max_length=20,
@@ -102,6 +103,12 @@ class User(AbstractUser):
         Проверяет, является ли пользователь руководителем какого-либо цеха
         """
         return self.operation_managed_workshops.exists()
+
+    def is_helper(self):
+        """
+        Проверяет, является ли пользователь помощником
+        """
+        return self.role == self.Role.HELPER
 
     def get_managed_workshops(self):
         """
