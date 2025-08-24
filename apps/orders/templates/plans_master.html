@@ -237,6 +237,14 @@
                                     <i data-lucide="slash" class="w-3 h-3"></i>
                                     <span>Не переводить</span>
                                 </button>
+                                <!-- Кнопка отметки выполнения для цехов 8 и 10 -->
+                                <template x-if="(workshops[selectedWorkshopIdx] && (workshops[selectedWorkshopIdx].id === 8 || workshops[selectedWorkshopIdx].id === 10))">
+                                    <button @click.stop="openMarkCompletionModal(stage)" 
+                                            class="px-2 py-1.5 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 bg-yellow-500 text-white flex items-center justify-center space-x-1 font-semibold text-xs">
+                                        <i data-lucide="check-square" class="w-3 h-3"></i>
+                                        <span>Отметить выполнение</span>
+                                    </button>
+                                </template>
                             </div>
                         </div>
                         
@@ -1142,7 +1150,7 @@
                 
                 <!-- Кнопки действий -->
                 <div class="p-4 border-t border-gray-100 bg-white sticky bottom-0">
-                    <div class="flex space-x-3">
+                    <div class="flex flex-wrap gap-2">
                         <button @click="openAssignModal(selectedStage)" 
                                 class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
                             <i data-lucide="user-plus" class="w-4 h-4 inline mr-2"></i>
@@ -1158,6 +1166,14 @@
                             <i data-lucide="slash" class="w-4 h-4 inline mr-2"></i>
                             Не переводить
                         </button>
+                        <!-- Кнопка отметки выполнения для цехов 8 и 10 -->
+                        <template x-if="(workshops[selectedWorkshopIdx] && (workshops[selectedWorkshopIdx].id === 8 || workshops[selectedWorkshopIdx].id === 10))">
+                            <button @click="openMarkCompletionModal(selectedStage)" 
+                                    class="flex-1 px-4 py-3 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors">
+                                <i data-lucide="check-square" class="w-4 h-4 inline mr-2"></i>
+                                Отметить выполнение
+                            </button>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -1693,6 +1709,112 @@
             </div>
         </div>
     </template>
+    
+    <!-- Модальное окно отметки выполнения -->
+    <template x-if="showMarkCompletionModal">
+        <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showMarkCompletionModal = false">
+            <div class="modal-content bg-white rounded-t-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">Отметить выполнение</h2>
+                    <button @click="showMarkCompletionModal = false" class="text-gray-400 hover:text-gray-600">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Информация о заказе -->
+                    <template x-if="markCompletionStage">
+                        <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                            <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
+                            <div class="space-y-1 text-xs text-blue-700">
+                                <div><span class="font-medium">Заявка:</span> <span x-text="markCompletionStage.order_name || 'Не указано'"></span></div>
+                                <div><span class="font-medium">Операция:</span> <span x-text="markCompletionStage.operation || 'Не указано'"></span></div>
+                                <div><span class="font-medium">План:</span> <span x-text="markCompletionStage.plan_quantity || 0"></span></div>
+                                <div><span class="font-medium">Выполнено:</span> <span x-text="markCompletionStage.done_count || 0"></span></div>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- Список назначений -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Назначения сотрудников</label>
+                        <template x-if="markCompletionStage && markCompletionStage.assigned && markCompletionStage.assigned.length > 0">
+                            <div class="space-y-3">
+                                <template x-for="assign in markCompletionStage.assigned" :key="assign.id">
+                                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="font-medium text-gray-900" x-text="assign.employee_name"></div>
+                                            <div class="text-sm text-gray-600">
+                                                Назначено: <span x-text="assign.quantity"></span> шт.
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Поля для отметки выполнения -->
+                                        <div class="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-xs text-gray-600 mb-1">Выполнено</label>
+                                                <input type="number" 
+                                                       x-model.number="assign.completed_quantity" 
+                                                       class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
+                                                       :max="assign.quantity" 
+                                                       min="0" 
+                                                       placeholder="0"
+                                                       @input="assign.completed_quantity = Math.max(0, Math.min(parseInt(assign.completed_quantity) || 0, assign.quantity))">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-gray-600 mb-1">Брак</label>
+                                                <input type="number" 
+                                                       x-model.number="assign.defective_quantity" 
+                                                       class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
+                                                       :max="assign.quantity" 
+                                                       min="0" 
+                                                       placeholder="0"
+                                                       @input="assign.defective_quantity = Math.max(0, Math.min(parseInt(assign.defective_quantity) || 0, assign.quantity))">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Валидация -->
+                                        <div class="mt-2 text-xs" :class="(assign.completed_quantity || 0) + (assign.defective_quantity || 0) > assign.quantity ? 'text-red-600' : 'text-gray-500'">
+                                            <template x-if="(assign.completed_quantity || 0) + (assign.defective_quantity || 0) > assign.quantity">
+                                                ⚠️ Сумма выполненных и брака превышает назначенное количество
+                                            </template>
+                                            <template x-if="(assign.completed_quantity || 0) + (assign.defective_quantity || 0) <= assign.quantity">
+                                                Всего: <span x-text="(assign.completed_quantity || 0) + (assign.defective_quantity || 0)"></span> / <span x-text="assign.quantity"></span>
+                                            </template>
+                                            <template x-if="assign.completed_quantity < 0 || assign.defective_quantity < 0">
+                                                ⚠️ Количество не может быть отрицательным
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="!markCompletionStage || !markCompletionStage.assigned || markCompletionStage.assigned.length === 0">
+                            <div class="text-center py-6 text-gray-500">
+                                <i data-lucide="user-x" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
+                                <div>Нет назначений для отметки</div>
+                                <div class="text-sm">Сначала назначьте сотрудников на этап</div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Кнопки действий -->
+                <div class="flex justify-end space-x-3 pt-4 mt-6">
+                    <button type="button" @click="showMarkCompletionModal = false" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
+                    <button type="button" @click="submitMarkCompletion()" 
+                            class="px-6 py-3 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors"
+                            :disabled="!canSubmitMarkCompletion || isSubmittingMarkCompletion">
+                        <template x-if="isSubmittingMarkCompletion">
+                            <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
+                        </template>
+                        <span x-text="isSubmittingMarkCompletion ? 'Сохраняется...' : 'Сохранить выполнение'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+    
     <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40 max-w-md mx-auto w-full">
         <a href="/dashboard/" class="flex flex-col items-center nav-active">
             <i data-lucide="home" class="w-5 h-5"></i>
@@ -1769,10 +1891,29 @@
                     }
                 }
             },
+            get canSubmitMarkCompletion() {
+                if (!this.markCompletionStage || !this.markCompletionStage.assigned) return false;
+                
+                // Проверяем, что все назначения имеют корректные значения
+                return this.markCompletionStage.assigned.every(assign => {
+                    const completed = parseInt(assign.completed_quantity) || 0;
+                    const defective = parseInt(assign.defective_quantity) || 0;
+                    const assigned = parseInt(assign.quantity) || 0;
+                    
+                    // Проверяем корректность значений
+                    if (completed < 0 || defective < 0) return false;
+                    if ((completed + defective) > assigned) return false;
+                    
+                    return true;
+                });
+            },
             allWorkshops: [],
             showNoTransferModal: false,
             showNoTransferConfirmModal: false,
             noTransferStageId: null,
+            showMarkCompletionModal: false,
+            markCompletionStage: null,
+            isSubmittingMarkCompletion: false,
             toast: { show: false, message: '', type: 'success', timeout: null },
             showToast(msg, type = 'success') {
                 this.toast.message = msg;
@@ -2237,6 +2378,70 @@
                 this.showNoTransferModal = false;
                 this.showNoTransferConfirmModal = false;
             },
+            
+            // Функции для отметки выполнения
+            openMarkCompletionModal(stage) {
+                this.markCompletionStage = { ...stage };
+                // Инициализируем значения для каждого назначения
+                if (this.markCompletionStage.assigned) {
+                    this.markCompletionStage.assigned = this.markCompletionStage.assigned.map(assign => ({
+                        ...assign,
+                        completed_quantity: parseInt(assign.completed_quantity) || 0,
+                        defective_quantity: parseInt(assign.defective_quantity) || 0
+                    }));
+                }
+                this.showMarkCompletionModal = true;
+                lucide.createIcons();
+            },
+            
+            async submitMarkCompletion() {
+                if (!this.canSubmitMarkCompletion) {
+                    this.showToast('Проверьте корректность введенных данных', 'error');
+                    return;
+                }
+                
+                this.isSubmittingMarkCompletion = true;
+                
+                try {
+                    // Обновляем каждое назначение
+                    const updatePromises = this.markCompletionStage.assigned.map(async (assign) => {
+                        const payload = {
+                            completed_quantity: assign.completed_quantity || 0,
+                            defective_quantity: assign.defective_quantity || 0
+                        };
+                        
+                        const resp = await fetch(`/employee_tasks/assign/${assign.id}/`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': this.getCsrfToken()
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        
+                        if (!resp.ok) {
+                            throw new Error(`Ошибка обновления назначения ${assign.id}`);
+                        }
+                        
+                        return resp.json();
+                    });
+                    
+                    await Promise.all(updatePromises);
+                    
+                    // Обновляем список этапов
+                    await this.loadStages();
+                    
+                    this.showMarkCompletionModal = false;
+                    this.showToast('Выполнение успешно отмечено!', 'success');
+                    
+                } catch (error) {
+                    console.error('Ошибка при отметке выполнения:', error);
+                    this.showToast('Ошибка при сохранении выполнения', 'error');
+                } finally {
+                    this.isSubmittingMarkCompletion = false;
+                }
+            },
+            
             getTimeUntilDeadline(deadline) {
                 if (!deadline) return { text: 'Не указан', isOverdue: false, isUrgent: false };
                 

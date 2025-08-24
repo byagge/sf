@@ -73,8 +73,12 @@ def workshops_list(request):
 	if is_mobile:
 		return render(request, 'workshops_mobile.html')
 	
-	# Получаем все активные цеха
-	workshops = Workshop.objects.filter(is_active=True)
+	# Получаем все активные цеха с предзагрузкой связанных данных
+	workshops = Workshop.objects.filter(is_active=True).prefetch_related(
+		'users', 
+		'workshop_masters__master',
+		'manager'
+	)
 	
 	# Подготавливаем данные для каждого цеха
 	workshops_data = []
@@ -95,6 +99,9 @@ def workshops_list(request):
 		import random
 		productivity_chart = [random.randint(1, 7) for _ in range(7)]
 		
+		# Получаем информацию о мастерах
+		workshop_masters = workshop.workshop_masters.filter(is_active=True)
+		
 		workshops_data.append({
 			'id': workshop.id,
 			'name': workshop.name,
@@ -107,6 +114,7 @@ def workshops_list(request):
 			'defects': defects,
 			'productivity': productivity,
 			'productivity_chart': productivity_chart,
+			'workshop_masters': workshop_masters,  # Добавляем информацию о мастерах
 		})
 	
 	# Общая статистика

@@ -9,7 +9,7 @@ class Workshop(models.Model):
         blank=True,
         related_name='operation_managed_workshops',
         limit_choices_to={'role': 'master'},
-        verbose_name='Руководитель (мастер)'
+        verbose_name='Главный руководитель (мастер)'
     )
     description = models.TextField('Описание', blank=True)
     is_active = models.BooleanField('Активен', default=True)
@@ -23,9 +23,29 @@ class Workshop(models.Model):
     def __str__(self):
         return self.name
 
+    def get_all_masters(self):
+        """
+        Возвращает всех мастеров цеха (главный + дополнительные)
+        """
+        masters = []
+        if self.manager:
+            masters.append(self.manager)
+        
+        additional_masters = self.workshop_masters.filter(is_active=True).select_related('master')
+        masters.extend([wm.master for wm in additional_masters])
+        
+        return masters
+
+    def get_master_names(self):
+        """
+        Возвращает список имен всех мастеров цеха
+        """
+        masters = self.get_all_masters()
+        return [master.get_full_name() for master in masters]
+
     def set_manager(self, user):
         """
-        Назначает пользователя руководителем цеха и автоматически изменяет его роль на 'master'
+        Назначает пользователя главным руководителем цеха и автоматически изменяет его роль на 'master'
         """
         from apps.users.models import User
         
@@ -33,7 +53,8 @@ class Workshop(models.Model):
         if self.manager and self.manager != user:
             # Проверяем, не является ли он руководителем других цехов
             other_workshops = Workshop.objects.filter(manager=self.manager).exclude(pk=self.pk)
-            if not other_workshops.exists():
+            other_workshop_masters = WorkshopMaster.objects.filter(master=self.manager, is_active=True).exclude(workshop=self)
+            if not other_workshops.exists() and not other_workshop_masters.exists():
                 self.manager.role = User.Role.WORKER
                 self.manager.save()
         
@@ -47,6 +68,75 @@ class Workshop(models.Model):
         
         # Сохраняем цех
         self.save()
+
+    def add_master(self, user):
+        """
+        Добавляет дополнительного мастера к цеху
+        """
+        from apps.users.models import User
+        
+        # Проверяем, не является ли пользователь уже главным мастером
+        if self.manager == user:
+            return False, "Пользователь уже является главным мастером цеха"
+        
+        # Проверяем, не является ли пользователь уже дополнительным мастером
+        if self.workshop_masters.filter(master=user, is_active=True).exists():
+            return False, "Пользователь уже является дополнительным мастером цеха"
+        
+        # Изменяем роль пользователя на 'master'
+        if user.role != User.Role.MASTER:
+            user.role = User.Role.MASTER
+            user.save()
+        
+        # Создаем связь
+        WorkshopMaster.objects.create(
+            workshop=self,
+            master=user,
+            is_active=True
+        )
+        
+        return True, "Мастер успешно добавлен к цеху"
+
+    def remove_master(self, user):
+        """
+        Удаляет дополнительного мастера из цеха
+        """
+        # Нельзя удалить главного мастера через этот метод
+        if self.manager == user:
+            return False, "Нельзя удалить главного мастера цеха"
+        
+        # Удаляем связь
+        workshop_master = self.workshop_masters.filter(master=user, is_active=True).first()
+        if workshop_master:
+            workshop_master.is_active = False
+            workshop_master.save()
+            
+            # Проверяем, не является ли пользователь мастером других цехов
+            other_workshops = Workshop.objects.filter(manager=user)
+            other_workshop_masters = WorkshopMaster.objects.filter(master=user, is_active=True)
+            if not other_workshops.exists() and not other_workshop_masters.exists():
+                # Возвращаем роль 'worker'
+                from apps.users.models import User
+                user.role = User.Role.WORKER
+                user.save()
+            
+            return True, "Мастер успешно удален из цеха"
+        
+        return False, "Пользователь не найден среди мастеров цеха"
+
+    def is_user_master(self, user):
+        """
+        Проверяет, является ли пользователь мастером цеха (главным или дополнительным)
+        """
+        if not user:
+            return False
+        
+        # Проверяем главного мастера
+        if self.manager == user:
+            return True
+        
+        # Проверяем дополнительных мастеров
+        return self.workshop_masters.filter(master=user, is_active=True).exists()
 
     def get_orders_info(self):
         """
@@ -163,12 +253,66 @@ class Workshop(models.Model):
             status__in=['in_progress', 'partial']
         ).values('order').distinct().count()
         
+        # Получаем всех мастеров
+        all_masters = self.get_all_masters()
+        master_names = [master.get_full_name() for master in all_masters]
+        
         return {
             'workshop_name': self.name,
             'manager_name': self.manager.get_full_name() if self.manager else 'Не назначен',
+            'all_masters': master_names,
             'total_stages': total_stages,
             'total_tasks': total_tasks,
             'completed_tasks': total_completed_tasks,
             'active_orders': active_orders,
             'completion_rate': (total_completed_tasks / total_tasks * 100) if total_tasks > 0 else 0,
         }
+
+
+class WorkshopMaster(models.Model):
+    """
+    Модель для связи мастеров с цехами (многие ко многим)
+    """
+    workshop = models.ForeignKey(
+        Workshop,
+        on_delete=models.CASCADE,
+        related_name='workshop_masters',
+        verbose_name='Цех'
+    )
+    master = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='workshop_master_roles',
+        limit_choices_to={'role': 'master'},
+        verbose_name='Мастер'
+    )
+    is_active = models.BooleanField('Активен', default=True)
+    added_at = models.DateTimeField('Дата назначения', auto_now_add=True)
+    added_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='added_workshop_masters',
+        verbose_name='Назначил'
+    )
+    notes = models.TextField('Примечания', blank=True)
+
+    class Meta:
+        verbose_name = 'Мастер цеха'
+        verbose_name_plural = 'Мастера цехов'
+        unique_together = ['workshop', 'master']
+        ordering = ['-added_at']
+
+    def __str__(self):
+        return f"{self.master.get_full_name()} - {self.workshop.name}"
+
+    def save(self, *args, **kwargs):
+        """
+        Автоматически устанавливаем роль 'master' при создании связи
+        """
+        if not self.pk:  # Только при создании
+            if self.master.role != 'master':
+                self.master.role = 'master'
+                self.master.save()
+        super().save(*args, **kwargs)

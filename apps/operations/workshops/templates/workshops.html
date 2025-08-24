@@ -29,6 +29,12 @@
         .productivity-bar[data-value="6"] { height: 14px; background: linear-gradient(to top, #10B981, #34D399); }
         .productivity-bar[data-value="7"] { height: 16px; background: linear-gradient(to top, #10B981, #34D399); }
         .product-image { object-fit: cover; }
+        .modal-bg { background: rgba(0,0,0,0.35); backdrop-filter: blur(4px); }
+        .modal-content { animation: scaleIn 0.2s; }
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" style="font-family: system-ui, -apple-system, sans-serif;">
@@ -204,47 +210,22 @@
                                                             <!-- Прогресс выполнения -->
                                                             <div class="mb-3">
                                                                 <div class="flex justify-between text-sm text-gray-600 mb-1">
-                                                                    <span x-text="order.stage.operation"></span>
-                                                                    <span x-text="order.statistics.total_completed + '/' + order.stage.plan_quantity"></span>
+                                                                    <span>Прогресс выполнения</span>
+                                                                    <span x-text="Math.round(order.statistics.progress_percent) + '%'"></span>
                                                                 </div>
                                                                 <div class="w-full bg-gray-200 rounded-full h-2">
-                                                                    <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
-                                                                         :style="`width: ${order.statistics.progress_percent}%`"></div>
+                                                                    <div class="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                                                                         :style="'width: ' + Math.min(100, Math.max(0, order.statistics.progress_percent)) + '%'"></div>
+                                                                </div>
+                                                                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                                                    <span>0</span>
+                                                                    <span x-text="order.stage.plan_quantity"></span>
                                                                 </div>
                                                             </div>
-                                                            
-                                                            <!-- Задачи сотрудников -->
-                                                            <template x-if="order.tasks.length > 0">
-                                                                <div>
-                                                                    <div class="text-sm font-medium text-gray-900 mb-2">Задачи сотрудников:</div>
-                                                                    <div class="space-y-2">
-                                                                        <template x-for="task in order.tasks" :key="task.id">
-                                                                            <div class="flex items-center justify-between text-sm">
-                                                                                <span class="text-gray-700" x-text="task.employee_name"></span>
-                                                                                <div class="flex items-center space-x-4">
-                                                                                    <span class="text-gray-600" x-text="task.completed_quantity + '/' + task.quantity"></span>
-                                                                                    <template x-if="task.defective_quantity > 0">
-                                                                                        <span class="text-red-600" x-text="'Брак: ' + task.defective_quantity"></span>
-                                                                                    </template>
-                                                                                    <template x-if="task.is_completed">
-                                                                                        <span class="text-green-600">✓</span>
-                                                                                    </template>
-                                                                                </div>
-                                                                            </div>
-                                                                        </template>
-                                                                    </div>
-                                                                </div>
-                                                            </template>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </template>
-                                        </div>
-                                    </template>
-                                    <template x-if="workshopData.orders.length === 0">
-                                        <div class="text-center py-8 text-gray-500">
-                                            <i data-lucide="package" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
-                                            <p>Нет активных заказов в этом цехе</p>
                                         </div>
                                     </template>
                                 </div>
@@ -268,10 +249,39 @@
                         <p class="text-gray-600 text-sm">{{ workshop.description }}</p>
                       </div>
                     </div>
-                    <div class="mt-4 flex items-center text-sm text-gray-500">
-                      <i data-lucide="user" class="w-4 h-4 mr-1"></i>
-                      <span>Мастер: {{ workshop.manager }}</span>
+                    
+                    <!-- Информация о мастерах -->
+                    <div class="mt-4 space-y-2">
+                        <!-- Главный мастер -->
+                        <div class="flex items-center text-sm text-gray-700">
+                            <i data-lucide="crown" class="w-4 h-4 mr-2 text-yellow-500"></i>
+                            <span class="font-medium">Главный мастер:</span>
+                            <span class="ml-2" x-text="'{{ workshop.manager|default:"Не назначен" }}'"></span>
+                        </div>
+                        
+                        <!-- Дополнительные мастера -->
+                        <div class="flex items-center text-sm text-gray-600">
+                            <i data-lucide="users" class="w-4 h-4 mr-2 text-blue-500"></i>
+                            <span>Дополнительные мастера:</span>
+                            <span class="ml-2 text-gray-500" x-text="'{{ workshop.workshop_masters.count }}'"></span>
+                        </div>
+                        
+                        <!-- Список всех мастеров -->
+                        <div class="mt-2 space-y-1">
+                            <template x-for="master in getWorkshopMasters({{ workshop.id }})" :key="master.id">
+                                <div class="flex items-center justify-between text-xs">
+                                    <div class="flex items-center">
+                                        <i data-lucide="user" class="w-3 h-3 mr-1" :class="master.role === 'main_manager' ? 'text-yellow-500' : 'text-blue-500'"></i>
+                                        <span x-text="master.name"></span>
+                                        <span class="ml-1 px-1 py-0.5 rounded text-xs" :class="master.role === 'main_manager' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700'">
+                                            <span x-text="master.role === 'main_manager' ? 'Главный' : 'Доп.'"></span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
+                    
                     <div class="mt-2 flex items-center text-xs text-gray-400">
                       <span>Создан: {{ workshop.created_at|date:'d.m.Y' }}</span>
                       <span class="ml-4">Обновлён: {{ workshop.updated_at|date:'d.m.Y' }}</span>
@@ -304,11 +314,18 @@
                       </div>
                     </div>
                   </div>
-                  <!-- Место для кнопок (пустое) -->
+                  <!-- Кнопки управления -->
                   <div class="mt-4 flex space-x-2">
-                    <div class="flex-1"></div>
-                    <div class="flex-1"></div>
-                    <div class="flex-1"></div>
+                    <button @click="openManageMastersModal({{ workshop.id }}, '{{ workshop.name }}')" 
+                            class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                        <i data-lucide="users" class="w-4 h-4 inline mr-1"></i>
+                        Мастера
+                    </button>
+                    <button @click="openWorkshopDetails({{ workshop.id }})" 
+                            class="flex-1 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">
+                        <i data-lucide="eye" class="w-4 h-4 inline mr-1"></i>
+                        Детали
+                    </button>
                   </div>
                 </div>
                 {% empty %}
@@ -319,12 +336,103 @@
             </div>
         </main>
     </div>
+
+    <!-- Модальное окно управления мастерами -->
+    <template x-if="showManageMastersModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg" @click.self="showManageMastersModal = false">
+            <div class="modal-content bg-white rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-gray-900">Управление мастерами цеха: <span x-text="selectedWorkshopName"></span></h2>
+                    <button @click="showManageMastersModal = false" class="text-gray-400 hover:text-gray-600">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                
+                <!-- Текущие мастера -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Текущие мастера</h3>
+                    <template x-if="workshopMasters.length > 0">
+                        <div class="space-y-3">
+                            <template x-for="master in workshopMasters" :key="master.id">
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center" 
+                                             :class="master.role === 'main_manager' ? 'bg-yellow-100' : 'bg-blue-100'">
+                                            <i data-lucide="user" class="w-4 h-4" 
+                                               :class="master.role === 'main_manager' ? 'text-yellow-600' : 'text-blue-600'"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-gray-900" x-text="master.name"></div>
+                                            <div class="text-sm text-gray-500" x-text="master.role === 'main_manager' ? 'Главный мастер' : 'Дополнительный мастер'"></div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <template x-if="master.role === 'additional_master'">
+                                            <button @click="removeMaster(master.id)" 
+                                                    class="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors">
+                                                Удалить
+                                            </button>
+                                        </template>
+                                        <template x-if="master.role === 'main_manager'">
+                                            <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-sm font-medium">
+                                                Главный
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    <template x-if="workshopMasters.length === 0">
+                        <div class="text-center py-8 text-gray-500">
+                            <i data-lucide="users" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
+                            <div>Мастера не назначены</div>
+                        </div>
+                    </template>
+                </div>
+                
+                <!-- Добавление нового мастера -->
+                <div class="border-t pt-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Добавить мастера</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Выберите сотрудника</label>
+                            <select x-model="newMasterId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Выберите сотрудника</option>
+                                <template x-for="employee in availableEmployees" :key="employee.id">
+                                    <option :value="employee.id" x-text="employee.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="flex justify-end space-x-3">
+                            <button @click="showManageMastersModal = false" 
+                                    class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                                Отмена
+                            </button>
+                            <button @click="addMaster()" 
+                                    :disabled="!newMasterId"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                Добавить мастера
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
     <script>
         function workshopsPage() {
             return {
                 showOrdersInfo: false,
                 loading: false,
                 workshopsOrdersInfo: [],
+                showManageMastersModal: false,
+                selectedWorkshopId: null,
+                selectedWorkshopName: '',
+                workshopMasters: [],
+                availableEmployees: [],
+                newMasterId: '',
                 
                 async init() {
                     lucide.createIcons();
@@ -341,6 +449,126 @@
                     } finally {
                         this.loading = false;
                     }
+                },
+                
+                async openManageMastersModal(workshopId, workshopName) {
+                    this.selectedWorkshopId = workshopId;
+                    this.selectedWorkshopName = workshopName;
+                    this.showManageMastersModal = true;
+                    await this.loadWorkshopMasters(workshopId);
+                    await this.loadAvailableEmployees(workshopId);
+                },
+                
+                async loadWorkshopMasters(workshopId) {
+                    try {
+                        const response = await fetch(`/workshops/api/masters/?workshop=${workshopId}`);
+                        const data = await response.json();
+                        this.workshopMasters = data;
+                    } catch (error) {
+                        console.error('Ошибка загрузки мастеров цеха:', error);
+                    }
+                },
+                
+                async loadAvailableEmployees(workshopId) {
+                    try {
+                        const response = await fetch(`/workshops/api/employees/?workshop=${workshopId}`);
+                        const data = await response.json();
+                        // Фильтруем только тех, кто еще не является мастером
+                        const masterIds = this.workshopMasters.map(m => m.id);
+                        this.availableEmployees = data.filter(emp => !masterIds.includes(emp.id));
+                    } catch (error) {
+                        console.error('Ошибка загрузки сотрудников:', error);
+                    }
+                },
+                
+                async addMaster() {
+                    if (!this.newMasterId) return;
+                    
+                    try {
+                        const response = await fetch('/workshops/api/add-master/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': this.getCsrfToken()
+                            },
+                            body: JSON.stringify({
+                                workshop_id: this.selectedWorkshopId,
+                                master_id: this.newMasterId
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            // Обновляем список мастеров
+                            await this.loadWorkshopMasters(this.selectedWorkshopId);
+                            await this.loadAvailableEmployees(this.selectedWorkshopId);
+                            this.newMasterId = '';
+                            // Показываем уведомление
+                            alert('Мастер успешно добавлен!');
+                        } else {
+                            alert('Ошибка: ' + data.error);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка добавления мастера:', error);
+                        alert('Ошибка сети при добавлении мастера');
+                    }
+                },
+                
+                async removeMaster(masterId) {
+                    if (!confirm('Вы уверены, что хотите удалить этого мастера из цеха?')) return;
+                    
+                    try {
+                        const response = await fetch('/workshops/api/remove-master/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': this.getCsrfToken()
+                            },
+                            body: JSON.stringify({
+                                workshop_id: this.selectedWorkshopId,
+                                master_id: masterId
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            // Обновляем список мастеров
+                            await this.loadWorkshopMasters(this.selectedWorkshopId);
+                            await this.loadAvailableEmployees(this.selectedWorkshopId);
+                            // Показываем уведомление
+                            alert('Мастер успешно удален!');
+                        } else {
+                            alert('Ошибка: ' + data.error);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка удаления мастера:', error);
+                        alert('Ошибка сети при удалении мастера');
+                    }
+                },
+                
+                getWorkshopMasters(workshopId) {
+                    // Возвращаем мастеров для конкретного цеха
+                    // В реальном приложении это должно загружаться с сервера
+                    return [];
+                },
+                
+                openWorkshopDetails(workshopId) {
+                    // Открытие детальной информации о цехе
+                    console.log('Открытие деталей цеха:', workshopId);
+                },
+                
+                getCsrfToken() {
+                    const name = 'csrftoken';
+                    const cookies = document.cookie.split(';');
+                    for (let cookie of cookies) {
+                        cookie = cookie.trim();
+                        if (cookie.startsWith(name + '=')) {
+                            return decodeURIComponent(cookie.substring(name.length + 1));
+                        }
+                    }
+                    return '';
                 }
             }
         }
