@@ -1796,6 +1796,18 @@
                                 <div class="text-sm">Сначала назначьте сотрудников на этап</div>
                             </div>
                         </template>
+                        
+                        <!-- Информация о том, что будет обновлено -->
+                        <template x-if="markCompletionStage && markCompletionStage.assigned && markCompletionStage.assigned.length > 0">
+                            <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                                <div class="text-xs text-green-800">
+                                    <i data-lucide="check-circle" class="w-3 h-3 inline mr-1"></i>
+                                    <strong>Будет обновлено:</strong> При сохранении автоматически обновится заработок для 
+                                    <span class="font-semibold" x-text="markCompletionStage.assigned.length"></span> 
+                                    <span x-text="markCompletionStage.assigned.length === 1 ? 'сотрудника' : markCompletionStage.assigned.length < 5 ? 'сотрудников' : 'сотрудников'"></span>.
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
                 
