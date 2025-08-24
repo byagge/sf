@@ -1989,7 +1989,10 @@
                 const workshop = this.workshops[this.selectedWorkshopIdx];
                 if (!workshop) return;
                 const resp = await fetch(`/api/workshops/api/employees/?workshop=${workshop.id}`);
-                this.employees = await resp.json();
+                const allEmployees = await resp.json();
+                
+                // Фильтруем помощников - они не должны отображаться при распределении работ
+                this.employees = allEmployees.filter(emp => emp.role !== 'helper');
             },
             get filteredEmployees() {
                 const stage = this.stages.find(s => s.id === this.assignForm.stage_id);

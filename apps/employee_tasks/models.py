@@ -178,9 +178,86 @@ def update_earnings_and_materials(sender, instance, created, **kwargs):
             # Обновляем агрегаты в базе без рекурсии
             EmployeeTask.objects.filter(pk=instance.pk).update(
                 earnings=instance.earnings,
-                penalties=instance.penalties,
+                penalties=instance.defective_quantity,
                 net_earnings=instance.net_earnings
             )
     except Exception as e:
         # Логируем ошибку, но не прерываем выполнение
         print(f"Ошибка в update_earnings_and_materials: {e}")
+
+
+class HelperTask(models.Model):
+    """Задача помощника - автоматически создается для всех задач в цехе 9"""
+    employee_task = models.ForeignKey(EmployeeTask, on_delete=models.CASCADE, related_name='helper_tasks')
+    helper = models.ForeignKey(User, on_delete=models.CASCADE, related_name='helper_tasks')
+    quantity = models.PositiveIntegerField()
+    completed_quantity = models.PositiveIntegerField(default=0)
+    defective_quantity = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    # Заработок помощника - 25 сом за единицу
+    earnings = models.DecimalField('Заработок', max_digits=10, decimal_places=2, default=0)
+    penalties = models.DecimalField('Штрафы', max_digits=10, decimal_places=2, default=0)
+    net_earnings = models.DecimalField('Чистый заработок', max_digits=10, decimal_places=2, default=0)
+    
+    class Meta:
+        verbose_name = 'Задача помощника'
+        verbose_name_plural = 'Задачи помощников'
+        unique_together = ['employee_task', 'helper']
+
+    def __str__(self):
+        return f"Помощь {self.helper} - {self.employee_task}"
+
+    def calculate_earnings(self):
+        """Рассчитывает заработок помощника - 25 сом за единицу"""
+        self.earnings = Decimal('25.00') * Decimal(str(self.completed_quantity))
+        self.net_earnings = self.earnings - self.penalties
+
+    @property
+    def title(self):
+        """Возвращает название задачи помощника"""
+        if self.employee_task and self.employee_task.employee:
+            worker_name = self.employee_task.employee.get_full_name() or self.employee_task.employee.username
+            operation = self.employee_task.stage.operation if self.employee_task.stage else 'работа'
+            return f"Помочь {worker_name} с {operation}"
+        return f"Задача помощника #{self.id}"
+
+    @property
+    def is_completed(self):
+        """Проверяет, выполнена ли задача полностью"""
+        return self.completed_quantity >= self.quantity
+
+
+@receiver(post_save, sender=EmployeeTask)
+def create_helper_task(sender, instance, created, **kwargs):
+    """Автоматически создает задачу помощника для цеха 9"""
+    if created and instance.stage.workshop and instance.stage.workshop.id == 9:
+        # Ищем помощников в цехе 9
+        from apps.users.models import User
+        helpers = User.objects.filter(
+            role=User.Role.HELPER,
+            workshop=instance.stage.workshop
+        )
+        
+        for helper in helpers:
+            HelperTask.objects.create(
+                employee_task=instance,
+                helper=helper,
+                quantity=instance.quantity
+            )
+
+
+@receiver(post_save, sender=HelperTask)
+def update_helper_earnings(sender, instance, created, **kwargs):
+    """Обновляет заработок помощника"""
+    try:
+        with transaction.atomic():
+            instance.calculate_earnings()
+            HelperTask.objects.filter(pk=instance.pk).update(
+                earnings=instance.earnings,
+                penalties=instance.penalties,
+                net_earnings=instance.net_earnings
+            )
+    except Exception as e:
+        print(f"Ошибка в update_helper_earnings: {e}")

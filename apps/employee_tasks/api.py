@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from .models import EmployeeTask
 from apps.services.models import Service
 from .serializers import EmployeeTaskSerializer
+from django.utils import timezone
 
 User = get_user_model()
  
@@ -499,4 +500,142 @@ def replenish_defect(request, defect_id: int):
     except OrderDefect.DoesNotExist:
         return Response({'error': 'Брак не найден'}, status=404)
     except Exception as e:
+        return Response({'error': str(e)}, status=500) 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def helper_tasks_list(request):
+    """Список задач помощника для цеха 9"""
+    try:
+        # Получаем пользователя
+        user = request.user
+        
+        # Проверяем, является ли пользователь помощником
+        if not user.is_helper():
+            return Response({'error': 'Доступ только для помощников'}, status=403)
+        
+        # Получаем задачи помощника
+        from .models import HelperTask
+        helper_tasks = HelperTask.objects.filter(
+            helper=user
+        ).select_related(
+            'employee_task__stage__order_item__product',
+            'employee_task__stage__order',
+            'employee_task__employee'
+        ).order_by('-created_at')
+        
+        # Сериализуем данные
+        from .serializers import HelperTaskSerializer
+        serializer = HelperTaskSerializer(helper_tasks, many=True)
+        
+        return Response({
+            'results': serializer.data,
+            'count': helper_tasks.count()
+        })
+        
+    except Exception as e:
+        print(f"Error in helper_tasks_list: {e}")
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_helper_task(request, task_id):
+    """Обновление задачи помощника"""
+    try:
+        # Получаем пользователя
+        user = request.user
+        
+        # Проверяем, является ли пользователь помощником
+        if not user.is_helper():
+            return Response({'error': 'Доступ только для помощников'}, status=403)
+        
+        # Получаем задачу помощника
+        from .models import HelperTask
+        try:
+            helper_task = HelperTask.objects.get(id=task_id, helper=user)
+        except HelperTask.DoesNotExist:
+            return Response({'error': 'Задача не найдена'}, status=404)
+        
+        # Обновляем данные
+        data = request.data
+        if 'completed_quantity' in data:
+            helper_task.completed_quantity = data['completed_quantity']
+        if 'defective_quantity' in data:
+            helper_task.defective_quantity = data['defective_quantity']
+        
+        # Обновляем время завершения
+        if helper_task.completed_quantity >= helper_task.quantity:
+            helper_task.completed_at = timezone.now()
+        else:
+            helper_task.completed_at = None
+        
+        helper_task.save()
+        
+        # Сериализуем обновленные данные
+        from .serializers import HelperTaskSerializer
+        serializer = HelperTaskSerializer(helper_task)
+        
+        return Response(serializer.data)
+        
+    except Exception as e:
+        print(f"Error in update_helper_task: {e}")
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def helper_earnings_stats(request):
+    """Статистика заработка помощника"""
+    try:
+        # Получаем пользователя
+        user = request.user
+        
+        # Проверяем, является ли пользователь помощником
+        if not user.is_helper():
+            return Response({'error': 'Доступ только для помощников'}, status=403)
+        
+        # Получаем задачи помощника
+        from .models import HelperTask
+        helper_tasks = HelperTask.objects.filter(helper=user)
+        
+        # Статистика
+        total_tasks = helper_tasks.count()
+        completed_tasks = helper_tasks.filter(completed_quantity__gt=0).count()
+        total_earnings = helper_tasks.aggregate(s=Sum('earnings'))['s'] or 0
+        total_penalties = helper_tasks.aggregate(s=Sum('penalties'))['s'] or 0
+        total_net_earnings = helper_tasks.aggregate(s=Sum('net_earnings'))['s'] or 0
+        
+        # Статистика по месяцам
+        monthly_stats = list(
+            helper_tasks
+            .annotate(year=ExtractYear('created_at'), month=ExtractMonth('created_at'))
+            .values('year', 'month')
+            .annotate(
+                total_earnings=Sum('earnings'),
+                total_penalties=Sum('penalties'),
+                total_net=Sum('net_earnings'),
+                task_count=Count('id')
+            )
+            .order_by('year', 'month')
+        )
+        
+        return Response({
+            'helper': {
+                'id': user.id,
+                'name': user.get_full_name() or user.username,
+                'username': user.username
+            },
+            'overview': {
+                'total_earnings': total_earnings,
+                'total_penalties': total_penalties,
+                'total_net_earnings': total_net_earnings,
+                'total_tasks': total_tasks,
+                'completed_tasks': completed_tasks
+            },
+            'monthly_stats': monthly_stats
+        })
+        
+    except Exception as e:
+        print(f"Error in helper_earnings_stats: {e}")
         return Response({'error': str(e)}, status=500) 
