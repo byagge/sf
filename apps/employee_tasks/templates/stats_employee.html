@@ -284,23 +284,36 @@
                     alert('User ID not available.');
                     return;
                 }
+                
+                // Получаем актуальный CSRF токен
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
+                                  getCookie('csrftoken');
+                
+                if (!csrfToken) {
+                    alert('CSRF токен не найден');
+                    return;
+                }
+                
                 try {
                     const resp = await fetch(`/employee_tasks/api/earnings/recalculate/${this.userId}/`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRFToken': window.csrf_token
-                        }
+                            'X-CSRFToken': csrfToken
+                        },
+                        credentials: 'same-origin'
                     });
+                    
                     if (resp.ok) {
                         const result = await resp.json();
                         alert(`Заработок пересчитан успешно! ${result.message}`);
                         await this.loadStats(); // Reload stats to update earnings
                     } else {
                         const error = await resp.json();
-                        alert(`Ошибка при пересчете заработка: ${error.detail || 'Неизвестная ошибка'}`);
+                        alert(`Ошибка при пересчете заработка: ${error.error || error.detail || 'Неизвестная ошибка'}`);
                     }
                 } catch (error) {
+                    console.error('Error:', error);
                     alert(`Произошла ошибка при пересчете заработка: ${error.message}`);
                 }
             }
