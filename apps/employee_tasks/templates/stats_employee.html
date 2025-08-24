@@ -64,22 +64,18 @@
             <div class="bg-white rounded-lg p-3 shadow-sm">
                 <div class="text-xs text-gray-500 mb-1">Заработок</div>
                 <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_earnings)"></div>
-                <div class="text-xs text-gray-400" x-text="'Raw: ' + overview.total_earnings"></div>
             </div>
             <div class="bg-white rounded-lg p-3 shadow-sm">
                 <div class="text-xs text-gray-500 mb-1">Штрафы</div>
                 <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_penalties)"></div>
-                <div class="text-xs text-gray-400" x-text="'Raw: ' + overview.total_penalties"></div>
             </div>
             <div class="bg-white rounded-lg p-3 shadow-sm">
                 <div class="text-xs text-gray-500 mb-1">Чистый доход</div>
                 <div class="text-lg font-bold text-gray-900" x-text="formatMoney(overview.total_net_earnings)"></div>
-                <div class="text-xs text-gray-400" x-text="'Raw: ' + overview.total_net_earnings"></div>
             </div>
             <div class="bg-white rounded-lg p-3 shadow-sm">
                 <div class="text-xs text-gray-500 mb-1">Задачи</div>
                 <div class="text-lg font-bold text-gray-900" x-text="`${overview.completed_tasks}/${overview.total_tasks}`"></div>
-                <div class="text-xs text-gray-400" x-text="'Raw: ' + JSON.stringify(overview)"></div>
             </div>
         </div>
         
@@ -119,9 +115,6 @@
                         <div class="font-medium text-gray-900" x-text="formatMoney(m.total_net)"></div>
                     </div>
                 </template>
-            </div>
-            <div class="text-xs text-gray-400 mt-2">
-                Raw monthly data: <span x-text="JSON.stringify(monthly)"></span>
             </div>
         </div>
 

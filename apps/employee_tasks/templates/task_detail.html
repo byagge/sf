@@ -85,7 +85,13 @@
             <span class="text-base font-semibold text-gray-900">Детали задачи</span>
         </div>
         <div class="flex items-center space-x-2">
-            <template x-if="task && getRealQuantity(task, 'completed') >= getRealQuantity(task, 'plan')">
+            <template x-if="task && !isTaskCompleted()">
+                <div class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                    <i data-lucide="clock" class="w-3 h-3 inline mr-1"></i>
+                    В работе
+                </div>
+            </template>
+            <template x-if="task && isTaskCompleted()">
                 <div class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
                     <i data-lucide="check-circle" class="w-3 h-3 inline mr-1"></i>
                     Выполнено
@@ -129,8 +135,8 @@
                         </div>
                         <div class="ml-3">
                             <div class="w-6 h-6 rounded border-2 flex items-center justify-center"
-                                 :class="task.completed_quantity >= task.quantity ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'">
-                                <i data-lucide="check" class="w-4 h-4 text-white" x-show="task.completed_quantity >= task.quantity"></i>
+                                 :class="isTaskCompleted() ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'">
+                                <i data-lucide="check" class="w-4 h-4 text-white" x-show="isTaskCompleted()"></i>
                             </div>
                         </div>
                     </div>
@@ -142,7 +148,8 @@
                             <span class="font-medium" x-text="`${getDisplayQuantity(task, 'completed')}/${getDisplayQuantity(task, 'plan')}`"></span>
                         </div>
                         <div class="w-full bg-gray-200 rounded-full h-2">
-                            <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                            <div class="h-2 rounded-full transition-all duration-300" 
+                                 :class="isTaskCompleted() ? 'bg-green-500' : 'bg-blue-500'"
                                  :style="`width: ${Math.min(100, (getRealQuantity(task, 'completed') / getRealQuantity(task, 'plan')) * 100)}%`"></div>
                         </div>
                     </div>
@@ -503,18 +510,34 @@
                 
                 <!-- Action Buttons -->
                 <div class="space-y-3">
-                    <button @click="openCompleteModal()" 
-                            class="w-full py-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-150">
-                        <i data-lucide="check-circle" class="w-5 h-5 inline mr-2"></i>
-                        Отметить выполнение
-                    </button>
+                    <template x-if="!isTaskCompleted()">
+                        <button @click="openCompleteModal()" 
+                                class="w-full py-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-150">
+                            <i data-lucide="check-circle" class="w-5 h-5 inline mr-2"></i>
+                            Отметить выполнение
+                        </button>
+                    </template>
                     
-                    <template x-if="task.defective_quantity > 0">
+                    <template x-if="isTaskCompleted()">
+                        <div class="w-full py-4 bg-green-100 border-2 border-green-300 text-green-800 rounded-lg font-bold text-lg text-center">
+                            <i data-lucide="check-circle" class="w-5 h-5 inline mr-2"></i>
+                            Задача выполнена
+                        </div>
+                    </template>
+                    
+                    <template x-if="task.defective_quantity > 0 && !isTaskCompleted()">
                         <button @click="openDefectModal()" 
                                 class="w-full py-3 bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-700 rounded-lg font-semibold text-base transition-colors duration-150">
                             <i data-lucide="alert-triangle" class="w-4 h-4 inline mr-2"></i>
                             Просмотреть брак
                         </button>
+                    </template>
+                    
+                    <template x-if="task.defective_quantity > 0 && isTaskCompleted()">
+                        <div class="w-full py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold text-base text-center">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 inline mr-2"></i>
+                            Брак: <span x-text="task.defective_quantity"></span> шт.
+                        </div>
                     </template>
                 </div>
             </div>
@@ -1016,6 +1039,12 @@
                     return;
                 }
                 
+                // Проверяем, не выполнена ли уже задача
+                if (this.isTaskCompleted()) {
+                    alert('Задача уже выполнена и не может быть изменена. Обратитесь к мастеру для корректировки.');
+                    return;
+                }
+                
                 // Используем реальные количества для проверки завершения
                 const realCompleted = this.getRealQuantity(this.task, 'completed');
                 const realPlan = this.getRealQuantity(this.task, 'plan');
@@ -1036,6 +1065,12 @@
                 console.log('Task object:', this.task);
                 if (!this.task) {
                     console.log('No task available, cannot submit');
+                    return;
+                }
+                
+                // Проверяем, не выполнена ли уже задача
+                if (this.isTaskCompleted()) {
+                    alert('Задача уже выполнена и не может быть изменена. Обратитесь к мастеру для корректировки.');
                     return;
                 }
                 
@@ -1237,6 +1272,13 @@
                     console.log('No task available, cannot open defect modal');
                     return;
                 }
+                
+                // Проверяем, не выполнена ли уже задача
+                if (this.isTaskCompleted()) {
+                    alert('Задача уже выполнена и не может быть изменена. Обратитесь к мастеру для корректировки.');
+                    return;
+                }
+                
                 this.showDefectModal = true;
             },
 
@@ -1355,6 +1397,12 @@
                 
                 console.log('Adjusted size result:', adjustedSize);
                 return adjustedSize;
+            },
+            
+            // Проверяем, выполнена ли задача
+            isTaskCompleted() {
+                if (!this.task) return false;
+                return this.getRealQuantity(this.task, 'completed') >= this.getRealQuantity(this.task, 'plan');
             }
         }
     }

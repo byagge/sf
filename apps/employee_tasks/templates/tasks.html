@@ -338,12 +338,20 @@
                 return groupedTasks;
             },
             async toggleTask(task) {
+                // Проверяем, не выполнена ли уже задача
+                const realCompleted = this.getRealQuantity(task, 'completed');
+                const realPlan = this.getRealQuantity(task, 'plan');
+                const isDone = realCompleted >= realPlan;
+                
+                // Если задача уже выполнена, не позволяем её отменить
+                if (isDone) {
+                    alert('Задача уже выполнена и не может быть изменена. Обратитесь к мастеру для корректировки.');
+                    return;
+                }
+                
                 if (task.is_combined && task.combined_tasks) {
                     // Для объединенных задач обновляем все входящие задачи
-                    const realCompleted = this.getRealQuantity(task, 'completed');
-                    const realPlan = this.getRealQuantity(task, 'plan');
-                    const isDone = realCompleted >= realPlan;
-                    const newCompleted = isDone ? 0 : (task.quantity || 0);
+                    const newCompleted = task.quantity || 0;
                     
                     // Распределяем количество пропорционально между задачами
                     const totalQuantity = task.combined_tasks.reduce((sum, t) => sum + (t.quantity || 0), 0);
@@ -381,28 +389,25 @@
                     if (task.completed_quantity === 0) task.completed_at = null;
                 } else {
                     // Для обычных задач
-                const realCompleted = this.getRealQuantity(task, 'completed');
-                const realPlan = this.getRealQuantity(task, 'plan');
-                const isDone = realCompleted >= realPlan;
-                const newCompleted = isDone ? 0 : (task.quantity || 0);
-                
-                const resp = await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': this.getCsrfToken()
-                    },
-                    body: JSON.stringify({ 
-                        completed_quantity: newCompleted
-                    })
-                });
-                try {
-                    const updated = await resp.json();
-                    Object.assign(task, updated);
-                } catch (e) {
-                task.completed_quantity = newCompleted;
-                    if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
-                    if (newCompleted === 0) task.completed_at = null;
+                    const newCompleted = task.quantity || 0;
+                    
+                    const resp = await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCsrfToken()
+                        },
+                        body: JSON.stringify({ 
+                            completed_quantity: newCompleted
+                        })
+                    });
+                    try {
+                        const updated = await resp.json();
+                        Object.assign(task, updated);
+                    } catch (e) {
+                        task.completed_quantity = newCompleted;
+                        if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
+                        if (newCompleted === 0) task.completed_at = null;
                     }
                 }
             },
