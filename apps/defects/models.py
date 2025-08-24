@@ -47,15 +47,14 @@ class Defect(models.Model):
         verbose_name='Тип брака'
     )
     
-    # Поля для подтверждения мастером
+    # Поля для подтверждения мастером или администратором
     confirmed_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='confirmed_defects',
-        verbose_name='Мастер, подтвердивший брак',
-        limit_choices_to={'role': 'master'}
+        verbose_name='Пользователь, подтвердивший брак'
     )
     confirmed_at = models.DateTimeField('Дата подтверждения', null=True, blank=True)
     
@@ -82,10 +81,10 @@ class Defect(models.Model):
     )
     
     # Комментарии
-    master_comment = models.TextField('Комментарий мастера', blank=True)
+    master_comment = models.TextField('Комментарий подтверждающего', blank=True)
     repair_comment = models.TextField('Комментарий по починке', blank=True)
     
-    # Штрафные санкции (теперь применяются только после подтверждения мастером)
+    # Штрафные санкции (теперь применяются только после подтверждения мастером или администратором)
     penalty_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -103,30 +102,36 @@ class Defect(models.Model):
     
     def can_be_confirmed_by(self, user):
         """Проверяет, может ли пользователь подтвердить этот брак"""
-        if user.role != User.Role.MASTER:
+        # Разрешаем подтверждение браков мастерам и администраторам
+        if user.role not in [User.Role.MASTER, User.Role.ADMIN, User.Role.FOUNDER, User.Role.DIRECTOR]:
             return False
         
-        # Мастер должен быть привязан к какому-либо цеху
-        if not user.workshop_id:
-            return False
-        
-        # Разрешаем, если брак создан сотрудником из цеха мастера
-        defect_workshop = self.get_workshop()
-        if defect_workshop and defect_workshop.id == user.workshop_id:
+        # Для администраторов, учредителей и директоров не требуем привязки к цеху
+        if user.role in [User.Role.ADMIN, User.Role.FOUNDER, User.Role.DIRECTOR]:
             return True
         
-        # Также разрешаем, если целевой цех брака совпадает с цехом мастера
-        if self.target_workshop_id and self.target_workshop_id == user.workshop_id:
-            return True
+        # Для мастеров проверяем привязку к цеху
+        if user.role == User.Role.MASTER:
+            if not user.workshop_id:
+                return False
+            
+            # Разрешаем, если брак создан сотрудником из цеха мастера
+            defect_workshop = self.get_workshop()
+            if defect_workshop and defect_workshop.id == user.workshop_id:
+                return True
+            
+            # Также разрешаем, если целевой цех брака совпадает с цехом мастера
+            if self.target_workshop_id and self.target_workshop_id == user.workshop_id:
+                return True
         
         return False
     
     def confirm_defect(self, master, is_repairable, defect_type=None, target_workshop=None, comment=''):
-        """Подтверждает брак мастером"""
+        """Подтверждает брак мастером или администратором"""
         from django.utils import timezone
         
         if not self.can_be_confirmed_by(master):
-            raise ValueError("Мастер не может подтвердить этот брак")
+            raise ValueError("Пользователь не может подтвердить этот брак")
         
         self.confirmed_by = master
         self.confirmed_at = timezone.now()
@@ -155,7 +160,7 @@ class Defect(models.Model):
         self.save()
     
     def _apply_penalty(self):
-        """Применяет штраф за ручной брак к задаче сотрудника"""
+        """Применяет штраф за ручной брак к задаче сотрудника после подтверждения"""
         if self.user and self.user.workshop and self.employee_task:
             from apps.services.models import Service
             try:
