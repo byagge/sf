@@ -268,6 +268,125 @@ class Workshop(models.Model):
             'completion_rate': (total_completed_tasks / total_tasks * 100) if total_tasks > 0 else 0,
         }
 
+    @classmethod
+    def get_master_statistics(cls, master_user):
+        """
+        Возвращает статистику по всем цехам мастера
+        """
+        from apps.orders.models import OrderStage
+        from apps.employee_tasks.models import EmployeeTask
+        from apps.defects.models import Defect
+        from django.db.models import Q, Count, Sum, Avg
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        # Получаем все цеха мастера
+        managed_workshops = cls.objects.filter(
+            Q(manager=master_user) | Q(workshop_masters__master=master_user, workshop_masters__is_active=True)
+        ).distinct()
+        
+        if not managed_workshops.exists():
+            return None
+        
+        # Текущие даты для фильтрации
+        now = timezone.now()
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+        
+        # Общая статистика по всем цехам мастера
+        total_workshops = managed_workshops.count()
+        
+        # Статистика по задачам
+        all_tasks = EmployeeTask.objects.filter(stage__workshop__in=managed_workshops)
+        total_tasks = all_tasks.count()
+        completed_tasks = all_tasks.filter(completed_quantity__gte=models.F('quantity')).count()
+        
+        # Статистика по этапам
+        all_stages = OrderStage.objects.filter(workshop__in=managed_workshops)
+        total_stages = all_stages.count()
+        active_stages = all_stages.filter(status__in=['in_progress', 'partial']).count()
+        completed_stages = all_stages.filter(status='completed').count()
+        
+        # Статистика по браку
+        total_defects = Defect.objects.filter(
+            user__workshop__in=managed_workshops
+        ).count()
+        
+        # Статистика за неделю
+        week_tasks = all_tasks.filter(created_at__gte=week_ago)
+        week_completed = week_tasks.filter(completed_quantity__gte=F('quantity')).count()
+        week_defects = Defect.objects.filter(
+            user__workshop__in=managed_workshops,
+            created_at__gte=week_ago
+        ).count()
+        
+        # Статистика за месяц
+        month_tasks = all_tasks.filter(created_at__gte=month_ago)
+        month_completed = month_tasks.filter(completed_quantity__gte=F('quantity')).count()
+        month_defects = Defect.objects.filter(
+            user__workshop__in=managed_workshops,
+            created_at__gte=month_ago
+        ).count()
+        
+        # Эффективность
+        efficiency = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+        week_efficiency = (week_completed / week_tasks.count() * 100) if week_tasks.count() > 0 else 0
+        month_efficiency = (month_completed / month_tasks.count() * 100) if month_tasks.count() > 0 else 0
+        
+        # Статистика по каждому цеху
+        workshops_stats = []
+        for workshop in managed_workshops:
+            workshop_tasks = EmployeeTask.objects.filter(stage__workshop=workshop)
+            workshop_completed = workshop_tasks.filter(completed_quantity__gte=F('quantity')).count()
+            workshop_defects = Defect.objects.filter(user__workshop=workshop).count()
+            workshop_efficiency = (workshop_completed / workshop_tasks.count() * 100) if workshop_tasks.count() > 0 else 0
+            
+            workshops_stats.append({
+                'id': workshop.id,
+                'name': workshop.name,
+                'description': workshop.description,
+                'total_tasks': workshop_tasks.count(),
+                'completed_tasks': workshop_completed,
+                'defects': workshop_defects,
+                'efficiency': workshop_efficiency,
+                'active_stages': OrderStage.objects.filter(
+                    workshop=workshop, 
+                    status__in=['in_progress', 'partial']
+                ).count(),
+                'employees_count': workshop.users.count() if hasattr(workshop, 'users') else 0,
+            })
+        
+        return {
+            'master_info': {
+                'id': master_user.id,
+                'name': master_user.get_full_name(),
+                'email': master_user.email,
+            },
+            'overall_stats': {
+                'total_workshops': total_workshops,
+                'total_tasks': total_tasks,
+                'completed_tasks': completed_tasks,
+                'total_stages': total_stages,
+                'active_stages': active_stages,
+                'completed_stages': completed_stages,
+                'total_defects': total_defects,
+                'efficiency': efficiency,
+            },
+            'period_stats': {
+                'week': {
+                    'completed_tasks': week_completed,
+                    'defects': week_defects,
+                    'efficiency': week_efficiency,
+                },
+                'month': {
+                    'completed_tasks': month_completed,
+                    'defects': month_defects,
+                    'efficiency': month_efficiency,
+                }
+            },
+            'workshops': workshops_stats,
+        }
+
 
 class WorkshopMaster(models.Model):
     """

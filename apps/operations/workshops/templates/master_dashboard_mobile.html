@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ru" x-data="masterDashboardMobile()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <title>Дашборд мастера — Smart Factory</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
+        .nav-active { color: #2563eb; }
+        .nav-bar { box-shadow: 0 -2px 16px 0 rgba(37,99,235,0.08); }
+        .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
+        .stat-card { transition: transform 0.2s; }
+        .stat-card:active { transform: scale(0.98); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;">
+    <!-- AppBar -->
+    <header class="fixed top-0 left-0 right-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200 flex items-center justify-between px-4 h-16">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                <span class="text-white font-bold text-2xl">S</span>
+            </div>
+            <div>
+                <span class="text-lg font-semibold text-gray-900">Дашборд мастера</span>
+                <p class="text-xs text-gray-600" x-text="stats?.master_info?.name || 'Загрузка...'"></p>
+            </div>
+        </div>
+        <button @click="refreshStats()" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 pt-20 pb-20 px-4 max-w-md mx-auto w-full">
+        <template x-if="loading">
+            <div class="text-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-2 text-sm text-gray-600">Загрузка статистики...</p>
+            </div>
+        </template>
+
+        <template x-if="!loading && stats">
+            <!-- Общая статистика -->
+            <div class="mb-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4">Общая статистика</h2>
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Всего цехов -->
+                    <div class="stat-card card bg-white rounded-xl p-4">
+                        <div class="text-center">
+                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                <i data-lucide="factory" class="w-5 h-5 text-blue-600"></i>
+                            </div>
+                            <div class="text-lg font-bold text-gray-900" x-text="stats.overall_stats.total_workshops"></div>
+                            <div class="text-xs text-gray-600">Цехов</div>
+                        </div>
+                    </div>
+
+                    <!-- Всего задач -->
+                    <div class="stat-card card bg-white rounded-xl p-4">
+                        <div class="text-center">
+                            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                <i data-lucide="clipboard-list" class="w-5 h-5 text-green-600"></i>
+                            </div>
+                            <div class="text-lg font-bold text-gray-900" x-text="stats.overall_stats.total_tasks"></div>
+                            <div class="text-xs text-gray-600">Задач</div>
+                        </div>
+                    </div>
+
+                    <!-- Выполнено задач -->
+                    <div class="stat-card card bg-white rounded-xl p-4">
+                        <div class="text-center">
+                            <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>
+                            </div>
+                            <div class="text-lg font-bold text-gray-900" x-text="stats.overall_stats.completed_tasks"></div>
+                            <div class="text-xs text-gray-600">Выполнено</div>
+                        </div>
+                    </div>
+
+                    <!-- Эффективность -->
+                    <div class="stat-card card bg-white rounded-xl p-4">
+                        <div class="text-center">
+                            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                                <i data-lucide="trending-up" class="w-5 h-5 text-purple-600"></i>
+                            </div>
+                            <div class="text-lg font-bold text-gray-900" x-text="Math.round(stats.overall_stats.efficiency) + '%'"></div>
+                            <div class="text-xs text-gray-600">Эффективность</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статистика по периодам -->
+            <div class="mb-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4">Статистика по периодам</h2>
+                <div class="space-y-3">
+                    <!-- За неделю -->
+                    <div class="card bg-white rounded-xl p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-900">За неделю</h3>
+                            <i data-lucide="calendar" class="w-4 h-4 text-gray-400"></i>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div>
+                                <div class="text-sm font-bold text-green-600" x-text="stats.period_stats.week.completed_tasks"></div>
+                                <div class="text-xs text-gray-500">Задач</div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-red-600" x-text="stats.period_stats.week.defects"></div>
+                                <div class="text-xs text-gray-500">Брака</div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-blue-600" x-text="Math.round(stats.period_stats.week.efficiency) + '%'"></div>
+                                <div class="text-xs text-gray-500">Эффективность</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- За месяц -->
+                    <div class="card bg-white rounded-xl p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-900">За месяц</h3>
+                            <i data-lucide="calendar-days" class="w-4 h-4 text-gray-400"></i>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div>
+                                <div class="text-sm font-bold text-green-600" x-text="stats.period_stats.month.completed_tasks"></div>
+                                <div class="text-xs text-gray-500">Задач</div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-red-600" x-text="stats.period_stats.month.defects"></div>
+                                <div class="text-xs text-gray-500">Брака</div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-bold text-blue-600" x-text="Math.round(stats.period_stats.month.efficiency) + '%'"></div>
+                                <div class="text-xs text-gray-500">Эффективность</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статистика по цехам -->
+            <div class="mb-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4">Статистика по цехам</h2>
+                <div class="space-y-4">
+                    <template x-for="workshop in stats.workshops" :key="workshop.id">
+                        <div class="card bg-white rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="font-semibold text-gray-900" x-text="workshop.name"></h3>
+                                <span class="text-xs text-gray-500" x-text="workshop.employees_count + ' чел.'"></span>
+                            </div>
+                            
+                            <p class="text-gray-600 text-xs mb-4" x-text="workshop.description || 'Описание отсутствует'"></p>
+                            
+                            <!-- Основные показатели -->
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <div class="bg-blue-50 rounded-lg p-2 text-center">
+                                    <div class="text-xs text-blue-600">Всего задач</div>
+                                    <div class="text-sm font-bold text-blue-700" x-text="workshop.total_tasks"></div>
+                                </div>
+                                <div class="bg-green-50 rounded-lg p-2 text-center">
+                                    <div class="text-xs text-green-600">Выполнено</div>
+                                    <div class="text-sm font-bold text-green-700" x-text="workshop.completed_tasks"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Дополнительные показатели -->
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-gray-600">Активных этапов:</span>
+                                    <span class="font-medium text-gray-900" x-text="workshop.active_stages"></span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-gray-600">Брака:</span>
+                                    <span class="font-medium text-red-600" x-text="workshop.defects"></span>
+                                </div>
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="text-gray-600">Эффективность:</span>
+                                    <span class="font-medium text-gray-900" x-text="Math.round(workshop.efficiency) + '%'"></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Прогресс-бар эффективности -->
+                            <div>
+                                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                                    <span>0%</span>
+                                    <span>100%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                                         :style="`width: ${workshop.efficiency}%`"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Дополнительная статистика -->
+            <div class="mb-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-4">Дополнительно</h2>
+                <div class="card bg-white rounded-xl p-4">
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <div>
+                            <div class="text-sm font-bold text-gray-900" x-text="stats.overall_stats.total_stages"></div>
+                            <div class="text-xs text-gray-500">Всего этапов</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-gray-900" x-text="stats.overall_stats.active_stages"></div>
+                            <div class="text-xs text-gray-500">Активных этапов</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-gray-900" x-text="stats.overall_stats.completed_stages"></div>
+                            <div class="text-xs text-gray-500">Завершенных этапов</div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-red-600" x-text="stats.overall_stats.total_defects"></div>
+                            <div class="text-xs text-gray-500">Всего брака</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <template x-if="!loading && !stats">
+            <div class="text-center py-12">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-circle" class="w-8 h-8 text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Нет данных</h3>
+                <p class="text-gray-600 text-sm">Мастер не управляет ни одним цехом</p>
+            </div>
+        </template>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40 max-w-md mx-auto w-full">
+        <a href="/dashboard/" class="flex flex-col items-center">
+            <i data-lucide="home" class="w-5 h-5"></i>
+            <span class="text-xs">Главная</span>
+        </a>
+        <a href="/employees/" class="flex flex-col items-center">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span class="text-xs">Сотрудники</span>
+        </a>
+        <a href="/workshops/" class="flex flex-col items-center nav-active">
+            <i data-lucide="factory" class="w-5 h-5"></i>
+            <span class="text-xs">Цеха</span>
+        </a>
+        <a href="/orders/" class="flex flex-col items-center">
+            <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+            <span class="text-xs">Заказы</span>
+        </a>
+        <a href="/notifications/" class="flex flex-col items-center">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+            <span class="text-xs">Уведомления</span>
+        </a>
+    </nav>
+
+    <script>
+        function masterDashboardMobile() {
+            return {
+                loading: true,
+                stats: null,
+                
+                async init() {
+                    lucide.createIcons();
+                    await this.loadStats();
+                },
+                
+                async loadStats() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/workshops/api/master/statistics/');
+                        if (response.ok) {
+                            this.stats = await response.json();
+                        } else {
+                            console.error('Ошибка загрузки статистики:', response.status);
+                        }
+                    } catch (error) {
+                        console.error('Ошибка загрузки статистики:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async refreshStats() {
+                    await this.loadStats();
+                    lucide.createIcons();
+                }
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html> 
