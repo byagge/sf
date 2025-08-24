@@ -106,13 +106,3 @@ def task_detail_page(request, task_id):
     return render(request, 'task_detail.html', {
         'task_id': task_id
     })
-
-
-def helper_tasks_page(request):
-    """Страница задач помощника"""
-    return render(request, 'helper_tasks.html')
-
-
-def helper_stats_page(request):
-    """Страница статистики помощника"""
-    return render(request, 'helper_stats.html')

@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import EmployeeTaskViewSet, tasks_page, EmployeeFullInfoAPIView, employee_info_page, stats_employee_page, defects_management_page, task_detail_page, helper_tasks_page, helper_stats_page
+from .views import EmployeeTaskViewSet, tasks_page, EmployeeFullInfoAPIView, employee_info_page, stats_employee_page, defects_management_page, task_detail_page
 from .api import (
     EmployeeTaskAssignViewSet, 
     employee_earnings_stats, 
@@ -14,9 +14,6 @@ from .api import (
     approve_defects_by_order,
     replenish_defects_by_order,
     replenish_defect,
-    helper_tasks_list,
-    update_helper_task,
-    helper_earnings_stats,
 )
 
 router = DefaultRouter()
@@ -30,10 +27,6 @@ urlpatterns = [
     path('stats/', stats_employee_page, name='employee-stats-page'),
     path('defects/', defects_management_page, name='defects-management-page'),
     path('api/employee-full-info/<int:pk>/', EmployeeFullInfoAPIView.as_view(), name='employee-full-info-api'),
-    
-    # Страницы помощника
-    path('helper/', helper_tasks_page, name='helper-tasks-page'),
-    path('helper/stats/', helper_stats_page, name='helper-stats-page'),
     
     # API endpoints для статистики заработка
     path('api/earnings/employee/<int:employee_id>/', employee_earnings_stats, name='api_employee_earnings'),
@@ -49,10 +42,5 @@ urlpatterns = [
     path('api/defects/<int:defect_id>/complete-rework/', complete_defect_rework, name='api_complete_defect_rework'),
     path('api/defects/<int:defect_id>/reject/', reject_defect, name='api_reject_defect'),
     path('api/defects/<int:defect_id>/replenish/', replenish_defect, name='api_replenish_defect'),
-    
-    # API endpoints для помощников
-    path('api/helper/tasks/', helper_tasks_list, name='api_helper_tasks'),
-    path('api/helper/tasks/<int:task_id>/', update_helper_task, name='api_update_helper_task'),
-    path('api/helper/earnings/', helper_earnings_stats, name='api_helper_earnings'),
 ]
 urlpatterns += router.urls 

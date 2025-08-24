@@ -10,9 +10,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Smart Factory">
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-192x192.png">
-    <link rel="shortcut icon" href="/static/icons/icon-192x192.png">
     <title>Планы по цехам (Мастер)</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -1992,10 +1989,7 @@
                 const workshop = this.workshops[this.selectedWorkshopIdx];
                 if (!workshop) return;
                 const resp = await fetch(`/api/workshops/api/employees/?workshop=${workshop.id}`);
-                const allEmployees = await resp.json();
-                
-                // Фильтруем помощников - они не должны отображаться при распределении работ
-                this.employees = allEmployees.filter(emp => emp.role !== 'helper');
+                this.employees = await resp.json();
             },
             get filteredEmployees() {
                 const stage = this.stages.find(s => s.id === this.assignForm.stage_id);

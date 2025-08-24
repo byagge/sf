@@ -1,19 +1,12 @@
 from django.contrib import admin
-from .models import EmployeeTask, HelperTask
+from .models import EmployeeTask
 
 @admin.register(EmployeeTask)
 class EmployeeTaskAdmin(admin.ModelAdmin):
-    list_display = ['id', 'employee', 'stage', 'quantity', 'completed_quantity', 'defective_quantity', 'earnings', 'penalties', 'net_earnings', 'created_at']
-    list_filter = ['created_at', 'completed_at', 'employee__workshop']
-    search_fields = ['employee__first_name', 'employee__last_name', 'stage__operation']
-    readonly_fields = ['earnings', 'penalties', 'net_earnings']
-
-@admin.register(HelperTask)
-class HelperTaskAdmin(admin.ModelAdmin):
-    list_display = ['id', 'helper', 'employee_task', 'quantity', 'completed_quantity', 'defective_quantity', 'earnings', 'penalties', 'net_earnings', 'created_at']
-    list_filter = ['created_at', 'completed_at', 'helper__workshop']
-    search_fields = ['helper__first_name', 'helper__last_name', 'employee_task__stage__operation']
-    readonly_fields = ['earnings', 'penalties', 'net_earnings']
+    list_display = ['employee', 'stage', 'quantity', 'completed_quantity', 'defective_quantity', 'earnings', 'penalties', 'net_earnings', 'created_at']
+    list_filter = ['created_at', 'employee', 'stage__workshop', 'stage__order__status']
+    search_fields = ['employee__username', 'employee__first_name', 'employee__last_name', 'stage__order__name']
+    readonly_fields = ['earnings', 'penalties', 'net_earnings', 'created_at']
     
     fieldsets = (
         ('Основная информация', {
