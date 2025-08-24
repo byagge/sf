@@ -5,7 +5,8 @@ from .api import (
     AllWorkshopsView,
     WorkshopMastersView,
     AddWorkshopMasterView,
-    RemoveWorkshopMasterView
+    RemoveWorkshopMasterView,
+    MasterWorkshopsStatsView
 )
  
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
 	path('api/masters/', WorkshopMastersView.as_view()),
 	path('api/add-master/', AddWorkshopMasterView.as_view()),
 	path('api/remove-master/', RemoveWorkshopMasterView.as_view()),
+	path('api/master-stats/', MasterWorkshopsStatsView.as_view()),
 ] 

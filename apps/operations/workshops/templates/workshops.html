@@ -95,13 +95,6 @@
                         <i data-lucide="list" class="w-4 h-4"></i>
                         <span x-text="showOrdersInfo ? 'Скрыть заказы' : 'Показать заказы'"></span>
                     </button>
-                    {% if user.role == 'master' %}
-                    <a href="/workshops/master/" 
-                       class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
-                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
-                        <span>Мой дашборд</span>
-                    </a>
-                    {% endif %}
                 </div>
             </div>
             

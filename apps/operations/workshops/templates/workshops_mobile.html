@@ -25,16 +25,10 @@
             </div>
             <span class="text-lg font-semibold text-gray-900">Цеха</span>
         </div>
-        <div class="flex space-x-2">
-            <button @click="showOrdersInfo = !showOrdersInfo; if(showOrdersInfo) loadWorkshopsOrdersInfo()" 
-                    class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium">
-                <span x-text="showOrdersInfo ? 'Скрыть' : 'Заказы'"></span>
-            </button>
-            <a href="/workshops/master/" 
-               class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium">
-                <span>Дашборд</span>
-            </a>
-        </div>
+        <button @click="showOrdersInfo = !showOrdersInfo; if(showOrdersInfo) loadWorkshopsOrdersInfo()" 
+                class="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium">
+            <span x-text="showOrdersInfo ? 'Скрыть' : 'Заказы'"></span>
+        </button>
     </header>
 
     <!-- Main Content -->

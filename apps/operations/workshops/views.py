@@ -133,100 +133,18 @@ def workshops_list(request):
 	
 	return render(request, 'workshops.html', context)
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def master_statistics(request):
-	"""
-	Получает статистику по всем цехам мастера
-	"""
-	from .models import Workshop
-	import logging
-	
-	logger = logging.getLogger(__name__)
-	
-	# Проверяем, является ли пользователь мастером
-	if not hasattr(request.user, 'role') or request.user.role != 'master':
-		logger.warning(f"Попытка доступа к API статистики мастера пользователем {request.user.id} с ролью {getattr(request.user, 'role', 'неизвестна')}")
-		return Response({'error': 'Доступ только для мастеров'}, status=403)
-	
-	try:
-		# Получаем статистику мастера
-		stats = Workshop.get_master_statistics(request.user)
-		
-		if not stats:
-			logger.info(f"Мастер {request.user.id} не управляет ни одним цехом")
-			return Response({'error': 'Мастер не управляет ни одним цехом'}, status=404)
-		
-		logger.info(f"Мастер {request.user.id} получил статистику")
-		return Response(stats)
-		
-	except Exception as e:
-		logger.error(f"Ошибка при получении статистики мастера {request.user.id}: {str(e)}", exc_info=True)
-		return Response({'error': 'Произошла ошибка при получении статистики'}, status=500)
-
 def master_dashboard(request):
-	"""
-	Страница дашборда мастера с подробной статистикой по всем его цехам
-	"""
-	from .models import Workshop
-	import logging
-	
-	logger = logging.getLogger(__name__)
-	
-	# Проверяем, является ли пользователь мастером
-	if not hasattr(request.user, 'role') or request.user.role != 'master':
-		logger.warning(f"Попытка доступа к дашборду мастера пользователем {request.user.id} с ролью {getattr(request.user, 'role', 'неизвестна')}")
-		return render(request, 'workshops.html', {'error': 'Доступ только для мастеров'})
-	
-	try:
-		# Получаем статистику мастера
-		stats = Workshop.get_master_statistics(request.user)
-		
-		if not stats:
-			logger.info(f"Мастер {request.user.id} не управляет ни одним цехом")
-			return render(request, 'workshops.html', {'error': 'Мастер не управляет ни одним цехом'})
-		
-		# Простая проверка мобильного устройства
-		user_agent = request.META.get('HTTP_USER_AGENT', '')
-		ua_lower = user_agent.lower()
-		is_mobile = any(token in ua_lower for token in ['mobile', 'android', 'iphone', 'ipad'])
-		
-		logger.info(f"Мастер {request.user.id} загрузил дашборд, устройство: {'мобильное' if is_mobile else 'десктоп'}")
-		
-		if is_mobile:
-			return render(request, 'master_dashboard_mobile.html', {'stats': stats})
-		
-		return render(request, 'master_dashboard.html', {'stats': stats})
-		
-	except Exception as e:
-		logger.error(f"Ошибка при загрузке дашборда мастера {request.user.id}: {str(e)}", exc_info=True)
-		return render(request, 'workshops.html', {'error': 'Произошла ошибка при загрузке статистики'})
-
-def master_dashboard_simple(request):
-	"""
-	Простая тестовая страница дашборда мастера для отладки
-	"""
-	from .models import Workshop
-	import logging
-	
-	logger = logging.getLogger(__name__)
-	
-	# Проверяем, является ли пользователь мастером
-	if not hasattr(request.user, 'role') or request.user.role != 'master':
-		logger.warning(f"Попытка доступа к тестовому дашборду мастера пользователем {request.user.id} с ролью {getattr(request.user, 'role', 'неизвестна')}")
-		return render(request, 'master_dashboard_simple.html', {'error': 'Доступ только для мастеров'})
-	
-	try:
-		# Получаем статистику мастера
-		stats = Workshop.get_master_statistics(request.user)
-		
-		if not stats:
-			logger.info(f"Мастер {request.user.id} не управляет ни одним цехом")
-			return render(request, 'master_dashboard_simple.html', {'error': 'Мастер не управляет ни одним цехом'})
-		
-		logger.info(f"Мастер {request.user.id} загрузил тестовый дашборд")
-		return render(request, 'master_dashboard_simple.html', {'stats': stats})
-		
-	except Exception as e:
-		logger.error(f"Ошибка при загрузке тестового дашборда мастера {request.user.id}: {str(e)}", exc_info=True)
-		return render(request, 'master_dashboard_simple.html', {'error': f'Произошла ошибка при загрузке статистики: {str(e)}'})
+    """Страница мастера с его цехами и статистикой"""
+    # Проверяем, является ли пользователь мастером
+    if not hasattr(request.user, 'role') or request.user.role != 'master':
+        return render(request, 'workshops.html', {'error': 'Доступ только для мастеров'})
+    
+    # Простая проверка мобильного устройства по User-Agent
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    ua_lower = user_agent.lower()
+    is_mobile = any(token in ua_lower for token in ['mobile', 'android', 'iphone', 'ipad'])
+    
+    if is_mobile:
+        return render(request, 'master_dashboard_mobile.html')
+    
+    return render(request, 'master_dashboard.html')

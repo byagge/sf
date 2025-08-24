@@ -1,42 +1,40 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" x-data="masterDashboard()" x-init="init()">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Дашборд мастера — Smart Factory</title>
+    <title>Панель мастера — Smart Factory</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
-        .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
-        .stat-card { transition: transform 0.2s; }
+        body { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
+        .card { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .stat-card { transition: transform 0.2s ease-in-out; }
         .stat-card:hover { transform: translateY(-2px); }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen" x-data="masterDashboard()" x-init="init()">
+<body class="min-h-screen bg-gray-50">
     <!-- Header -->
     <header class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center py-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                            <span class="text-white font-bold text-xl">S</span>
+                        <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                            <span class="text-white font-bold text-2xl">S</span>
                         </div>
                     </div>
                     <div class="ml-4">
-                        <h1 class="text-2xl font-bold text-gray-900">Дашборд мастера</h1>
-                        <p class="text-sm text-gray-600" x-text="stats?.master_info?.name || 'Загрузка...'"></p>
+                        <h1 class="text-2xl font-bold text-gray-900">Панель мастера</h1>
+                        <p class="text-sm text-gray-600">Управление цехами и статистика</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <a href="/workshops/" class="text-blue-600 hover:text-blue-800 font-medium">← К цехам</a>
-                    <button @click="refreshStats()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                        </svg>
-                        <span>Обновить</span>
-                    </button>
+                    <span class="text-sm text-gray-600" x-text="'Мастер: ' + (userName || 'Загрузка...')"></span>
+                    <a href="/workshops/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        Все цеха
+                    </a>
                 </div>
             </div>
         </div>
@@ -44,6 +42,7 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Loading State -->
         <template x-if="loading">
             <div class="text-center py-12">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -51,142 +50,236 @@
             </div>
         </template>
 
-        <template x-if="!loading && stats">
-            <!-- Общая статистика -->
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold text-gray-900 mb-6">Общая статистика</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <!-- Количество работ -->
-                    <div class="stat-card card bg-white rounded-xl p-6">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                                    </svg>
+        <!-- Content -->
+        <template x-if="!loading">
+            <div class="space-y-8">
+                <!-- Общая статистика -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Общая статистика по всем цехам</h2>
+                    
+                    <!-- Основные метрики -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <!-- Количество цехов -->
+                        <div class="card bg-white rounded-lg p-6 stat-card">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="factory" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Цехов</p>
+                                    <p class="text-2xl font-bold text-gray-900" x-text="totalStats.total_workshops || 0"></p>
                                 </div>
                             </div>
-                            <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-600">Количество работ</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="stats.overall_stats.total_tasks"></p>
+                        </div>
+
+                        <!-- Количество сотрудников -->
+                        <div class="card bg-white rounded-lg p-6 stat-card">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="users" class="w-5 h-5 text-green-600"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Сотрудников</p>
+                                    <p class="text-2xl font-bold text-gray-900" x-text="totalStats.total_employees || 0"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Выполнено работ за месяц -->
+                        <div class="card bg-white rounded-lg p-6 stat-card">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="check-circle" class="w-5 h-5 text-purple-600"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Работ за месяц</p>
+                                    <p class="text-2xl font-bold text-gray-900" x-text="totalStats.month_stats?.completed_works || 0"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Эффективность -->
+                        <div class="card bg-white rounded-lg p-6 stat-card">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                        <i data-lucide="trending-up" class="w-5 h-5 text-yellow-600"></i>
+                                    </div>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-sm font-medium text-gray-600">Эффективность</p>
+                                    <p class="text-2xl font-bold text-gray-900" x-text="(totalStats.total_stats?.efficiency || 0) + '%'"></p>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Количество сотрудников -->
-                    <div class="stat-card card bg-white rounded-xl p-6">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-                                    </svg>
+                    <!-- Детальная статистика -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Статистика за неделю -->
+                        <div class="card bg-white rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">За неделю</h3>
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Выполнено работ:</span>
+                                    <span class="font-semibold text-gray-900" x-text="totalStats.week_stats?.completed_works || 0"></span>
                                 </div>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-600">Сотрудников</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="getTotalEmployees()"></p>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Брак:</span>
+                                    <span class="font-semibold text-red-600" x-text="totalStats.week_stats?.defects || 0"></span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Эффективность:</span>
+                                    <span class="font-semibold text-green-600" x-text="(totalStats.week_stats?.efficiency || 0) + '%'"></span>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Эффективность -->
-                    <div class="stat-card card bg-white rounded-xl p-6">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                                    </svg>
+                        <!-- Статистика за месяц -->
+                        <div class="card bg-white rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">За месяц</h3>
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Выполнено работ:</span>
+                                    <span class="font-semibold text-gray-900" x-text="totalStats.month_stats?.completed_works || 0"></span>
                                 </div>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-600">Эффективность</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="Math.round(stats.overall_stats.efficiency) + '%'"></p>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Брак:</span>
+                                    <span class="font-semibold text-red-600" x-text="totalStats.month_stats?.defects || 0"></span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Эффективность:</span>
+                                    <span class="font-semibold text-green-600" x-text="(totalStats.month_stats?.efficiency || 0) + '%'"></span>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Количество брака -->
-                    <div class="stat-card card bg-white rounded-xl p-6">
-                        <div class="flex items-center">
-                            <div class="flex-shrink-0">
-                                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                                    </svg>
+                        <!-- Общая статистика -->
+                        <div class="card bg-white rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Общая</h3>
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Выполнено работ:</span>
+                                    <span class="font-semibold text-gray-900" x-text="totalStats.total_stats?.completed_works || 0"></span>
                                 </div>
-                            </div>
-                            <div class="ml-4">
-                                <p class="text-sm font-medium text-gray-600">Количество брака</p>
-                                <p class="text-2xl font-bold text-gray-900" x-text="stats.overall_stats.total_defects"></p>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Брак:</span>
+                                    <span class="font-semibold text-red-600" x-text="totalStats.total_stats?.defects || 0"></span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Эффективность:</span>
+                                    <span class="font-semibold text-green-600" x-text="(totalStats.total_stats?.efficiency || 0) + '%'"></span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Список цехов -->
-            <div class="mb-8">
-                <h2 class="text-xl font-semibold text-gray-900 mb-6">Мои цеха</h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <template x-for="workshop in stats.workshops" :key="workshop.id">
-                        <div class="card bg-white rounded-xl p-6">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                        </svg>
+                <!-- Список цехов -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-900 mb-6">Мои цеха</h2>
+                    
+                    <template x-if="workshops.length === 0">
+                        <div class="text-center py-12">
+                            <i data-lucide="factory" class="w-16 h-16 mx-auto text-gray-300 mb-4"></i>
+                            <p class="text-lg text-gray-600">У вас пока нет назначенных цехов</p>
+                        </div>
+                    </template>
+
+                    <template x-if="workshops.length > 0">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                            <template x-for="workshop in workshops" :key="workshop.id">
+                                <div class="card bg-white rounded-lg p-6 hover:shadow-lg transition-shadow">
+                                    <!-- Заголовок цеха -->
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center">
+                                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                <i data-lucide="factory" class="w-6 h-6 text-blue-600"></i>
+                                            </div>
+                                            <div class="ml-3">
+                                                <h3 class="text-lg font-semibold text-gray-900" x-text="workshop.name"></h3>
+                                                <p class="text-sm text-gray-600" x-text="workshop.description || 'Описание отсутствует'"></p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 class="text-lg font-semibold text-gray-900" x-text="workshop.name"></h3>
-                                        <p class="text-sm text-gray-500" x-text="workshop.description || 'Описание отсутствует'"></p>
+
+                                    <!-- Основные метрики цеха -->
+                                    <div class="grid grid-cols-2 gap-4 mb-6">
+                                        <div class="text-center">
+                                            <div class="text-2xl font-bold text-blue-600" x-text="workshop.employees_count"></div>
+                                            <div class="text-xs text-gray-600">Сотрудников</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-2xl font-bold text-green-600" x-text="(workshop.total_stats?.efficiency || 0) + '%'"></div>
+                                            <div class="text-xs text-gray-600">Эффективность</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Статистика по периодам -->
+                                    <div class="space-y-3">
+                                        <!-- За неделю -->
+                                        <div class="bg-gray-50 rounded-lg p-3">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <span class="text-sm font-medium text-gray-700">За неделю</span>
+                                                <span class="text-xs text-gray-500">7 дней</span>
+                                            </div>
+                                            <div class="grid grid-cols-3 gap-2 text-xs">
+                                                <div class="text-center">
+                                                    <div class="font-semibold text-green-600" x-text="workshop.week_stats?.completed_works || 0"></div>
+                                                    <div class="text-gray-500">Работ</div>
+                                                </div>
+                                                <div class="text-center">
+                                                    <div class="font-semibold text-red-600" x-text="workshop.week_stats?.defects || 0"></div>
+                                                    <div class="text-gray-500">Брак</div>
+                                                </div>
+                                                <div class="text-center">
+                                                    <div class="font-semibold text-blue-600" x-text="(workshop.week_stats?.efficiency || 0) + '%'"></div>
+                                                    <div class="text-gray-500">Эффект.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- За месяц -->
+                                        <div class="bg-gray-50 rounded-lg p-3">
+                                            <div class="flex justify-between items-center mb-2">
+                                                <span class="text-sm font-medium text-gray-700">За месяц</span>
+                                                <span class="text-xs text-gray-500">30 дней</span>
+                                            </div>
+                                            <div class="grid grid-cols-3 gap-2 text-xs">
+                                                <div class="text-center">
+                                                    <div class="font-semibold text-green-600" x-text="workshop.month_stats?.completed_works || 0"></div>
+                                                    <div class="text-gray-500">Работ</div>
+                                                </div>
+                                                <div class="text-center">
+                                                    <div class="font-semibold text-red-600" x-text="workshop.month_stats?.defects || 0"></div>
+                                                    <div class="text-gray-500">Брак</div>
+                                                </div>
+                                                <div class="text-center">
+                                                    <div class="font-semibold text-blue-600" x-text="(workshop.month_stats?.efficiency || 0) + '%'"></div>
+                                                    <div class="text-gray-500">Эффект.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Кнопка действий -->
+                                    <div class="mt-4 pt-4 border-t border-gray-200">
+                                        <a :href="`/workshops/api/workshops/${workshop.id}/orders/`" 
+                                           class="w-full bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                                            Детали цеха
+                                        </a>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            <!-- Статистика цеха -->
-                            <div class="grid grid-cols-2 gap-4">
-                                <!-- Количество работ -->
-                                <div class="bg-blue-50 rounded-lg p-3 text-center">
-                                    <div class="text-lg font-bold text-blue-600" x-text="workshop.total_tasks"></div>
-                                    <div class="text-xs text-blue-500">Работ</div>
-                                </div>
-                                
-                                <!-- Количество сотрудников -->
-                                <div class="bg-green-50 rounded-lg p-3 text-center">
-                                    <div class="text-lg font-bold text-green-600" x-text="workshop.employees_count"></div>
-                                    <div class="text-xs text-green-500">Сотрудников</div>
-                                </div>
-                                
-                                <!-- Эффективность -->
-                                <div class="bg-purple-50 rounded-lg p-3 text-center">
-                                    <div class="text-lg font-bold text-purple-600" x-text="Math.round(workshop.efficiency) + '%'"></div>
-                                    <div class="text-xs text-purple-500">Эффективность</div>
-                                </div>
-                                
-                                <!-- Количество брака -->
-                                <div class="bg-red-50 rounded-lg p-3 text-center">
-                                    <div class="text-lg font-bold text-red-600" x-text="workshop.defects"></div>
-                                    <div class="text-xs text-red-500">Брака</div>
-                                </div>
-                            </div>
+                            </template>
                         </div>
                     </template>
                 </div>
-            </div>
-        </template>
-
-        <template x-if="!loading && !stats">
-            <div class="text-center py-12">
-                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Нет данных</h3>
-                <p class="text-gray-600">Мастер не управляет ни одним цехом</p>
             </div>
         </template>
     </main>
@@ -195,38 +288,39 @@
         function masterDashboard() {
             return {
                 loading: true,
-                stats: null,
+                userName: '',
+                totalStats: {},
+                workshops: [],
                 
                 async init() {
-                    await this.loadStats();
+                    lucide.createIcons();
+                    await this.loadData();
                 },
                 
-                async loadStats() {
-                    this.loading = true;
+                async loadData() {
                     try {
-                        const response = await fetch('/workshops/api/master/statistics/');
-                        if (response.ok) {
-                            this.stats = await response.json();
-                        } else {
-                            console.error('Ошибка загрузки статистики:', response.status);
-                        }
+                        // Загружаем статистику мастера
+                        const response = await fetch('/workshops/api/master-stats/');
+                        const data = await response.json();
+                        
+                        this.totalStats = data.total_stats || {};
+                        this.workshops = data.workshops || [];
+                        
+                        // Получаем имя пользователя
+                        this.userName = '{{ request.user.get_full_name|default:request.user.username }}';
+                        
                     } catch (error) {
-                        console.error('Ошибка загрузки статистики:', error);
+                        console.error('Ошибка загрузки данных:', error);
                     } finally {
                         this.loading = false;
                     }
-                },
-                
-                async refreshStats() {
-                    await this.loadStats();
-                },
-                
-                getTotalEmployees() {
-                    if (!this.stats || !this.stats.workshops) return 0;
-                    return this.stats.workshops.reduce((total, workshop) => total + workshop.employees_count, 0);
                 }
             }
         }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
     </script>
 </body>
 </html> 
