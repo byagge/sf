@@ -45,6 +45,11 @@
             <div class="mb-4 lg:mb-0">
                 <h1 class="text-xl lg:text-2xl font-bold text-gray-900 mb-2">Браки (дефекты)</h1>
                 <p class="text-sm lg:text-base text-gray-600">Система управления браками с подтверждением мастера</p>
+                <!-- Отладочная информация -->
+                <div class="text-xs text-gray-500 mt-2">
+                    <div>Текущий пользователь: <span x-text="currentUser ? currentUser.full_name : 'не загружен'"></span></div>
+                    <div>Роль: <span x-text="currentUser ? (currentUser.role || 'неизвестно') : 'не загружен'"></span></div>
+                </div>
             </div>
             <div class="flex flex-col lg:flex-row items-stretch lg:items-center space-y-3 lg:space-y-0 lg:space-x-4">
                 <input type="text" placeholder="Поиск..." x-model="searchTerm"
@@ -154,6 +159,12 @@
                                                 class="px-3 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700">
                                             Закрыть
                                         </button>
+                                        <!-- Отладочная информация -->
+                                        <div class="text-xs text-gray-500 ml-2">
+                                            <div>Роль: <span x-text="currentUser ? (currentUser.role || 'неизвестно') : 'не загружен'"></span></div>
+                                            <div>Статус: <span x-text="defect.status"></span></div>
+                                            <div>Может подтвердить: <span x-text="canConfirmDefect(defect)"></span></div>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -208,6 +219,13 @@
                                 class="flex-1 px-3 py-2 bg-gray-600 text-white text-xs rounded hover:bg-gray-700">
                             Закрыть
                         </button>
+                    </div>
+                    
+                    <!-- Отладочная информация для мобильных -->
+                    <div class="mt-2 text-xs text-gray-500 border-t pt-2">
+                        <div>Роль: <span x-text="currentUser ? (currentUser.role || 'неизвестно') : 'не загружен'"></span></div>
+                        <div>Статус: <span x-text="defect.status"></span></div>
+                        <div>Может подтвердить: <span x-text="canConfirmDefect(defect)"></span></div>
                     </div>
                 </div>
             </template>
@@ -387,9 +405,12 @@
             
             async fetchDefects() {
                 try {
+                    console.log('Fetching defects...');
                     const resp = await fetch('/defects/api/defects/');
                     if (resp.ok) {
                         const data = await resp.json();
+                        console.log('Defects API response:', data);
+                        
                         // Проверяем структуру данных
                         if (data && Array.isArray(data)) {
                             this.defects = data;
@@ -398,19 +419,26 @@
                         } else {
                             this.defects = [];
                         }
+                        
+                        console.log('Defects loaded:', this.defects.length);
                     } else {
+                        console.log('Defects API error:', resp.status, resp.statusText);
                         this.defects = [];
                     }
                 } catch (error) {
+                    console.log('Defects fetch error:', error);
                     this.defects = [];
                 }
             },
             
             async fetchWorkshops() {
                 try {
+                    console.log('Fetching workshops...');
                     const resp = await fetch('/workshops/api/workshops/');
                     if (resp.ok) {
                         const data = await resp.json();
+                        console.log('Workshops API response:', data);
+                        
                         // Проверяем структуру данных
                         if (data && Array.isArray(data)) {
                             this.workshops = data;
@@ -419,10 +447,14 @@
                         } else {
                             this.workshops = [];
                         }
+                        
+                        console.log('Workshops loaded:', this.workshops.length);
                     } else {
+                        console.log('Workshops API error:', resp.status, resp.statusText);
                         this.workshops = [];
                     }
                 } catch (error) {
+                    console.log('Workshops fetch error:', error);
                     this.workshops = [];
                 }
             },
@@ -433,32 +465,41 @@
                     
                     if (resp.ok) {
                         const data = await resp.json();
+                        console.log('Profile API response:', data);
                         
                         // Проверяем структуру данных
                         if (data && typeof data === 'object') {
                             this.currentUser = data;
+                            console.log('Current user set:', this.currentUser);
                         } else {
                             this.currentUser = null;
+                            console.log('Profile data is not an object');
                         }
                     } else {
                         this.currentUser = null;
+                        console.log('Profile API error:', resp.status, resp.statusText);
                     }
                 } catch (error) {
                     this.currentUser = null;
+                    console.log('Profile API fetch error:', error);
                 }
             },
             
             filteredDefects() {
                 if (!this.defects || this.defects.length === 0) {
+                    console.log('No defects available');
                     return [];
                 }
                 
                 const term = this.searchTerm.toLowerCase();
-                return this.defects.filter(d =>
+                const filtered = this.defects.filter(d =>
                     (d.product && d.product.name ? d.product.name : '').toLowerCase().includes(term) ||
                     (d.user && d.user.full_name ? d.user.full_name : '').toLowerCase().includes(term) ||
                     (d.employee_task ? `задача ${d.employee_task.id}` : '').toLowerCase().includes(term)
                 );
+                
+                console.log('Filtered defects:', filtered.length, 'of', this.defects.length);
+                return filtered;
             },
             
             formatDate(dateStr) {
@@ -499,10 +540,22 @@
             
             canConfirmDefect(defect) {
                 if (!this.currentUser || !defect) {
+                    console.log('canConfirmDefect: no currentUser or defect', { currentUser: this.currentUser, defect });
                     return false;
                 }
                 
-                if (this.currentUser.role !== 'master') {
+                // Проверяем роль пользователя - учитываем разные возможные форматы
+                const userRole = this.currentUser.role || this.currentUser.role_name || this.currentUser.user_role;
+                
+                console.log('canConfirmDefect check:', {
+                    currentUser: this.currentUser,
+                    userRole: userRole,
+                    defectStatus: defect.status,
+                    canConfirm: userRole && (userRole === 'master' || userRole === 'Master') && defect.status === 'pending'
+                });
+                
+                if (!userRole || (userRole !== 'master' && userRole !== 'Master')) {
+                    console.log('canConfirmDefect: user role not master', { userRole });
                     return false;
                 }
                 
@@ -510,14 +563,28 @@
             },
             
             canMarkRepaired(defect) {
-                if (!this.currentUser || !defect) return false;
-                return defect.status === 'repairable' || defect.status === 'transferred';
+                if (!this.currentUser || !defect) {
+                    console.log('canMarkRepaired: no currentUser or defect', { currentUser: this.currentUser, defect });
+                    return false;
+                }
+                
+                const canMark = defect.status === 'repairable' || defect.status === 'transferred';
+                console.log('canMarkRepaired check:', { defectStatus: defect.status, canMark });
+                return canMark;
             },
             
             canCloseDefect(defect) {
-                if (!this.currentUser || !defect) return false;
+                if (!this.currentUser || !defect) {
+                    console.log('canCloseDefect: no currentUser or defect', { currentUser: this.currentUser, defect });
+                    return false;
+                }
+                
+                const userRole = this.currentUser.role || this.currentUser.role_name || this.currentUser.user_role;
                 const adminRoles = ['founder', 'director', 'admin', 'master'];
-                return adminRoles.includes(this.currentUser.role) && defect.status === 'repaired';
+                const canClose = adminRoles.includes(userRole) && defect.status === 'repaired';
+                
+                console.log('canCloseDefect check:', { userRole, defectStatus: defect.status, canClose });
+                return canClose;
             },
             
             openConfirmationModal(defect) {
@@ -702,6 +769,8 @@
             
             async init() {
                 try {
+                    console.log('Initializing defects data...');
+                    
                     // Явно устанавливаем модальные окна в скрытое состояние
                     this.showConfirmationModal = false;
                     this.showRepairModal = false;
@@ -715,6 +784,8 @@
                         this.fetchCurrentUser()
                     ]);
                     
+                    console.log('All data fetched, currentUser:', this.currentUser);
+                    
                     this.$nextTick(() => {
                         try {
                             lucide.createIcons();
@@ -723,12 +794,14 @@
                         }
                     });
                 } catch (error) {
+                    console.log('Init error:', error);
                     // Игнорируем ошибки инициализации
                 }
             },
             
             stats() {
                 if (!this.defects || this.defects.length === 0) {
+                    console.log('Stats: no defects available');
                     return {
                         totalDefects: 0,
                         pendingConfirmation: 0,
@@ -746,7 +819,7 @@
                 const irreparable = this.defects.filter(d => d.status === 'irreparable').length;
                 const closed = this.defects.filter(d => d.status === 'closed').length;
                 
-                return { 
+                const stats = { 
                     totalDefects, 
                     pendingConfirmation, 
                     repairable, 
@@ -754,6 +827,9 @@
                     irreparable,
                     closed
                 };
+                
+                console.log('Stats calculated:', stats);
+                return stats;
             }
         }
     }
