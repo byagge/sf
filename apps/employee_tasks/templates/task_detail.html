@@ -512,15 +512,6 @@
                             Просмотреть брак
                         </button>
                     </template>
-                    
-                    <!-- Кнопка для принудительного обновления заработка -->
-                    <template x-if="task.completed_quantity >= task.quantity && (!task.earnings && !task.net_earnings)">
-                        <button @click="refreshEarnings()" 
-                                class="w-full py-3 bg-yellow-100 hover:bg-yellow-200 active:bg-yellow-300 text-yellow-700 rounded-lg font-semibold text-base transition-colors duration-150">
-                            <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>
-                            Обновить заработок
-                        </button>
-                    </template>
                 </div>
             </div>
         </template>
@@ -1147,42 +1138,6 @@
                 console.log('=== DEBUG: SHOW SUCCESS MESSAGE ===');
                 // Можно добавить красивое уведомление
                 alert('Задача успешно обновлена!');
-            },
-            
-            async refreshEarnings() {
-                console.log('=== DEBUG: REFRESH EARNINGS ===');
-                if (!this.task) {
-                    console.log('No task available, cannot refresh earnings');
-                    return;
-                }
-                
-                try {
-                    // Принудительно обновляем задачу
-                    const resp = await fetch(`/employee_tasks/api/employee-tasks/${this.task.id}/`, {
-                        method: 'PATCH',
-                        headers: { 
-                            'Content-Type': 'application/json', 
-                            'X-CSRFToken': this.getCsrfToken() 
-                        },
-                        body: JSON.stringify({
-                            completed_quantity: this.task.completed_quantity,
-                            defective_quantity: this.task.defective_quantity
-                        })
-                    });
-                    
-                    if (resp.ok) {
-                        console.log('Task updated successfully, reloading...');
-                        // Перезагружаем задачу для получения обновленных данных о заработке
-                        await this.loadTask();
-                        alert('Заработок обновлен!');
-                    } else {
-                        console.error('Failed to update task:', resp.status);
-                        alert('Ошибка при обновлении заработка');
-                    }
-                } catch (error) {
-                    console.error('Error refreshing earnings:', error);
-                    alert('Ошибка при обновлении заработка');
-                }
             },
             
             getCsrfToken() {

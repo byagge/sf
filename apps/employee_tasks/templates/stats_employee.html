@@ -84,7 +84,7 @@
         </div>
         
         <!-- Debug Info and Actions -->
-        <div class="bg-white rounded-lg p-3 shadow-sm mb-4" x-show="!loading">
+        <!-- <div class="bg-white rounded-lg p-3 shadow-sm mb-4" x-show="!loading">
             <div class="flex items-center justify-between mb-2">
                 <h3 class="font-semibold text-gray-900">Отладка</h3>
                 <button @click="recalculateEarnings()" class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
@@ -96,7 +96,7 @@
                 <div>Tasks count: <span x-text="tasks.length"></span></div>
                 <div>Overview: <span x-text="JSON.stringify(overview)"></span></div>
             </div>
-        </div>
+        </div> -->
 
         <!-- Loading State -->
         <template x-if="loading">
@@ -283,6 +283,22 @@
                 if (!this.userId) {
                     alert('User ID not available.');
                     return;
+                }
+                
+                // Функция для получения CSRF токена из cookies
+                function getCookie(name) {
+                    let cookieValue = null;
+                    if (document.cookie && document.cookie !== '') {
+                        const cookies = document.cookie.split(';');
+                        for (let i = 0; i < cookies.length; i++) {
+                            const cookie = cookies[i].trim();
+                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                break;
+                            }
+                        }
+                    }
+                    return cookieValue;
                 }
                 
                 // Получаем актуальный CSRF токен
