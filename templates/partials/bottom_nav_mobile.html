@@ -13,13 +13,23 @@
 	</div>
   
 	<a id="fab-create" href="/orders/?create=1/"
-		class="fixed z-50 w-12 h-12 rounded-full shadow-lg flex items-center justify-center"
-		style="left:50vw; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);">
+		class="fixed z-50 w-12 h-12 rounded-full shadow-lg flex items-center justify-center">
 		<i data-lucide="plus" class="w-6 h-6 text-white"></i>
 	</a>
 
 
-
+	<script>
+		function centerFab() {
+		  const btn = document.getElementById('fab-create');
+		  if (!btn) return;
+		  const left = Math.round((window.innerWidth - btn.offsetWidth) / 2);
+		  btn.style.left = left + 'px';
+		  btn.style.bottom = 'calc(env(safe-area-inset-bottom, 0px) + 8px)';
+		}
+		window.addEventListener('resize', centerFab);
+		window.addEventListener('orientationchange', centerFab);
+		centerFab();
+	</script>
   
 	<!-- Правая группа (2 элемента) -->
 	<div class="flex items-center flex-1 justify-evenly gap-0">
