@@ -70,12 +70,17 @@
         <span x-text="toast.message"></span>
     </div>
     <!-- AppBar -->
-    <header class="fixed top-0 left-0 right-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200 flex items-center justify-between px-4 h-16">
+    <header class="fixed top-0 left-0 right-0 z-20 bg-white shadow-sm border-b border-gray-200 flex items-center justify-between px-4 h-16">
         <div class="flex items-center space-x-3">
             <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
                 <span class="text-white font-bold text-2xl">O</span>
             </div>
             <span class="text-lg font-semibold text-gray-900">Планы по цехам</span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button @click="refreshData()" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                <i data-lucide="refresh-cw" class="w-5 h-5 text-gray-600"></i>
+            </button>
         </div>
     </header>
 {% if request.session.impersonator_id %}
@@ -84,11 +89,13 @@
 </div>
 {% endif %}
     <!-- Main Content -->
-    <main class="flex-1 pt-20 pb-20 px-2 max-w-2xl mx-auto w-full">
+    <main class="flex-1 pt-20 pb-20 px-4 w-full">
         <!-- Tabs for workshops -->
-        <div class="flex space-x-2 mb-4 overflow-x-auto">
+        <div class="flex space-x-2 mb-6 overflow-x-auto pb-2">
             <template x-for="(workshop, idx) in workshops" :key="workshop.id">
-                <button @click="tabChanged(idx)" :class="selectedWorkshopIdx === idx ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'" class="px-4 py-2 rounded-lg font-semibold border border-blue-600 min-w-max">
+                <button @click="tabChanged(idx)" 
+                        :class="selectedWorkshopIdx === idx ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-gray-700 border border-gray-200'" 
+                        class="px-6 py-3 rounded-xl font-semibold min-w-max transition-all duration-200 shadow-sm">
                     <span x-text="workshop.name"></span>
                 </button>
             </template>
@@ -101,12 +108,12 @@
             </div>
         </template>
         <template x-if="!loading && stages.length === 0">
-            <div class="text-center py-12">
-                <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i data-lucide="check-square" class="w-10 h-10 text-gray-400"></i>
+            <div class="text-center py-16">
+                <div class="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="check-square" class="w-12 h-12 text-gray-400"></i>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">Нет активных этапов</h3>
-                <p class="text-gray-600">В этом цеху пока нет задач</p>
+                <h3 class="text-xl font-semibold text-gray-900 mb-3">Нет активных этапов</h3>
+                <p class="text-gray-600 text-lg">В этом цеху пока нет задач</p>
             </div>
         </template>
         <template x-if="!loading && stages.length > 0">

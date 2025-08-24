@@ -248,7 +248,7 @@
 
                                     <!-- Кнопка действий -->
                                     <div class="mt-3 pt-3 border-t border-gray-200">
-                                        <a :href="`/workshops/api/workshops/${workshop.id}/orders/`" 
+                                        <a :href="`/workshops/`" 
                                            class="w-full bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
                                             Детали цеха
                                         </a>
@@ -295,8 +295,11 @@
                 workshops: [],
                 
                 async init() {
-                    lucide.createIcons();
                     await this.loadData();
+                    // Инициализируем иконки после загрузки данных
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
                 },
                 
                 async loadData() {
@@ -315,13 +318,34 @@
                         console.error('Ошибка загрузки данных:', error);
                     } finally {
                         this.loading = false;
+                        // Инициализируем иконки после загрузки
+                        if (window.lucide) {
+                            lucide.createIcons();
+                        }
                     }
                 }
             }
         }
         
+        // Инициализация иконок при загрузке страницы
         document.addEventListener('DOMContentLoaded', function() {
-            lucide.createIcons();
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        });
+        
+        // Инициализация иконок при изменении DOM
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' && window.lucide) {
+                    lucide.createIcons();
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
         });
     </script>
 </body>
