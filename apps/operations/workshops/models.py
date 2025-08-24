@@ -276,7 +276,8 @@ class Workshop(models.Model):
         from apps.orders.models import OrderStage
         from apps.employee_tasks.models import EmployeeTask
         from apps.defects.models import Defect
-        from django.db.models import Q, Count, Sum, Avg
+        from apps.users.models import User
+        from django.db.models import Q, Count, Sum, Avg, F
         from django.utils import timezone
         from datetime import timedelta
         
@@ -299,7 +300,7 @@ class Workshop(models.Model):
         # Статистика по задачам
         all_tasks = EmployeeTask.objects.filter(stage__workshop__in=managed_workshops)
         total_tasks = all_tasks.count()
-        completed_tasks = all_tasks.filter(completed_quantity__gte=models.F('quantity')).count()
+        completed_tasks = all_tasks.filter(completed_quantity__gte=F('quantity')).count()
         
         # Статистика по этапам
         all_stages = OrderStage.objects.filter(workshop__in=managed_workshops)
@@ -309,14 +310,14 @@ class Workshop(models.Model):
         
         # Статистика по браку
         total_defects = Defect.objects.filter(
-            user__workshop__in=managed_workshops
+            employee_task__stage__workshop__in=managed_workshops
         ).count()
         
         # Статистика за неделю
         week_tasks = all_tasks.filter(created_at__gte=week_ago)
         week_completed = week_tasks.filter(completed_quantity__gte=F('quantity')).count()
         week_defects = Defect.objects.filter(
-            user__workshop__in=managed_workshops,
+            employee_task__stage__workshop__in=managed_workshops,
             created_at__gte=week_ago
         ).count()
         
@@ -324,7 +325,7 @@ class Workshop(models.Model):
         month_tasks = all_tasks.filter(created_at__gte=month_ago)
         month_completed = month_tasks.filter(completed_quantity__gte=F('quantity')).count()
         month_defects = Defect.objects.filter(
-            user__workshop__in=managed_workshops,
+            employee_task__stage__workshop__in=managed_workshops,
             created_at__gte=month_ago
         ).count()
         
@@ -338,7 +339,7 @@ class Workshop(models.Model):
         for workshop in managed_workshops:
             workshop_tasks = EmployeeTask.objects.filter(stage__workshop=workshop)
             workshop_completed = workshop_tasks.filter(completed_quantity__gte=F('quantity')).count()
-            workshop_defects = Defect.objects.filter(user__workshop=workshop).count()
+            workshop_defects = Defect.objects.filter(employee_task__stage__workshop=workshop).count()
             workshop_efficiency = (workshop_completed / workshop_tasks.count() * 100) if workshop_tasks.count() > 0 else 0
             
             workshops_stats.append({
@@ -353,13 +354,13 @@ class Workshop(models.Model):
                     workshop=workshop, 
                     status__in=['in_progress', 'partial']
                 ).count(),
-                'employees_count': workshop.users.count() if hasattr(workshop, 'users') else 0,
+                'employees_count': User.objects.filter(workshop=workshop).count(),
             })
         
         return {
             'master_info': {
                 'id': master_user.id,
-                'name': master_user.get_full_name(),
+                'name': master_user.get_full_name() if hasattr(master_user, 'get_full_name') else f"{master_user.first_name} {master_user.last_name}".strip(),
                 'email': master_user.email,
             },
             'overall_stats': {

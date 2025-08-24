@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дашборд мастера - Тест</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .error { color: red; background: #ffe6e6; padding: 10px; border-radius: 5px; }
+        .success { color: green; background: #e6ffe6; padding: 10px; border-radius: 5px; }
+        .info { color: blue; background: #e6f3ff; padding: 10px; border-radius: 5px; }
+        .card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Дашборд мастера - Тестовая страница</h1>
+    
+    {% if error %}
+        <div class="error">
+            <h3>Ошибка:</h3>
+            <p>{{ error }}</p>
+        </div>
+    {% endif %}
+    
+    {% if stats %}
+        <div class="success">
+            <h3>✅ Статистика загружена успешно!</h3>
+        </div>
+        
+        <div class="card">
+            <h3>Информация о мастере:</h3>
+            <p><strong>ID:</strong> {{ stats.master_info.id }}</p>
+            <p><strong>Имя:</strong> {{ stats.master_info.name }}</p>
+            <p><strong>Email:</strong> {{ stats.master_info.email }}</p>
+        </div>
+        
+        <div class="card">
+            <h3>Общая статистика:</h3>
+            <p><strong>Всего цехов:</strong> {{ stats.overall_stats.total_workshops }}</p>
+            <p><strong>Всего задач:</strong> {{ stats.overall_stats.total_tasks }}</p>
+            <p><strong>Выполнено задач:</strong> {{ stats.overall_stats.completed_tasks }}</p>
+            <p><strong>Всего этапов:</strong> {{ stats.overall_stats.total_stages }}</p>
+            <p><strong>Активных этапов:</strong> {{ stats.overall_stats.active_stages }}</p>
+            <p><strong>Завершенных этапов:</strong> {{ stats.overall_stats.completed_stages }}</p>
+            <p><strong>Всего брака:</strong> {{ stats.overall_stats.total_defects }}</p>
+            <p><strong>Эффективность:</strong> {{ stats.overall_stats.efficiency|floatformat:1 }}%</p>
+        </div>
+        
+        <div class="card">
+            <h3>Статистика за неделю:</h3>
+            <p><strong>Выполнено задач:</strong> {{ stats.period_stats.week.completed_tasks }}</p>
+            <p><strong>Брака:</strong> {{ stats.period_stats.week.defects }}</p>
+            <p><strong>Эффективность:</strong> {{ stats.period_stats.week.efficiency|floatformat:1 }}%</p>
+        </div>
+        
+        <div class="card">
+            <h3>Статистика за месяц:</h3>
+            <p><strong>Выполнено задач:</strong> {{ stats.period_stats.month.completed_tasks }}</p>
+            <p><strong>Брака:</strong> {{ stats.period_stats.month.defects }}</p>
+            <p><strong>Эффективность:</strong> {{ stats.period_stats.month.efficiency|floatformat:1 }}%</p>
+        </div>
+        
+        <div class="card">
+            <h3>Статистика по цехам ({{ stats.workshops|length }}):</h3>
+            {% for workshop in stats.workshops %}
+                <div style="border: 1px solid #eee; padding: 10px; margin: 5px 0; border-radius: 3px;">
+                    <h4>{{ workshop.name }}</h4>
+                    <p><strong>Описание:</strong> {{ workshop.description|default:"Не указано" }}</p>
+                    <p><strong>Всего задач:</strong> {{ workshop.total_tasks }}</p>
+                    <p><strong>Выполнено:</strong> {{ workshop.completed_tasks }}</p>
+                    <p><strong>Брака:</strong> {{ workshop.defects }}</p>
+                    <p><strong>Активных этапов:</strong> {{ workshop.active_stages }}</p>
+                    <p><strong>Сотрудников:</strong> {{ workshop.employees_count }}</p>
+                    <p><strong>Эффективность:</strong> {{ workshop.efficiency|floatformat:1 }}%</p>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <div class="card">
+            <h3>Отладочная информация:</h3>
+            <pre>{{ stats|pprint }}</pre>
+        </div>
+        
+    {% else %}
+        <div class="info">
+            <h3>ℹ️ Статистика не загружена</h3>
+            <p>Возможные причины:</p>
+            <ul>
+                <li>Пользователь не является мастером</li>
+                <li>Мастер не управляет ни одним цехом</li>
+                <li>Произошла ошибка при загрузке данных</li>
+            </ul>
+        </div>
+    {% endif %}
+    
+    <div class="card">
+        <h3>Информация о пользователе:</h3>
+        <p><strong>ID:</strong> {{ user.id }}</p>
+        <p><strong>Username:</strong> {{ user.username }}</p>
+        <p><strong>Имя:</strong> {{ user.first_name }}</p>
+        <p><strong>Фамилия:</strong> {{ user.last_name }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+        <p><strong>Роль:</strong> {{ user.role }}</p>
+        <p><strong>Цех:</strong> {{ user.workshop.name|default:"Не назначен" }}</p>
+    </div>
+    
+    <div class="card">
+        <h3>Действия:</h3>
+        <p><a href="/workshops/">← Вернуться к цехам</a></p>
+        <p><a href="/workshops/master/">🔄 Обновить страницу</a></p>
+    </div>
+</body>
+</html> 
