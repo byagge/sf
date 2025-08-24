@@ -44,11 +44,13 @@
         <!-- Workshop Selector -->
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-1">Цех</label>
+            <div class="text-xs text-gray-500 mb-2" x-text="`Доступно цехов: ${userWorkshopList.length}`"></div>
             <select x-model="selectedWorkshopId" @change="loadAllEmployees()" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <template x-for="workshop in userWorkshopList" :key="workshop.id">
                     <option :value="workshop.id" x-text="workshop.name"></option>
                 </template>
             </select>
+            <div class="text-xs text-gray-400 mt-1" x-text="`Выбран: ${selectedWorkshopId || 'не выбран'}`"></div>
         </div>
         <!-- Header -->
         <div class="flex justify-between items-center mb-6">
@@ -843,41 +845,79 @@
                 founder: { label: 'Учредитель', color: 'bg-gray-100 text-gray-800' }
             },
             async init() {
+                console.log('Initializing with userWorkshopList:', this.userWorkshopList);
+                console.log('userWorkshopIds:', window.userWorkshopIds);
+                console.log('userWorkshopList from window:', window.userWorkshopList);
+                
                 if (this.userWorkshopList.length > 0) {
                     this.selectedWorkshopId = this.userWorkshopList[0].id;
+                    console.log('Selected workshop ID:', this.selectedWorkshopId);
+                } else {
+                    console.warn('No workshops found for user');
                 }
+                
                 await this.loadAllEmployees();
                 lucide.createIcons();
             },
             async loadAllEmployees() {
                 this.loading = true;
                 this.employeesByWorkshop = {};
+                console.log('Loading employees for workshops:', this.userWorkshopList);
+                
                 for (const w of this.userWorkshopList) {
                     try {
+                        console.log(`Fetching employees for workshop ${w.id} (${w.name})`);
                         const response = await fetch(`/employees/api/employees/by_workshop/?workshop_id=${w.id}`);
+                        console.log(`Response status for workshop ${w.id}:`, response.status);
+                        
+                        if (!response.ok) {
+                            console.error(`Error fetching employees for workshop ${w.id}:`, response.status, response.statusText);
+                            this.employeesByWorkshop[w.id] = [];
+                            continue;
+                        }
+                        
                         const data = await response.json();
+                        console.log(`Employees data for workshop ${w.id}:`, data);
+                        
                         this.employeesByWorkshop[w.id] = Array.isArray(data) ? data : (data.results || data.employees || []);
+                        console.log(`Processed employees for workshop ${w.id}:`, this.employeesByWorkshop[w.id]);
                     } catch (e) {
+                        console.error(`Exception fetching employees for workshop ${w.id}:`, e);
                         this.employeesByWorkshop[w.id] = [];
                     }
                 }
+                
+                console.log('Final employeesByWorkshop:', this.employeesByWorkshop);
                 this.loading = false;
             },
             selectWorkshop(workshopId) {
+                console.log(`selectWorkshop called with workshopId: ${workshopId}`);
                 this.selectedWorkshopId = workshopId;
+                console.log(`selectedWorkshopId set to: ${this.selectedWorkshopId}`);
             },
             filteredEmployees(workshopId) {
+                console.log(`filteredEmployees called with workshopId: ${workshopId}`);
+                console.log(`employeesByWorkshop:`, this.employeesByWorkshop);
+                console.log(`employees for workshop ${workshopId}:`, this.employeesByWorkshop[workshopId]);
+                
                 const searchLower = this.searchTerm.toLowerCase();
                 const emps = this.employeesByWorkshop[workshopId] || [];
-                return emps.filter(employee => {
+                console.log(`Filtering ${emps.length} employees with search term: "${this.searchTerm}"`);
+                
+                const filtered = emps.filter(employee => {
                     // Унификация: поддержка и name, и full_name
                     const name = employee.full_name || employee.name || '';
-                    return (
+                    const matches = (
                         name.toLowerCase().includes(searchLower) ||
                         (employee.phone || '').includes(this.searchTerm) ||
                         (employee.email || '').toLowerCase().includes(searchLower)
                     );
+                    console.log(`Employee ${name} matches: ${matches}`);
+                    return matches;
                 });
+                
+                console.log(`Filtered result: ${filtered.length} employees`);
+                return filtered;
             },
             getInitials(name) {
                 if (!name) return '';
@@ -926,9 +966,15 @@
                 };
             },
             getAverageEfficiency() {
-                if (this.filteredEmployees(this.selectedWorkshopId).length === 0) return 0;
-                const total = this.filteredEmployees(this.selectedWorkshopId).reduce((sum, emp) => sum + (this.getEmployeeStats(emp.id).efficiency || 0), 0);
-                return Math.round(total / this.filteredEmployees(this.selectedWorkshopId).length);
+                console.log(`getAverageEfficiency called with selectedWorkshopId: ${this.selectedWorkshopId}`);
+                const filtered = this.filteredEmployees(this.selectedWorkshopId);
+                console.log(`Filtered employees for average:`, filtered);
+                
+                if (filtered.length === 0) return 0;
+                const total = filtered.reduce((sum, emp) => sum + (this.getEmployeeStats(emp.id).efficiency || 0), 0);
+                const average = Math.round(total / filtered.length);
+                console.log(`Average efficiency: ${average}%`);
+                return average;
             },
             openEmployeeProfile(employee) {
                 this.selectedEmployee = employee;

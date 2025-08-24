@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
-from apps.operations.workshops.models import Workshop
+from apps.operations.workshops.models import Workshop, WorkshopMaster
 from apps.operations.workshops.views import WorkshopSerializer
 from .utils import calculate_employee_stats
 
@@ -34,12 +34,45 @@ def employees_list(request):
 def employees_workshop_list(request):
     user = request.user
     is_master = getattr(user, 'role', None) == User.Role.MASTER
+    print(f"DEBUG: User {user.username} has role {user.role}, is_master: {is_master}")
+    
     template = None
     context = {}
     if is_master:
+        # Получаем цеха где пользователь является главным мастером
         managed_workshops = Workshop.objects.filter(manager=user)
-        userWorkshopIds = list(managed_workshops.values_list('id', flat=True))
-        userWorkshopList = list(managed_workshops.values('id', 'name'))
+        print(f"DEBUG: Managed workshops: {list(managed_workshops.values('id', 'name'))}")
+        
+        # Получаем цеха где пользователь является дополнительным мастером
+        additional_workshops = WorkshopMaster.objects.filter(
+            master=user, 
+            is_active=True
+        ).select_related('workshop')
+        print(f"DEBUG: Additional workshops: {[(wm.workshop.id, wm.workshop.name) for wm in additional_workshops]}")
+        
+        # Объединяем все цеха
+        all_workshops = list(managed_workshops.values('id', 'name'))
+        for wm in additional_workshops:
+            if wm.workshop.is_active:  # Проверяем что цех активен
+                all_workshops.append({
+                    'id': wm.workshop.id,
+                    'name': wm.workshop.name
+                })
+        
+        # Убираем дубликаты по ID
+        seen_ids = set()
+        unique_workshops = []
+        for workshop in all_workshops:
+            if workshop['id'] not in seen_ids:
+                seen_ids.add(workshop['id'])
+                unique_workshops.append(workshop)
+        
+        userWorkshopIds = [w['id'] for w in unique_workshops]
+        userWorkshopList = unique_workshops
+        
+        print(f"DEBUG: Final userWorkshopIds: {userWorkshopIds}")
+        print(f"DEBUG: Final userWorkshopList: {userWorkshopList}")
+        
         template = 'employees_mobile_master.html' if is_mobile(request) else 'employees_master.html'
         context = {
             'userWorkshopIds': userWorkshopIds,
@@ -152,14 +185,23 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 def employees_by_workshop(request):
     """Возвращает сотрудников по id цеха (workshop_id)"""
     workshop_id = request.GET.get('workshop_id')
+    print(f"DEBUG: employees_by_workshop called with workshop_id: {workshop_id}")
+    
     if not workshop_id:
+        print("DEBUG: No workshop_id provided")
         return Response({'error': 'workshop_id required'}, status=400)
+    
     staff_roles = [
         User.Role.ADMIN, User.Role.MASTER, User.Role.WORKER,
         User.Role.ACCOUNTANT, User.Role.DIRECTOR, User.Role.FOUNDER
     ]
+    
     users = User.objects.filter(role__in=staff_roles, workshop_id=workshop_id)
+    print(f"DEBUG: Found {users.count()} users in workshop {workshop_id}")
+    
     data = EmployeeSerializer(users, many=True).data
+    print(f"DEBUG: Serialized data: {data}")
+    
     return Response(data)
 
 @api_view(['POST'])
