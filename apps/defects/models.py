@@ -103,32 +103,22 @@ class Defect(models.Model):
     
     def can_be_confirmed_by(self, user):
         """Проверяет, может ли пользователь подтвердить этот брак"""
-        print(f"DEBUG: can_be_confirmed_by called for user {user.username}")
-        print(f"DEBUG: User role: {getattr(user, 'role', 'NO_ROLE')}")
-        print(f"DEBUG: User workshop: {getattr(user, 'workshop', 'NO_WORKSHOP')}")
-        
         if user.role != User.Role.MASTER:
-            print(f"DEBUG: User role {getattr(user, 'role', 'NO_ROLE')} is not MASTER")
             return False
         
         # Мастер должен быть привязан к какому-либо цеху
         if not user.workshop_id:
-            print(f"DEBUG: User has no workshop_id")
             return False
         
         # Разрешаем, если брак создан сотрудником из цеха мастера
         defect_workshop = self.get_workshop()
-        print(f"DEBUG: Defect workshop: {defect_workshop}")
         if defect_workshop and defect_workshop.id == user.workshop_id:
-            print(f"DEBUG: Defect workshop matches user workshop")
             return True
         
         # Также разрешаем, если целевой цех брака совпадает с цехом мастера
         if self.target_workshop_id and self.target_workshop_id == user.workshop_id:
-            print(f"DEBUG: Target workshop matches user workshop")
             return True
         
-        print(f"DEBUG: No workshop match found")
         return False
     
     def confirm_defect(self, master, is_repairable, defect_type=None, target_workshop=None, comment=''):
