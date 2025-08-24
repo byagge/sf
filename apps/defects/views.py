@@ -94,8 +94,15 @@ def confirm_defect(request, defect_id):
     try:
         defect = Defect.objects.get(id=defect_id)
         
+        # Добавляем логирование для отладки
+        print(f"DEBUG: User: {request.user.username}, Role: {getattr(request.user, 'role', 'NO_ROLE')}, Workshop: {getattr(request.user, 'workshop', 'NO_WORKSHOP')}")
+        print(f"DEBUG: Defect ID: {defect.id}, Status: {defect.status}")
+        print(f"DEBUG: Defect Workshop: {defect.get_workshop()}")
+        print(f"DEBUG: Can be confirmed by: {defect.can_be_confirmed_by(request.user)}")
+        
         # Проверяем права мастера
         if not defect.can_be_confirmed_by(request.user):
+            print(f"DEBUG: Access denied for user {request.user.username}")
             return Response(
                 {'error': 'У вас нет прав для подтверждения этого брака'}, 
                 status=status.HTTP_403_FORBIDDEN
