@@ -12,11 +12,13 @@
 	  </a>
 	</div>
   
-	<!-- Абсолютно позиционированная центровая кнопка -->
-	<a href="/orders/?create=1/" 
-	   class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-blue-600 rounded-full shadow-lg flex items-center justify-center z-50 m-0 p-0">
-	  <i data-lucide="plus" class="w-6 h-6 text-white"></i>
+	<!-- Оставьте nav как есть, но замените центральную кнопку: -->
+	<a href="/orders/?create=1/"
+		class="fixed left-1/2 z-50 w-12 h-12 rounded-full shadow-lg flex items-center justify-center"
+		style="transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);">
+		<i data-lucide="plus" class="w-6 h-6 text-white"></i>
 	</a>
+
   
 	<!-- Правая группа (2 элемента) -->
 	<div class="flex items-center flex-1 justify-evenly gap-0">
