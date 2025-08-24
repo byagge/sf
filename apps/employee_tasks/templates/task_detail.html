@@ -369,6 +369,10 @@
                         
                         <div class="space-y-2 text-sm">
                             <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Название заказа:</span>
+                                <span class="font-medium text-gray-900" x-text="task.title || 'Не указано'"></span>
+                            </div>
+                            <div class="flex items-center justify-between">
                                 <span class="text-gray-600">Операция:</span>
                                 <span class="font-medium text-gray-900" x-text="task.stage_name || 'Не указана'"></span>
                             </div>
