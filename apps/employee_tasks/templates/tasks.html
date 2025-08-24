@@ -407,12 +407,11 @@
                 const realPlan = this.getRealQuantity(task, 'plan');
                 const realCompleted = this.getRealQuantity(task, 'completed');
                 const isCompleted = realCompleted >= realPlan && realPlan > 0;
-                if (!isCompleted) return true;
-                if (!task.completed_at) return true;
-                const completedAt = new Date(task.completed_at);
-                if (isNaN(completedAt.getTime())) return true;
-                const ms24h = 24 * 60 * 60 * 1000;
-                return (Date.now() - completedAt.getTime()) < ms24h;
+                
+                // Если задача выполнена, не показываем её
+                if (isCompleted) return false;
+                
+                return true;
             },
             isTaskOverdue(task) {
                 // Проверяем, прошло ли более 3 дней с момента создания задачи

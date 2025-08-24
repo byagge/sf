@@ -120,17 +120,16 @@
                             <span class="text-xs text-green-700 font-semibold" x-text="order.total_done_count"></span>
                             <span class="text-gray-400 text-xs ml-2">Брак:</span>
                             <span class="text-xs text-red-600 font-semibold" x-text="order.total_defective_count"></span>
-                            <template x-if="order.stages && order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length > 0">
-                                <span class="text-gray-400 text-xs ml-2">Активных этапов:</span>
-                                <span class="text-xs text-blue-600 font-semibold" x-text="order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length"></span>
+                            <template x-if="order.stages && order.stages.length > 0">
+                                <span class="text-gray-400 text-xs ml-2">Всего этапов:</span>
+                                <span class="text-xs text-blue-600 font-semibold" x-text="order.stages.length"></span>
                             </template>
                         </div>
                         <template x-if="order.stages && order.stages.length">
                             <div class="mb-2">
-                                <span class="text-gray-400 text-xs">Активные этапы:</span>
-                                <template x-if="order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length > 0">
+                                <span class="text-gray-400 text-xs">Этапы заказа:</span>
                                 <ul class="text-xs text-gray-700 list-disc pl-4">
-                                        <template x-for="stage in order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0)" :key="stage.id">
+                                    <template x-for="stage in order.stages" :key="stage.id">
                                         <li>
                                             <b x-text="stage.workshop && stage.workshop.name ? stage.workshop.name : ''"></b>:
                                                 <template x-if="stage.in_progress > 0">
@@ -154,10 +153,6 @@
                                         </li>
                                     </template>
                                 </ul>
-                                </template>
-                                <template x-if="order.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length === 0">
-                                    <span class="text-xs text-gray-500">Пока нет активных этапов</span>
-                                </template>
                             </div>
                         </template>
                         <template x-if="order.defects && order.defects.length">
@@ -261,10 +256,10 @@
                                 <!-- Шаг 3: Этапы заказа -->
                                 <template x-if="orderStep === 3">
                                     <div class="mb-3">
-                                        <h3 class="font-semibold text-gray-900 text-xs mb-1">Активные этапы заказа</h3>
-                                        <template x-if="selectedOrder.stages && selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length > 0">
+                                        <h3 class="font-semibold text-gray-900 text-xs mb-1">Этапы заказа</h3>
+                                        <template x-if="selectedOrder.stages && selectedOrder.stages.length > 0">
                                         <ul class="text-xs text-gray-700 list-disc pl-4 space-y-0.5">
-                                                <template x-for="stage in selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0)" :key="stage.id">
+                                                <template x-for="stage in selectedOrder.stages" :key="stage.id">
                                                 <li>
                                                     <b x-text="stage.workshop && stage.workshop.name"></b>:
                                                         <template x-if="stage.in_progress > 0">
@@ -289,9 +284,9 @@
                                             </template>
                                         </ul>
                                         </template>
-                                        <template x-if="!selectedOrder.stages || selectedOrder.stages.filter(s => s.in_progress > 0 || s.completed > 0 || s.done_count > 0 || s.defective_count > 0).length === 0">
+                                        <template x-if="!selectedOrder.stages || selectedOrder.stages.length === 0">
                                             <div class="text-center py-4">
-                                                <div class="text-gray-400 text-xs">Пока нет активных этапов</div>
+                                                <div class="text-gray-400 text-xs">Этапы не указаны</div>
                                                 <div class="text-gray-300 text-xs mt-1">Заказ еще не поступил в производство</div>
                                             </div>
                                         </template>
