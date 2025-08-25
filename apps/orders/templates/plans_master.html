@@ -1415,35 +1415,34 @@
     <!-- Assign Modal -->
     <template x-if="showAssignModal">
         <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showAssignModal = false">
-            <div class="modal-content bg-white w-full p-6 max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold text-gray-900">Назначить сотрудника</h2>
-                    <button @click="showAssignModal = false" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                        <i data-lucide="x" class="w-6 h-6 text-gray-600"></i>
+            <div class="bg-white rounded-t-2xl w-full h-[80vh] flex flex-col animate-slide-up shadow-xl overflow-hidden">
+                <!-- Заголовок -->
+                <div class="flex items-center justify-between px-4 pt-3 pb-1 border-b border-gray-100 sticky top-0 bg-white z-10 min-h-[48px]">
+                    <h2 class="text-base font-bold text-gray-900">Назначить сотрудника</h2>
+                    <button @click="showAssignModal = false" class="text-gray-400 hover:text-gray-600">
+                        <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                 </div>
+                
+                <!-- Основной контент -->
+                <div class="flex-1 px-4 py-3 overflow-y-auto">
                                 <form @submit.prevent="submitAssign" class="space-y-4">
-                    <!-- Детальная информация о заказе -->
-                    <template x-if="assignForm.stage_id">
-                        <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                            <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
-                            <template x-if="stages.find(s => s.id === assignForm.stage_id)">
-                                <div class="space-y-1 text-xs text-blue-700">
-                                    <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order">
-                                        <div><span class="font-medium">Заявка:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.name || 'Не указано'"></span></div>
-                                        <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order.client">
-                                            <div><span class="font-medium">Клиент:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.client.name || 'Не указан'"></span></div>
+                        <!-- Упрощенная информация о заказе -->
+                        <template x-if="assignForm.stage_id">
+                            <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                                <div class="text-sm font-semibold text-blue-800 mb-2">Заказ</div>
+                                <template x-if="stages.find(s => s.id === assignForm.stage_id)">
+                                    <div class="space-y-1 text-xs text-blue-700">
+                                        <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order">
+                                            <div><span class="font-medium">Заявка:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.name || 'Не указано'"></span></div>
+                                            <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order.client">
+                                                <div><span class="font-medium">Клиент:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.client.name || 'Не указан'"></span></div>
+                                            </template>
                                         </template>
-                                        <div><span class="font-medium">Дата создания:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.created_at ? new Date(stages.find(s => s.id === assignForm.stage_id).order_item.order.created_at).toLocaleDateString('ru-RU') : 'Не указана'"></span></div>
-                                        <div><span class="font-medium">Статус заказа:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.status_display || 'Не указан'"></span></div>
-                                        <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order.comment">
-                                            <div><span class="font-medium">Комментарий:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.comment"></span></div>
-                                        </template>
-                                    </template>
-                                </div>
-                            </template>
-                        </div>
-                    </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
                     
                     <!-- Информация о товарах заказа -->
                     <div>
@@ -1562,115 +1561,50 @@
                         <p class="text-lg font-semibold text-gray-900" x-text="editAssignForm.employee_name"></p>
                     </div>
                     
-                    <!-- Детальная информация о заказе -->
-                    <template x-if="editAssignForm.stage_id">
-                        <div class="mt-4 p-3 bg-blue-50 rounded-lg text-left text-sm border-l-4 border-blue-400">
-                            <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
-                            <template x-if="stages.find(s => s.id === editAssignForm.stage_id)">
-                                <div class="space-y-1 text-xs text-blue-700">
-                                    <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item && stages.find(s => s.id === editAssignForm.stage_id).order_item.order">
-                                        <div><span class="font-medium">Заявка:</span> <span x-text="stages.find(s => s.id === editAssignForm.stage_id).order_item.order.name || 'Не указано'"></span></div>
-                                        <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item.order.client">
-                                            <div><span class="font-medium">Клиент:</span> <span x-text="stages.find(s => s.id === editAssignForm.stage_id).order_item.order.client.name || 'Не указан'"></span></div>
-                                        </template>
-                                        <div><span class="font-medium">Дата создания:</span> <span x-text="stages.find(s => s.id === editAssignForm.stage_id).order_item.order.created_at ? new Date(stages.find(s => s.id === editAssignForm.stage_id).order_item.order.created_at).toLocaleDateString('ru-RU') : 'Не указана'"></span></div>
-                                        <div><span class="font-medium">Статус заказа:</span> <span x-text="stages.find(s => s.id === editAssignForm.stage_id).order_item.order.status_display || 'Не указан'"></span></div>
-                                        <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item.order.comment">
-                                            <div><span class="font-medium">Комментарий:</span> <span x-text="stages.find(s => s.id === editAssignForm.stage_id).order_item.order.comment"></span></div>
-                                        </template>
-                                    </template>
-                                    <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item && stages.find(s => s.id === editAssignForm.stage_id).order_item !== null">
-                                        <div class="mt-2 pt-2 border-t border-blue-200">
-                                            <div><span class="font-medium">Товар:</span> <span x-text="stages.find(s => s.id === editAssignForm.stage_id).order_item.product ? stages.find(s => s.id === editAssignForm.stage_id).order_item.product.name : 'Не указан'"></span></div>
-                                            
-                                            <!-- Фото товара -->
-                                            <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item.product && stages.find(s => s.id === editAssignForm.stage_id).order_item.product.img">
-                                                <div class="mt-2 text-center">
-                                                    <img :src="stages.find(s => s.id === editAssignForm.stage_id).order_item.product.img" 
-                                                         :alt="stages.find(s => s.id === editAssignForm.stage_id).order_item.product.name"
-                                                         class="w-16 h-16 object-cover rounded border border-gray-200 mx-auto">
-                                                </div>
-                                            </template>
-                                            <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item.size">
-                                                <div><span class="font-medium">Размер:</span> <span x-text="stages.find(s => s.id === editAssignForm.stage_id).order_item.size"></span></div>
-                                            </template>
-                                            <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item.color">
-                                                <div><span class="font-medium">Цвет:</span> <span x-text="stages.find(s => s.id === editAssignForm.stage_id).order_item.color"></span></div>
-                                            </template>
-                                            
-                                            <!-- Все товары заказа в модальном окне редактирования -->
-                                                                                         <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item && stages.find(s => s.id === editAssignForm.stage_id).order_item !== null && stages.find(s => s.id === editAssignForm.stage_id).order_item.order && stages.find(s => s.id === editAssignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === editAssignForm.stage_id).order_item.order.items) && stages.find(s => s.id === editAssignForm.stage_id).order_item.order.items.length > 1">
-                                                <div class="mt-2 pt-2 border-t border-blue-200">
-                                                    <div class="text-xs font-semibold text-blue-800 mb-1">Все товары заказа:</div>
-                                                    <div class="space-y-1">
-                                                        <template x-for="item in stages.find(s => s.id === editAssignForm.stage_id).order_item.order.items" :key="item.id">
-                                                            <div class="text-xs border-l-2 border-blue-300 pl-2 py-1" :class="item.id === stages.find(s => s.id === editAssignForm.stage_id).order_item.id ? 'border-l-blue-600 bg-blue-100' : ''">
-                                                                <div class="flex items-center justify-between">
-                                                                    <div class="flex-1">
-                                                                        <!-- Фото товара -->
-                                                                        <template x-if="item.product && item.product.img">
-                                                                            <div class="mb-1">
-                                                                                <img :src="item.product.img" 
-                                                                                     :alt="item.product.name"
-                                                                                     class="w-8 h-8 object-cover rounded border border-gray-200">
-                                                                            </div>
-                                                                        </template>
-                                                                        <div class="font-medium text-blue-700" x-text="item.product && item.product.name ? item.product.name : 'Не указан'"></div>
-                                                                        <div class="text-blue-600 text-xs">
-                                                                            <span x-text="item.quantity"></span> шт.
-                                                                            <template x-if="item.size"> • <span x-text="item.size"></span></template>
-                                                                            <template x-if="item.color"> • <span x-text="item.color"></span></template>
-                                                                            <template x-if="item.product && item.product.is_glass">
-                                                                                <span class="text-blue-600"> • Стекло</span>
-                                            </template>
-                                        </div>
-                                                                    </div>
-                                                                    <div class="ml-2 text-xs text-blue-500">
-                                                                        <template x-if="item.id === stages.find(s => s.id === editAssignForm.stage_id).order_item.id">
-                                                                            <span class="font-semibold">← Текущий</span>
-                                    </template>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                </div>
-                            </template>
+                    
+                    <!-- Форма редактирования -->
+                    <form @submit.prevent="submitEditAssign" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Количество</label>
+                            <div class="flex items-center justify-center space-x-4">
+                                <button type="button" @click="editAssignForm.quantity = Math.max(1, editAssignForm.quantity - 1)" 
+                                        class="w-12 h-12 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">
+                                    -
+                                </button>
+                                <input type="number" x-model.number="editAssignForm.quantity" 
+                                       class="w-20 text-center px-3 py-3 border border-gray-300 rounded-lg text-xl font-bold" 
+                                       :max="maxEditableQuantity" min="1" required 
+                                       @input="editAssignForm.quantity = Math.max(1, Math.min(editAssignForm.quantity, maxEditableQuantity))" 
+                                       @blur="editAssignForm.quantity = Math.max(1, Math.min(editAssignForm.quantity, maxEditableQuantity))">
+                                <button type="button" @click="editAssignForm.quantity = Math.min(maxEditableQuantity, editAssignForm.quantity + 1)" 
+                                        class="w-12 h-12 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">
+                                    +
+                                </button>
+                            </div>
+                            <div class="text-xs mt-2 text-center" :class="maxEditableQuantity <= 5 ? 'text-red-500 font-semibold' : 'text-gray-500'">
+                                Доступно: <span x-text="maxEditableQuantity"></span>
+                            </div>
                         </div>
-                    </template>
+                    </form>
                 </div>
-                <form @submit.prevent="submitEditAssign" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Количество <span class="text-red-500">*</span></label>
-                        <div class="flex items-center space-x-2">
-                            <button type="button" @click="editAssignForm.quantity = Math.max(1, editAssignForm.quantity - 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">-</button>
-                            <input type="number" x-model.number="editAssignForm.quantity" class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold" :max="maxEditableQuantity" min="1" required @input="editAssignForm.quantity = Math.max(1, Math.min(editAssignForm.quantity, maxEditableQuantity))" @blur="editAssignForm.quantity = Math.max(1, Math.min(editAssignForm.quantity, maxEditableQuantity))">
-                            <button type="button" @click="editAssignForm.quantity = Math.min(maxEditableQuantity, editAssignForm.quantity + 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">+</button>
-                        </div>
-                        <div class="text-xs mt-1" :class="maxEditableQuantity <= 5 ? 'text-red-500 font-semibold' : 'text-gray-500'">
-                            Доступно для назначения: <span x-text="maxEditableQuantity"></span>
-                            <template x-if="maxEditableQuantity <= 5 && maxEditableQuantity > 0">
-                                <span class="ml-1">⚠️ Осталось мало!</span>
-                            </template>
-                            <template x-if="maxEditableQuantity === 1">
-                                <span class="ml-1">⚠️ Минимальное количество!</span>
-                            </template>
-                        </div>
-                    </div>
-                    <div class="flex space-x-3 mt-4">
-                        <button type="button" @click="showEditAssignModal = false" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
-                        <button type="submit" data-submit-edit-assign class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg" :disabled="editAssignForm.quantity > maxEditableQuantity || editAssignForm.quantity < 1 || isSubmitting">
+                
+                <!-- Кнопки действий -->
+                <div class="p-4 border-t border-gray-100 bg-white sticky bottom-0">
+                    <div class="flex space-x-3">
+                        <button type="button" @click="showEditAssignModal = false" 
+                                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium">
+                            Отмена
+                        </button>
+                        <button type="submit" data-submit-edit-assign 
+                                class="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold" 
+                                :disabled="editAssignForm.quantity > maxEditableQuantity || editAssignForm.quantity < 1 || isSubmitting">
                             <template x-if="isSubmitting">
-                                <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
+                                <i data-lucide="loader" class="w-4 h-4 animate-spin mr-2"></i>
                             </template>
                             <span x-text="isSubmitting ? 'Сохраняется...' : 'Сохранить'"></span>
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     </template>

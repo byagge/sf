@@ -15,6 +15,16 @@
         .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
         .stat-card { transition: transform 0.2s ease-in-out; }
         .stat-card:active { transform: scale(0.98); }
+        
+        /* Скрываем иконки, пока Lucide не загружен */
+        [data-lucide]:not(.lucide) {
+            display: none;
+        }
+        
+        /* Показываем иконки после загрузки Lucide */
+        [data-lucide].lucide {
+            display: inline-block;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;">
@@ -248,10 +258,10 @@
 
                                     <!-- Кнопка действий -->
                                     <div class="mt-3 pt-3 border-t border-gray-200">
-                                        <a :href="`/workshops/api/workshops/${workshop.id}/orders/`" 
-                                           class="w-full bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                                        <button @click="openWorkshopDetails(workshop)" 
+                                               class="w-full bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
                                             Детали цеха
-                                        </a>
+                                        </button>
                                     </div>
                                 </div>
                             </template>
@@ -294,9 +304,27 @@
                 workshops: [],
                 
                 async init() {
+                    // Проверяем, что Lucide доступен
+                    if (typeof lucide === 'undefined') {
+                        console.warn('Lucide не загружен, ожидаем...');
+                        // Ждем загрузки Lucide
+                        await new Promise(resolve => {
+                            const checkLucide = () => {
+                                if (typeof lucide !== 'undefined') {
+                                    resolve();
+                                } else {
+                                    setTimeout(checkLucide, 100);
+                                }
+                            };
+                            checkLucide();
+                        });
+                    }
+                    
                     await this.loadData();
                     this.$nextTick(() => {
-                        lucide.createIcons();
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
                     });
                 },
                 
