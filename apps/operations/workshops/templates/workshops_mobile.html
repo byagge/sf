@@ -15,11 +15,6 @@
         .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
         .product-image { object-fit: cover; }
     </style>
-    <script>
-        document.addEventListener("alpine:init", () => {
-            lucide.createIcons();
-        });
-    </script>
 </head>
 <body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;">
     <!-- AppBar -->
@@ -44,7 +39,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 pt-20 pb-24 px-4 max-w-md mx-auto w-full">
+    <main class="flex-1 pt-20 pb-20 px-4 max-w-md mx-auto w-full">
         <!-- Информация о заказах -->
         <template x-if="showOrdersInfo">
             <div class="mb-6">
