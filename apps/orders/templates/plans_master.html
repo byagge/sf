@@ -201,18 +201,33 @@
                                 
                                 <!-- Индикатор назначений -->
                                 <div class="flex items-center justify-between text-xs text-gray-500">
-                                    <template x-if="stage.assigned && stage.assigned.length > 0">
-                                        <span class="text-gray-600">
-                                            <i data-lucide="users" class="w-3 h-3 inline mr-1"></i>
-                                            <span x-text="stage.assigned.length"></span> сотрудников
-                                        </span>
-                                    </template>
-                                    <template x-if="stage.assigned && stage.assigned.length === 0">
-                                        <span class="text-gray-400">
-                                            <i data-lucide="user-x" class="w-3 h-3 inline mr-1"></i>
-                                            Не назначено
-                                        </span>
-                                    </template>
+                                    <div class="flex items-center space-x-2">
+                                        <template x-if="stage.assigned && stage.assigned.length > 0">
+                                            <span class="text-gray-600">
+                                                <i data-lucide="users" class="w-3 h-3 inline mr-1"></i>
+                                                <span x-text="stage.assigned.length"></span> сотрудников
+                                            </span>
+                                            <!-- Быстрые кнопки управления назначениями -->
+                                            <div class="flex space-x-1 ml-2">
+                                                <button @click.stop="openAssignModal(stage)" 
+                                                        class="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors" 
+                                                        title="Добавить назначение">
+                                                    <i data-lucide="user-plus" class="w-3 h-3"></i>
+                                                </button>
+                                                <button @click.stop="openQuickAssignmentsModal(stage)" 
+                                                        class="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50 transition-colors" 
+                                                        title="Управлять назначениями">
+                                                    <i data-lucide="settings" class="w-3 h-3"></i>
+                                                </button>
+                                            </div>
+                                        </template>
+                                        <template x-if="stage.assigned && stage.assigned.length === 0">
+                                            <span class="text-gray-400">
+                                                <i data-lucide="user-x" class="w-3 h-3 inline mr-1"></i>
+                                                Не назначено
+                                            </span>
+                                        </template>
+                                    </div>
                                     <div class="text-gray-500">
                                         <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
                                         Нажмите для подробностей
@@ -403,9 +418,29 @@
                                                 <span class="font-medium">Назначения:</span>
                                                 <div class="text-gray-700 ml-1 mt-1 space-y-1">
                                                     <template x-for="assign in stage.assigned.slice(0, 3)" :key="assign.id">
-                                                        <div class="flex items-center justify-between">
-                                                            <span x-text="assign.employee_name"></span>
-                                                            <span class="text-gray-500" x-text="assign.quantity + ' шт.'"></span>
+                                                        <div class="flex items-center justify-between group">
+                                                            <div class="flex-1">
+                                                                <span x-text="assign.employee_name"></span>
+                                                                <span class="text-gray-500 ml-2" x-text="assign.quantity + ' шт.'"></span>
+                                                                <template x-if="assign.completed_quantity !== undefined">
+                                                                    <span class="text-green-600 ml-2" x-text="'✓ ' + assign.completed_quantity"></span>
+                                                                </template>
+                                                                <template x-if="assign.defective_quantity && assign.defective_quantity > 0">
+                                                                    <span class="text-red-600 ml-2" x-text="'✗ ' + assign.defective_quantity"></span>
+                                                                </template>
+                                                            </div>
+                                                            <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button @click.stop="openEditAssignModal(stage, assign)" 
+                                                                        class="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors" 
+                                                                        title="Редактировать">
+                                                                    <i data-lucide="edit-3" class="w-3 h-3"></i>
+                                                                </button>
+                                                                <button @click.stop="deleteAssign(stage, assign)" 
+                                                                        class="text-red-500 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors" 
+                                                                        title="Удалить">
+                                                                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </template>
                                                     <template x-if="stage.assigned.length > 3">
@@ -1927,6 +1962,22 @@
                     return true;
                 });
             },
+            get quickAssignmentsMaxQuantity() {
+                if (!this.quickAssignmentsStage) return 1;
+                
+                // Получаем общее количество всех товаров заказа
+                let totalOrderItemsQuantity = 0;
+                if (this.quickAssignmentsStage.order_item && this.quickAssignmentsStage.order_item.order && this.quickAssignmentsStage.order_item.order.items) {
+                    totalOrderItemsQuantity = this.quickAssignmentsStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                
+                // Используем общее количество товаров заказа, если оно больше плана этапа
+                const totalQuantity = Math.max(this.quickAssignmentsStage.plan_quantity, totalOrderItemsQuantity);
+                const otherAssigned = (this.quickAssignmentsStage.assigned || []).filter(a => a.id !== this.editingAssignId).reduce((sum, a) => sum + a.quantity, 0);
+                const available = Math.max(1, totalQuantity - otherAssigned);
+                
+                return otherAssigned >= totalQuantity ? 1 : available;
+            },
             allWorkshops: [],
             showNoTransferModal: false,
             showNoTransferConfirmModal: false,
@@ -1934,6 +1985,9 @@
             showMarkCompletionModal: false,
             markCompletionStage: null,
             isSubmittingMarkCompletion: false,
+            showQuickAssignmentsModal: false,
+            quickAssignmentsStage: null,
+            editingAssignId: null,
             toast: { show: false, message: '', type: 'success', timeout: null },
             showToast(msg, type = 'success') {
                 this.toast.message = msg;
@@ -1966,12 +2020,23 @@
                     this.selectedWorkshopIdx = 0;
                     await this.loadStages();
                 }
+                
+                // Закрываем модальное окно быстрого управления назначениями при загрузке цехов
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
+                
                 this.loading = false;
             },
             async loadAllWorkshops() {
                 const resp = await fetch('/api/workshops/api/all/');
                 const data = await resp.json();
                 this.allWorkshops = Array.isArray(data) ? data : (data.results || []);
+                
+                // Закрываем модальное окно быстрого управления назначениями при загрузке всех цехов
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
             },
             async loadStages() {
                 this.loading = true;
@@ -1992,6 +2057,11 @@
                     }
                 }
                 
+                // Закрываем модальное окно быстрого управления назначениями при обновлении этапов
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
+                
                 this.loading = false;
                 lucide.createIcons();
                 // Автоскролл к этапу после действия
@@ -2010,6 +2080,11 @@
                 if (!workshop) return;
                 const resp = await fetch(`/api/workshops/api/employees/?workshop=${workshop.id}`);
                 this.employees = await resp.json();
+                
+                // Закрываем модальное окно быстрого управления назначениями при загрузке сотрудников
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
             },
             get filteredEmployees() {
                 const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
@@ -2067,6 +2142,12 @@
 
             openStageModal(stage) {
                 this.selectedStage = stage;
+                
+                // Закрываем модальное окно быстрого управления назначениями, если оно открыто
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
+                
                 this.showStageModal = true;
                 lucide.createIcons();
             },
@@ -2094,6 +2175,11 @@
                     employee_id: '', 
                     quantity: 1 
                 };
+                
+                // Закрываем модальное окно быстрого управления назначениями, если оно открыто
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
                 
                 await this.loadEmployees();
                 this.showAssignModal = true;
@@ -2208,6 +2294,12 @@
                 }
                 
                 this.editAssignForm = { id: assign.id, stage_id: stage.id, employee_id: assign.employee_id, employee_name: assign.employee_name, quantity: assign.quantity };
+                
+                // Закрываем модальное окно быстрого управления назначениями, если оно открыто
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
+                
                 this.showEditAssignModal = true;
                 lucide.createIcons();
             },
@@ -2288,6 +2380,12 @@
             },
             async tabChanged(idx) {
                 this.selectedWorkshopIdx = idx;
+                
+                // Закрываем модальное окно быстрого управления назначениями при смене цеха
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
+                
                 await this.loadStages();
                 lucide.createIcons();
             },
@@ -2306,6 +2404,12 @@
                         return;
                     }
                 }
+                
+                // Закрываем модальное окно быстрого управления назначениями, если оно открыто
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
+                
                 this.showTransferModal = true;
             },
             confirmTransferFirst() {
@@ -2367,6 +2471,12 @@
 
             openNoTransferModal(stage) {
                 this.noTransferStageId = stage.id;
+                
+                // Закрываем модальное окно быстрого управления назначениями, если оно открыто
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
+                
                 this.showNoTransferModal = true;
             },
             confirmNoTransferFirst() {
@@ -2410,6 +2520,12 @@
                         defective_quantity: parseInt(assign.defective_quantity) || 0
                     }));
                 }
+                
+                // Закрываем модальное окно быстрого управления назначениями, если оно открыто
+                if (this.showQuickAssignmentsModal) {
+                    this.showQuickAssignmentsModal = false;
+                }
+                
                 this.showMarkCompletionModal = true;
                 lucide.createIcons();
             },
@@ -2580,6 +2696,161 @@
                 }
             },
             
+            // Функции для быстрого управления назначениями
+            openQuickAssignmentsModal(stage) {
+                this.quickAssignmentsStage = { ...stage };
+                // Инициализируем значения для каждого назначения
+                if (this.quickAssignmentsStage.assigned) {
+                    this.quickAssignmentsStage.assigned = this.quickAssignmentsStage.assigned.map(assign => ({
+                        ...assign,
+                        completed_quantity: parseInt(assign.completed_quantity) || 0,
+                        defective_quantity: parseInt(assign.defective_quantity) || 0
+                    }));
+                }
+                this.showQuickAssignmentsModal = true;
+                lucide.createIcons();
+            },
+            
+            async saveQuickAssignment(assign) {
+                try {
+                    // Валидация перед сохранением
+                    if ((assign.completed_quantity || 0) + (assign.defective_quantity || 0) > assign.quantity) {
+                        this.showToast('Ошибка: сумма выполненных и брака превышает назначенное количество', 'error');
+                        return;
+                    }
+                    
+                    // Обновляем назначение
+                    const payload = { 
+                        quantity: assign.quantity,
+                        completed_quantity: assign.completed_quantity || 0,
+                        defective_quantity: assign.defective_quantity || 0
+                    };
+                    const resp = await fetch(`/employee_tasks/assign/${assign.id}/`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (resp.ok) {
+                        // Обновляем задачи сотрудников для правильного расчета заработка
+                        await this.updateEmployeeTasksForAssignment(assign);
+                        
+                        // Обновляем список этапов
+                        await this.loadStages();
+                        
+                        this.showToast('Назначение успешно обновлено!', 'success');
+                        lucide.createIcons();
+                    } else {
+                        const data = await resp.json();
+                        this.showToast(data.error || data.message || 'Ошибка при обновлении назначения', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('Ошибка сети при обновлении назначения', 'error');
+                }
+            },
+            
+            async deleteQuickAssignment(stage, assign) {
+                if (!confirm('Удалить назначение?')) return;
+                
+                try {
+                    const resp = await fetch(`/employee_tasks/assign/${assign.id}/`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': this.getCsrfToken() }
+                    });
+                    
+                    if (resp.ok) {
+                        // Обновляем список этапов
+                        await this.loadStages();
+                        
+                        // Обновляем текущий этап в модальном окне
+                        if (this.quickAssignmentsStage) {
+                            this.quickAssignmentsStage.assigned = this.quickAssignmentsStage.assigned.filter(a => a.id !== assign.id);
+                        }
+                        
+                        this.showToast('Назначение удалено!', 'success');
+                        lucide.createIcons();
+                    } else {
+                        const data = await resp.json();
+                        this.showToast(data.error || data.message || 'Ошибка при удалении назначения', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('Ошибка сети при удалении назначения', 'error');
+                }
+            },
+            
+            async updateEmployeeTasksForAssignment(assign) {
+                try {
+                    console.log(`Обновляем задачи для сотрудника ${assign.employee_id} на этапе ${this.quickAssignmentsStage.id}`);
+                    
+                    // Находим соответствующую задачу сотрудника
+                    let employeeTaskResp = await fetch(`/employee_tasks/api/employee-tasks/?employee=${assign.employee_id}&stage=${this.quickAssignmentsStage.id}`);
+                    let employeeTasks = [];
+                    
+                    if (employeeTaskResp.ok) {
+                        const employeeTaskData = await employeeTaskResp.json();
+                        employeeTasks = Array.isArray(employeeTaskData) ? employeeTaskData : (employeeTaskData.results || []);
+                        console.log(`Найдено ${employeeTasks.length} задач для сотрудника ${assign.employee_id} по stage ID`);
+                    }
+                    
+                    // Если не нашли по stage ID, пробуем найти по order_item
+                    if (employeeTasks.length === 0 && this.quickAssignmentsStage.order_item) {
+                        employeeTaskResp = await fetch(`/employee_tasks/api/employee-tasks/?employee=${assign.employee_id}&order_item=${this.quickAssignmentsStage.order_item.id}`);
+                        if (employeeTaskResp.ok) {
+                            const employeeTaskData = await employeeTaskResp.json();
+                            employeeTasks = Array.isArray(employeeTaskData) ? employeeTaskData : (employeeTaskData.results || []);
+                            console.log(`Найдено ${employeeTasks.length} задач для сотрудника ${assign.employee_id} по order_item ID`);
+                        }
+                    }
+                    
+                    // Если все еще не нашли, пробуем найти все задачи сотрудника и фильтровать по названию операции
+                    if (employeeTasks.length === 0) {
+                        employeeTaskResp = await fetch(`/employee_tasks/api/employee-tasks/?employee=${assign.employee_id}`);
+                        if (employeeTaskResp.ok) {
+                            const employeeTaskData = await employeeTaskResp.json();
+                            const allTasks = Array.isArray(employeeTaskData) ? employeeTaskData : (employeeTaskData.results || []);
+                            employeeTasks = allTasks.filter(task => 
+                                task.stage_name === this.quickAssignmentsStage.operation ||
+                                task.title === this.quickAssignmentsStage.operation
+                            );
+                            console.log(`Найдено ${employeeTasks.length} задач для сотрудника ${assign.employee_id} по названию операции`);
+                        }
+                    }
+                    
+                    console.log(`Итого найдено ${employeeTasks.length} задач для сотрудника ${assign.employee_id}`);
+                    
+                    // Обновляем каждую найденную задачу сотрудника
+                    for (const employeeTask of employeeTasks) {
+                        const taskPayload = {
+                            completed_quantity: assign.completed_quantity || 0,
+                            defective_quantity: assign.defective_quantity || 0
+                        };
+                        
+                        console.log(`Обновляем задачу ${employeeTask.id} с данными:`, taskPayload);
+                        
+                        const updateTaskResp = await fetch(`/employee_tasks/api/employee-tasks/${employeeTask.id}/`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': this.getCsrfToken()
+                            },
+                            body: JSON.stringify(taskPayload)
+                        });
+                        
+                        if (updateTaskResp.ok) {
+                            console.log(`Задача ${employeeTask.id} успешно обновлена`);
+                        } else {
+                            console.warn(`Не удалось обновить задачу сотрудника ${employeeTask.id}, статус: ${updateTaskResp.status}`);
+                        }
+                    }
+                    
+                    if (employeeTasks.length === 0) {
+                        console.warn(`Не найдено задач для сотрудника ${assign.employee_id} на этапе ${this.quickAssignmentsStage.id}`);
+                    }
+                } catch (error) {
+                    console.warn('Ошибка при обновлении задач сотрудников:', error);
+                }
+            },
+            
             getCsrfToken() {
                 const name = 'csrftoken';
                 const cookies = document.cookie.split(';');
@@ -2600,5 +2871,125 @@
         lucide.createIcons();
     });
     </script>
+    
+    <!-- Quick Assignments Management Modal -->
+    <template x-if="showQuickAssignmentsModal">
+        <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showQuickAssignmentsModal = false">
+            <div class="modal-content bg-white rounded-t-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-900">Управление назначениями</h2>
+                    <button @click="showQuickAssignmentsModal = false" class="text-gray-400 hover:text-gray-600">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    <!-- Информация о заказе -->
+                    <template x-if="quickAssignmentsStage">
+                        <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                            <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
+                            <div class="space-y-1 text-xs text-blue-700">
+                                <div><span class="font-medium">Заявка:</span> <span x-text="quickAssignmentsStage.order_name || 'Не указано'"></span></div>
+                                <div><span class="font-medium">Операция:</span> <span x-text="quickAssignmentsStage.operation || 'Не указано'"></span></div>
+                                <div><span class="font-medium">План:</span> <span x-text="quickAssignmentsStage.plan_quantity || 0"></span></div>
+                                <div><span class="font-medium">Выполнено:</span> <span x-text="quickAssignmentsStage.done_count || 0"></span></div>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <!-- Список назначений -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Текущие назначения</label>
+                        <template x-if="quickAssignmentsStage && quickAssignmentsStage.assigned && quickAssignmentsStage.assigned.length > 0">
+                            <div class="space-y-3">
+                                <template x-for="assign in quickAssignmentsStage.assigned" :key="assign.id">
+                                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="font-medium text-gray-900" x-text="assign.employee_name"></div>
+                                            <div class="text-sm text-gray-600">
+                                                Назначено: <span x-text="assign.quantity"></span> шт.
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Поля для быстрого редактирования -->
+                                        <div class="grid grid-cols-3 gap-3 mb-2">
+                                            <div>
+                                                <label class="block text-xs text-gray-600 mb-1">Количество</label>
+                                                <input type="number" 
+                                                       x-model.number="assign.quantity" 
+                                                       class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
+                                                       :max="quickAssignmentsMaxQuantity" 
+                                                       min="1" 
+                                                       placeholder="1"
+                                                       @input="assign.quantity = Math.max(1, Math.min(parseInt(assign.quantity) || 1, quickAssignmentsMaxQuantity))">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-gray-600 mb-1">Выполнено</label>
+                                                <input type="number" 
+                                                       x-model.number="assign.completed_quantity" 
+                                                       class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
+                                                       :max="assign.quantity" 
+                                                       min="0" 
+                                                       placeholder="0"
+                                                       @input="assign.completed_quantity = Math.max(0, Math.min(parseInt(assign.completed_quantity) || 0, assign.quantity))">
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs text-gray-600 mb-1">Брак</label>
+                                                <input type="number" 
+                                                       x-model.number="assign.defective_quantity" 
+                                                       class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
+                                                       :max="assign.quantity" 
+                                                       min="0" 
+                                                       placeholder="0"
+                                                       @input="assign.defective_quantity = Math.max(0, Math.min(parseInt(assign.defective_quantity) || 0, assign.quantity))">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Валидация -->
+                                        <div class="mb-2 text-xs" :class="(assign.completed_quantity || 0) + (assign.defective_quantity || 0) > assign.quantity ? 'text-red-600' : 'text-gray-500'">
+                                            <template x-if="(assign.completed_quantity || 0) + (assign.defective_quantity || 0) > assign.quantity">
+                                                ⚠️ Сумма выполненных и брака превышает назначенное количество
+                                            </template>
+                                            <template x-if="(assign.completed_quantity || 0) + (assign.defective_quantity || 0) <= assign.quantity">
+                                                Всего: <span x-text="(assign.completed_quantity || 0) + (assign.defective_quantity || 0)"></span> / <span x-text="assign.quantity"></span>
+                                            </template>
+                                        </div>
+                                        
+                                        <!-- Кнопки действий -->
+                                        <div class="flex space-x-2">
+                                            <button @click="saveQuickAssignment(assign)" 
+                                                    class="flex-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors">
+                                                <i data-lucide="save" class="w-3 h-3 inline mr-1"></i>
+                                                Сохранить
+                                            </button>
+                                            <button @click="deleteQuickAssignment(quickAssignmentsStage, assign)" 
+                                                    class="px-3 py-2 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors">
+                                                <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template x-if="!quickAssignmentsStage || !quickAssignmentsStage.assigned || quickAssignmentsStage.assigned.length === 0">
+                            <div class="text-center py-6 text-gray-500">
+                                <i data-lucide="user-x" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
+                                <div>Нет назначений для управления</div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Кнопка добавления нового назначения -->
+                    <div class="pt-4 border-t border-gray-200">
+                        <button @click="openAssignModal(quickAssignmentsStage)" 
+                                class="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                            <i data-lucide="user-plus" class="w-4 h-4 inline mr-2"></i>
+                            Добавить новое назначение
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
 </body>
 </html> 
