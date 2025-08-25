@@ -15,6 +15,11 @@
         .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
         .product-image { object-fit: cover; }
     </style>
+    <script>
+        document.addEventListener("alpine:init", () => {
+            lucide.createIcons();
+        });
+    </script>
 </head>
 <body class="min-h-screen flex flex-col" style="font-family: system-ui, -apple-system, sans-serif;">
     <!-- AppBar -->
