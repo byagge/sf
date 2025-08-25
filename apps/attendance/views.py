@@ -275,7 +275,10 @@ def recalculate_today_penalties(request):
 
 @ensure_csrf_cookie
 def qr_scanner_page(request):
-    return render(request, 'qr_scanner.html')
+    return render(request, 'qr_scanner.html', {
+        'current_user_id': request.user.id,
+        'current_user_name': request.user.get_full_name() or request.user.username
+    })
 
 def attendance_page(request):
     """Основная страница посещаемости с автоматическим определением устройства"""
