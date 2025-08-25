@@ -171,7 +171,13 @@
                                 <div class="grid grid-cols-4 gap-2 text-xs mb-2">
                                     <div class="text-center">
                                         <div class="text-gray-500">План</div>
-                                        <div class="font-semibold text-gray-900" x-text="stage.plan_quantity"></div>
+                                        <div class="font-semibold text-gray-900" x-text="(() => {
+                                            let totalOrderItemsQuantity = 0;
+                                            if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                                        })()"></div>
                                     </div>
                                     <div class="text-center">
                                         <div class="text-gray-500">Назначено</div>
@@ -193,11 +199,25 @@
                                 <div class="mb-2">
                                     <div class="flex justify-between text-xs text-gray-500 mb-1">
                                         <span>Выполнение</span>
-                                        <span x-text="Math.round(((stage.done_count || 0) / stage.plan_quantity) * 100) + '%'"></span>
+                                        <span x-text="(() => {
+                                            let totalOrderItemsQuantity = 0;
+                                            if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                                            return Math.round(((stage.done_count || 0) / planQuantity) * 100) + '%';
+                                        })()"></span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-1.5">
                                         <div class="bg-green-600 h-1.5 rounded-full transition-all duration-300" 
-                                             :style="'width: ' + Math.min(100, Math.max(0, ((stage.done_count || 0) / stage.plan_quantity) * 100)) + '%'"></div>
+                                             :style="(() => {
+                                                let totalOrderItemsQuantity = 0;
+                                                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                                                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                                }
+                                                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                                                return 'width: ' + Math.min(100, Math.max(0, ((stage.done_count || 0) / planQuantity) * 100)) + '%';
+                                             })()"></div>
                                     </div>
                                 </div>
                                 
@@ -529,7 +549,13 @@
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-blue-700 font-medium">План:</span>
-                                        <span class="text-blue-900" x-text="selectedStage.plan_quantity"></span>
+                                        <span class="text-blue-900" x-text="(() => {
+                                            let totalOrderItemsQuantity = 0;
+                                            if (selectedStage.order_item && selectedStage.order_item.order && selectedStage.order_item.order.items) {
+                                                totalOrderItemsQuantity = selectedStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : selectedStage.plan_quantity;
+                                        })()"></span>
                                     </div>
                                     <div class="flex justify-between">
                                         <span class="text-blue-700 font-medium">Брак:</span>
@@ -1330,7 +1356,14 @@
                             <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
                                 <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
                                     <span class="ml-1 text-blue-600">
-                                        (из <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0)"></span> товаров заказа)
+                                        (из <span x-text="(() => {
+                                            const stage = stages.find(s => s.id === assignForm.stage_id);
+                                            let totalOrderItemsQuantity = 0;
+                                            if (stage && stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                                        })()"></span> товаров заказа)
                                     </span>
                                 </template>
                             </template>
@@ -1983,12 +2016,12 @@
                     totalOrderItemsQuantity = this.quickAssignmentsStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 }
                 
-                // Используем общее количество товаров заказа, если оно больше плана этапа
-                const totalQuantity = Math.max(this.quickAssignmentsStage.plan_quantity, totalOrderItemsQuantity);
+                // Используем общее количество товаров заказа как план
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : this.quickAssignmentsStage.plan_quantity;
                 const otherAssigned = (this.quickAssignmentsStage.assigned || []).filter(a => a.id !== this.editingAssignId).reduce((sum, a) => sum + a.quantity, 0);
-                const available = Math.max(1, totalQuantity - otherAssigned);
+                const available = Math.max(1, planQuantity - otherAssigned);
                 
-                return otherAssigned >= totalQuantity ? 1 : available;
+                return available;
             },
             allWorkshops: [],
             showNoTransferModal: false,
@@ -2114,13 +2147,13 @@
                     totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 }
                 
-                // Используем общее количество товаров заказа, если оно больше плана этапа
-                const totalQuantity = Math.max(stage.plan_quantity, totalOrderItemsQuantity);
+                // Используем общее количество товаров заказа как план
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
                 const assigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
-                const available = Math.max(0, totalQuantity - assigned);
+                const available = Math.max(0, planQuantity - assigned);
                 
-                // Дополнительная проверка: если уже назначено больше общего количества, возвращаем 0
-                return assigned >= totalQuantity ? 0 : available;
+                // Нельзя назначать больше плана
+                return available;
             },
             get maxEditableQuantity() {
                 const stage = this.stages.find(s => s.id === this.editAssignForm.stage_id);
@@ -2132,13 +2165,13 @@
                     totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 }
                 
-                // Используем общее количество товаров заказа, если оно больше плана этапа
-                const totalQuantity = Math.max(stage.plan_quantity, totalOrderItemsQuantity);
+                // Используем общее количество товаров заказа как план
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
                 const otherAssigned = (stage.assigned || []).filter(a => a.id !== this.editAssignForm.id).reduce((sum, a) => sum + a.quantity, 0);
-                const available = Math.max(1, totalQuantity - otherAssigned);
+                const available = Math.max(1, planQuantity - otherAssigned);
                 
-                // Дополнительная проверка: если другие назначения уже превышают общее количество, возвращаем 1
-                return otherAssigned >= totalQuantity ? 1 : available;
+                // Нельзя редактировать больше плана
+                return available;
             },
             get nowHour() {
                 return new Date().getHours();
@@ -2171,12 +2204,12 @@
                     totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 }
                 
-                // Используем общее количество товаров заказа, если оно больше плана этапа
-                const totalQuantity = Math.max(stage.plan_quantity, totalOrderItemsQuantity);
+                // Используем общее количество товаров заказа как план
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
                 
                 // Проверяем, можно ли еще назначать задачи
                 const assigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
-                if (assigned >= totalQuantity) {
+                if (assigned >= planQuantity) {
                     this.showToast('Все задачи уже назначены!', 'error');
                     return;
                 }
@@ -2221,10 +2254,10 @@
                     totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 }
                 
-                // Используем общее количество товаров заказа, если оно больше плана этапа
-                const totalQuantity = Math.max(stage.plan_quantity, totalOrderItemsQuantity);
+                // Используем общее количество товаров заказа как план
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
                 const currentAssigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
-                const availableQuantity = totalQuantity - currentAssigned;
+                const availableQuantity = planQuantity - currentAssigned;
                 
                 // Проверяем, не назначен ли уже этот сотрудник
                 const isAlreadyAssigned = (stage.assigned || []).some(a => a.employee_id === this.assignForm.employee_id);
@@ -2323,8 +2356,16 @@
                     return;
                 }
                 
+                // Получаем общее количество всех товаров заказа
+                let totalOrderItemsQuantity = 0;
+                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                
+                // Используем общее количество товаров заказа как план
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
                 const otherAssigned = (stage.assigned || []).filter(a => a.id !== this.editAssignForm.id).reduce((sum, a) => sum + a.quantity, 0);
-                const availableQuantity = stage.plan_quantity - otherAssigned;
+                const availableQuantity = planQuantity - otherAssigned;
                 
                 if (this.editAssignForm.quantity > availableQuantity) {
                     this.showToast(`Ошибка: превышено плановое количество. Доступно: ${availableQuantity}`, 'error');
@@ -2910,7 +2951,13 @@
                             <div class="space-y-1 text-xs text-blue-700">
                                 <div><span class="font-medium">Заявка:</span> <span x-text="quickAssignmentsStage.order_name || 'Не указано'"></span></div>
                                 <div><span class="font-medium">Операция:</span> <span x-text="quickAssignmentsStage.operation || 'Не указано'"></span></div>
-                                <div><span class="font-medium">План:</span> <span x-text="quickAssignmentsStage.plan_quantity || 0"></span></div>
+                                <div><span class="font-medium">План:</span> <span x-text="(() => {
+                                    let totalOrderItemsQuantity = 0;
+                                    if (quickAssignmentsStage.order_item && quickAssignmentsStage.order_item.order && quickAssignmentsStage.order_item.order.items) {
+                                        totalOrderItemsQuantity = quickAssignmentsStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                    }
+                                    return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : (quickAssignmentsStage.plan_quantity || 0);
+                                })()"></span></div>
                                 <div><span class="font-medium">Выполнено:</span> <span x-text="quickAssignmentsStage.done_count || 0"></span></div>
                             </div>
                         </div>
