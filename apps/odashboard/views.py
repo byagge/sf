@@ -184,3 +184,8 @@ def workshop_production_chart(request):
         return JsonResponse({
             'error': str(e)
         }, status=500)
+
+
+def maintenance(request):
+    """Страница технического обслуживания"""
+    return render(request, 'maintenance.html')

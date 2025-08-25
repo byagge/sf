@@ -2210,7 +2210,8 @@
                 const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
                 if (!stage) return this.employees;
                 const assignedIds = (stage.assigned || []).map(a => a.employee_id);
-                return this.employees.filter(emp => !assignedIds.includes(emp.id));
+                // Фильтруем помощников из списка сотрудников для назначения
+                return this.employees.filter(emp => !assignedIds.includes(emp.id) && emp.role !== 'helper');
             },
             get maxAssignableQuantity() {
                 const stage = this.stages.find(s => s.id === this.assignForm.stage_id);

@@ -1,122 +1,91 @@
 from rest_framework import serializers
-from .models import EmployeeTask
+from .models import EmployeeTask, HelperTask
+from apps.users.serializers import UserSerializer
 
 class EmployeeTaskSerializer(serializers.ModelSerializer):
-    employee_name = serializers.SerializerMethodField()
-    done_quantity = serializers.SerializerMethodField()
-    stage_name = serializers.CharField(source='stage.operation', read_only=True)
+    employee = UserSerializer(read_only=True)
+    title = serializers.ReadOnlyField()
+    is_completed = serializers.ReadOnlyField()
+    plan_quantity = serializers.ReadOnlyField()
+    started_at = serializers.ReadOnlyField()
+    stage_name = serializers.SerializerMethodField()
     order_item = serializers.SerializerMethodField()
     workshop_info = serializers.SerializerMethodField()
-    is_completed = serializers.BooleanField(read_only=True)
-    title = serializers.CharField(read_only=True)
-    plan_quantity = serializers.IntegerField(read_only=True)
-    started_at = serializers.DateTimeField(read_only=True)
     
     class Meta:
         model = EmployeeTask
-        fields = [
-            'id', 'stage', 'employee', 'employee_name', 'quantity', 'completed_quantity', 
-            'defective_quantity', 'done_quantity', 'stage_name', 'order_item', 'workshop_info',
-            'created_at', 'completed_at', 'earnings', 'penalties', 'net_earnings',
-            'is_completed', 'title', 'plan_quantity', 'started_at'
-        ]
+        fields = '__all__'
 
-    def get_done_quantity(self, obj):
-        # Если задача выполнена, считаем всё количество сделанным, иначе 0
-        return obj.quantity if getattr(obj, 'is_completed', False) else 0
+    def get_stage_name(self, obj):
+        try:
+            return obj.stage.operation if obj.stage else ''
+        except Exception:
+            return ''
 
-    def get_employee_name(self, obj):
-        if obj.employee:
-            # Попробовать get_full_name, иначе first_name + last_name, иначе username
-            if hasattr(obj.employee, 'get_full_name'):  
-                name = obj.employee.get_full_name()
-                if name:
-                    return name
-            first = getattr(obj.employee, 'first_name', '')
-            last = getattr(obj.employee, 'last_name', '')
-            if first or last:
-                return f'{first} {last}'.strip()
-            return getattr(obj.employee, 'username', str(obj.employee.pk))
-        return ''
-    
     def get_order_item(self, obj):
-        """Возвращает сериализованный order_item с полной информацией о товаре"""
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        logger.info(f"=== DEBUG SERIALIZER: get_order_item for EmployeeTask {obj.id} ===")
-        
-        # Получаем объект stage, если это ID
-        stage_obj = obj.stage
-        if hasattr(stage_obj, 'id') and not hasattr(stage_obj, 'order_item'):
-            # Если stage это ID, нужно получить объект
-            from apps.orders.models import OrderStage
-            try:
-                stage_obj = OrderStage.objects.select_related('order_item__product', 'order__client').get(id=stage_obj)
-                logger.info(f"Retrieved stage object: {stage_obj}")
-            except OrderStage.DoesNotExist:
-                logger.error(f"Stage with ID {stage_obj} not found")
+        try:
+            stage = getattr(obj, 'stage', None)
+            order_item = getattr(stage, 'order_item', None) if stage else None
+            if not order_item:
                 return None
-        
-        logger.info(f"Stage object: {stage_obj}")
-        logger.info(f"Stage order_item: {getattr(stage_obj, 'order_item', None) if stage_obj else None}")
-        logger.info(f"Stage order: {getattr(stage_obj, 'order', None) if stage_obj else None}")
-        
-        if stage_obj and stage_obj.order_item:
-            # Если есть прямая связь с order_item
-            logger.info("Using direct order_item connection")
-            from apps.orders.serializers import OrderItemSerializer
-            result = OrderItemSerializer(stage_obj.order_item).data
-            logger.info(f"Direct order_item data: {result}")
-            return result
-        elif stage_obj and stage_obj.order:
-            # Fallback: если order_item равен null, пытаемся получить данные через заказ
-            logger.info("Using fallback through order")
-            from apps.orders.models import OrderItem
-            from apps.orders.serializers import OrderItemSerializer
-            
-            # Ищем позиции заказа для этого заказа
-            order_items = OrderItem.objects.filter(order=stage_obj.order)
-            logger.info(f"Found {order_items.count()} order items for order {stage_obj.order.id}")
-            
-            if order_items.exists():
-                # Берем первую позицию (обычно их одна для простых заказов)
-                first_item = order_items.first()
-                logger.info(f"Using first order item: {first_item}")
-                item_data = OrderItemSerializer(first_item).data
-                
-                # Добавляем информацию о заказе
-                item_data['order'] = {
-                    'id': stage_obj.order.id,
-                    'name': stage_obj.order.name,
-                    'status': stage_obj.order.status,
-                    'status_display': stage_obj.order.get_status_display(),
-                    'created_at': stage_obj.order.created_at.isoformat() if stage_obj.order.created_at else None,
-                    'client': {
-                        'name': stage_obj.order.client.name if stage_obj.order.client else 'Не указан'
-                    } if stage_obj.order.client else None
+            # Собираем минимально необходимую структуру для фронтенда
+            product = getattr(order_item, 'product', None)
+            return {
+                'id': getattr(order_item, 'id', None),
+                'size': getattr(order_item, 'size', None),
+                'color': getattr(order_item, 'color', None),
+                'quantity': getattr(order_item, 'quantity', None),
+                'paint_type': getattr(order_item, 'paint_type', None),
+                'paint_color': getattr(order_item, 'paint_color', None),
+                'glass_type_display': getattr(order_item, 'glass_type_display', None),
+                'packaging_notes': getattr(order_item, 'packaging_notes', None),
+                'cnc_specs': getattr(order_item, 'cnc_specs', None),
+                'cutting_specs': getattr(order_item, 'cutting_specs', None),
+                'product': None if not product else {
+                    'id': getattr(product, 'id', None),
+                    'name': getattr(product, 'name', None),
+                    'img': getattr(product, 'img', None),
+                    'is_glass': getattr(product, 'is_glass', False),
+                    'type': getattr(product, 'type', None),
+                    'description': getattr(product, 'description', None),
+                    'price': getattr(product, 'price', None),
                 }
-                
-                logger.info(f"Fallback order_item data: {item_data}")
-                return item_data
-            else:
-                logger.info("No order items found for this order")
-        else:
-            logger.info("No stage or order available")
-        
-        logger.info("Returning None for order_item")
-        return None
-    
+            }
+        except Exception:
+            return None
+
     def get_workshop_info(self, obj):
-        """Возвращает информацию для цеха"""
-        # Получаем объект stage, если это ID
-        stage_obj = obj.stage
-        if hasattr(stage_obj, 'id') and not hasattr(stage_obj, 'get_workshop_info'):
-            # Если stage это ID, нужно получить объект
-            from apps.orders.models import OrderStage
-            try:
-                stage_obj = OrderStage.objects.select_related('workshop').get(id=stage_obj)
-            except OrderStage.DoesNotExist:
-                return {}
-        
-        return stage_obj.get_workshop_info() if stage_obj else {} 
+        try:
+            stage = getattr(obj, 'stage', None)
+            workshop = getattr(stage, 'workshop', None) if stage else None
+            if not workshop:
+                return None
+            return {
+                'id': getattr(workshop, 'id', None),
+                'name': getattr(workshop, 'name', None),
+                'description': getattr(workshop, 'description', None),
+                'cutting_specs': getattr(workshop, 'cutting_specs', None),
+                'cnc_specs': getattr(workshop, 'cnc_specs', None),
+                'paint_type': getattr(workshop, 'paint_type', None),
+                'paint_color': getattr(workshop, 'paint_color', None),
+            }
+        except Exception:
+            return None
+
+class HelperTaskSerializer(serializers.ModelSerializer):
+    helper = UserSerializer(read_only=True)
+    employee_task = EmployeeTaskSerializer(read_only=True)
+    title = serializers.ReadOnlyField()
+    is_completed = serializers.ReadOnlyField()
+    stage_name = serializers.ReadOnlyField()
+    order_item = serializers.ReadOnlyField()
+    workshop_info = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = HelperTask
+        fields = '__all__'
+
+class HelperTaskCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HelperTask
+        fields = ['employee_task', 'helper', 'quantity'] 

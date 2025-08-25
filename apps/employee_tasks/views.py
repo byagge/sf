@@ -1,108 +1,191 @@
-from django.shortcuts import render
-from rest_framework import viewsets, permissions, filters
-from .models import EmployeeTask
-from .serializers import EmployeeTaskSerializer
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from apps.employees.models import EmployeeDocument
-from apps.employees.serializers import EmployeeSerializer
-from apps.orders.models import OrderDefect
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib import messages
+from django.db import transaction
+import json
+from .models import EmployeeTask, HelperTask
+from apps.users.models import User
 
-# Create your views here.
+@login_required
+def task_list(request):
+    """Список задач для сотрудника или помощника"""
+    user = request.user
+    
+    if user.is_helper():
+        # Для помощника показываем задачи помощи
+        tasks = HelperTask.objects.filter(helper=user).select_related(
+            'employee_task__employee', 'employee_task__stage__workshop', 
+            'employee_task__stage__order', 'employee_task__stage__order_item__product'
+        ).prefetch_related('employee_task__stage__order__client')
+    else:
+        # Для обычного сотрудника показываем его задачи
+        tasks = EmployeeTask.objects.filter(employee=user).select_related(
+            'stage__workshop', 'stage__order', 'stage__order_item__product'
+        ).prefetch_related('stage__order__client')
+    
+    context = {
+        'tasks': tasks,
+        'is_helper': user.is_helper()
+    }
+    
+    return render(request, 'employee_tasks/tasks.html', context)
 
-class EmployeeTaskViewSet(viewsets.ModelViewSet):
-    queryset = EmployeeTask.objects.select_related(
-        'stage__order_item__product', 
-        'stage__workshop', 
-        'stage__order',
-        'stage__order__client',
-        'employee'
-    ).prefetch_related(
-        'stage__order_item__product__services',
-        'stage__order__items__product'  # Добавляем для fallback случая
-    ).all().order_by('-created_at')
-    serializer_class = EmployeeTaskSerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = [
-        'stage__operation', 
-        'stage__order_item__product__name',
-        'employee__first_name', 
-        'employee__last_name', 
-        'stage__order__name'
-    ]
-    ordering_fields = ['created_at', 'completed_quantity', 'quantity']
+@login_required
+def task_detail(request, task_id):
+    """Детальная информация о задаче"""
+    user = request.user
+    
+    if user.is_helper():
+        task = get_object_or_404(HelperTask, id=task_id, helper=user)
+        template = 'employee_tasks/helper_task_detail.html'
+    else:
+        task = get_object_or_404(EmployeeTask, id=task_id, employee=user)
+        template = 'employee_tasks/task_detail.html'
+    
+    context = {
+        'task': task,
+        'is_helper': user.is_helper()
+    }
+    
+    return render(request, template, context)
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        employee_id = self.request.query_params.get('employee')
-        order_id = self.request.query_params.get('order')
-        stage_id = self.request.query_params.get('stage')
+@login_required
+def stats_view(request):
+    """Статистика для сотрудника или помощника"""
+    user = request.user
+    
+    if user.is_helper():
+        # Статистика помощника
+        helper_tasks = HelperTask.objects.filter(helper=user)
+        total_earnings = sum(task.net_earnings for task in helper_tasks)
+        total_tasks = helper_tasks.count()
+        completed_tasks = helper_tasks.filter(completed_quantity__gte=models.F('quantity')).count()
         
-        if employee_id:
-            queryset = queryset.filter(employee_id=employee_id)
-        if order_id:
-            queryset = queryset.filter(stage__order_id=order_id)
-        if stage_id:
-            queryset = queryset.filter(stage_id=stage_id)
-            
-        return queryset
-
-    def update(self, request, *args, **kwargs):
-        """Переопределяем update для обработки изменений задачи"""
-        # Вызываем родительский метод update
-        response = super().update(request, *args, **kwargs)
+        context = {
+            'total_earnings': total_earnings,
+            'total_tasks': total_tasks,
+            'completed_tasks': completed_tasks,
+            'is_helper': True
+        }
+    else:
+        # Статистика обычного сотрудника
+        employee_tasks = EmployeeTask.objects.filter(employee=user)
+        total_earnings = sum(task.net_earnings for task in employee_tasks)
+        total_tasks = employee_tasks.count()
+        completed_tasks = employee_tasks.filter(completed_quantity__gte=models.F('quantity')).count()
         
-        # Браки теперь создаются автоматически через сигнал pre_save
-        # при изменении defective_quantity
-        
-        return response
+        context = {
+            'total_earnings': total_earnings,
+            'total_tasks': total_tasks,
+            'completed_tasks': completed_tasks,
+            'is_helper': False
+        }
+    
+    return render(request, 'employee_tasks/stats.html', context)
 
-class EmployeeFullInfoAPIView(APIView):
-    def get(self, request, pk):
-        # Получить сотрудника
-        from apps.users.models import User
+@login_required
+def assign_task(request):
+    """Назначение задачи (только для мастеров)"""
+    if not request.user.role == User.Role.MASTER:
+        messages.error(request, 'У вас нет прав для назначения задач')
+        return redirect('employee_tasks:task_list')
+    
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee_id = data.get('employee')
+        stage_id = data.get('stage')
+        quantity = data.get('quantity', 1)
+        
         try:
-            employee = User.objects.get(pk=pk)
-        except User.DoesNotExist:
-            return Response({'detail': 'Not found'}, status=404)
-        # Основная информация
-        employee_data = EmployeeSerializer(employee).data
-        # Задачи
-        tasks = EmployeeTask.objects.filter(employee=employee)
-        employee_data['tasks'] = EmployeeTaskSerializer(tasks, many=True).data
-        # Документы
-        docs = EmployeeDocument.objects.filter(employee=employee)
-        employee_data['documents'] = [
-            {
-                'id': doc.id,
-                'document_type': doc.document_type,
-                'document_type_display': doc.get_document_type_display(),
-                'status': doc.status,
-                'status_display': doc.get_status_display(),
-                'expiry_date': doc.expiry_date.isoformat() if doc.expiry_date else None,
-                'uploaded_at': doc.uploaded_at.isoformat() if doc.uploaded_at else None
-            }
-            for doc in docs
-        ]
-        return Response(employee_data)
+            with transaction.atomic():
+                employee_task = EmployeeTask.objects.create(
+                    employee_id=employee_id,
+                    stage_id=stage_id,
+                    quantity=quantity
+                )
+                return JsonResponse({'status': 'success', 'id': employee_task.id})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'})
 
-def tasks_page(request):
-    return render(request, 'tasks.html')
+@login_required
+def edit_assignment(request, assignment_id):
+    """Редактирование назначения (только для мастеров)"""
+    if not request.user.role == User.Role.MASTER:
+        messages.error(request, 'У вас нет прав для редактирования задач')
+        return redirect('employee_tasks:task_list')
+    
+    assignment = get_object_or_404(EmployeeTask, id=assignment_id)
+    
+    if request.method == 'PATCH':
+        data = json.loads(request.body)
+        quantity = data.get('quantity')
+        
+        if quantity is not None:
+            assignment.quantity = quantity
+            assignment.save()
+            return JsonResponse({'status': 'success'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'})
 
-def employee_info_page(request):
-    return render(request, 'employee_info.html')
+# API endpoints для помощника
+@login_required
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_helper_task(request):
+    """Создание задачи помощника"""
+    if not request.user.is_helper():
+        return JsonResponse({'error': 'Only helpers can create helper tasks'}, status=403)
+    
+    try:
+        data = json.loads(request.body)
+        employee_task_id = data.get('employee_task')
+        quantity = data.get('quantity', 1)
+        
+        employee_task = get_object_or_404(EmployeeTask, id=employee_task_id)
+        
+        # Проверяем, что помощник находится в том же цехе
+        if employee_task.stage.workshop != request.user.workshop:
+            return JsonResponse({'error': 'You can only help in your own workshop'}, status=403)
+        
+        # Проверяем, что задача еще не имеет помощника
+        if HelperTask.objects.filter(employee_task=employee_task, helper=request.user).exists():
+            return JsonResponse({'error': 'You are already helping with this task'}, status=400)
+        
+        helper_task = HelperTask.objects.create(
+            employee_task=employee_task,
+            helper=request.user,
+            quantity=quantity
+        )
+        
+        return JsonResponse({'status': 'success', 'id': helper_task.id})
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
-def stats_employee_page(request):
-    return render(request, 'stats_employee.html')
-
-def defects_management_page(request):
-    """Страница управления браком"""
-    return render(request, 'defects_management.html')
-
-def task_detail_page(request, task_id):
-    """Страница детального просмотра задачи"""
-    return render(request, 'task_detail.html', {
-        'task_id': task_id
-    })
+@login_required
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def update_helper_task(request, task_id):
+    """Обновление задачи помощника"""
+    helper_task = get_object_or_404(HelperTask, id=task_id, helper=request.user)
+    
+    try:
+        data = json.loads(request.body)
+        completed_quantity = data.get('completed_quantity')
+        defective_quantity = data.get('defective_quantity')
+        
+        if completed_quantity is not None:
+            helper_task.completed_quantity = completed_quantity
+        if defective_quantity is not None:
+            helper_task.defective_quantity = defective_quantity
+        
+        helper_task.save()
+        return JsonResponse({'status': 'success'})
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)

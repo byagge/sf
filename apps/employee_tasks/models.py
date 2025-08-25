@@ -148,6 +148,75 @@ class EmployeeTask(models.Model):
                     # Логируем ошибку, но не прерываем выполнение
                     print(f"Ошибка создания уведомления: {e}")
 
+class HelperTask(models.Model):
+    """Задача помощника - помощь сотруднику в выполнении его задачи"""
+    employee_task = models.ForeignKey(EmployeeTask, on_delete=models.CASCADE, related_name='helper_tasks')
+    helper = models.ForeignKey(User, on_delete=models.CASCADE, related_name='helper_tasks')
+    quantity = models.PositiveIntegerField('Количество для помощи')
+    completed_quantity = models.PositiveIntegerField('Выполнено', default=0)
+    defective_quantity = models.PositiveIntegerField('Брак', default=0)
+    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+    completed_at = models.DateTimeField('Дата завершения', null=True, blank=True)
+    
+    # Заработок помощника (50% от заработка сотрудника)
+    earnings = models.DecimalField('Заработок', max_digits=10, decimal_places=2, default=0)
+    penalties = models.DecimalField('Штрафы', max_digits=10, decimal_places=2, default=0)
+    net_earnings = models.DecimalField('Чистый заработок', max_digits=10, decimal_places=2, default=0)
+
+    class Meta:
+        verbose_name = 'Задача помощника'
+        verbose_name_plural = 'Задачи помощников'
+        unique_together = ['employee_task', 'helper']
+
+    def __str__(self):
+        return f"Помощь {self.helper} - {self.employee_task.employee} ({self.employee_task.stage.operation})"
+
+    @property
+    def title(self):
+        """Возвращает название задачи помощника"""
+        employee_name = self.employee_task.employee.get_full_name()
+        task_name = self.employee_task.stage.operation if self.employee_task.stage else 'Задача'
+        return f"Помочь {employee_name} с {task_name}"
+
+    @property
+    def is_completed(self):
+        """Проверяет, выполнена ли задача полностью"""
+        return self.completed_quantity >= self.quantity
+
+    def calculate_earnings(self):
+        """Рассчитывает заработок помощника (50% от заработка сотрудника)"""
+        # Получаем заработок сотрудника за единицу работы
+        employee_earnings_per_unit = self.employee_task.earnings / max(self.employee_task.completed_quantity, 1)
+        
+        # Помощник получает 50% от заработка сотрудника
+        helper_rate_per_unit = employee_earnings_per_unit * Decimal('0.5')
+        
+        # Заработок за выполненную работу
+        self.earnings = Decimal(str(self.completed_quantity)) * helper_rate_per_unit
+        
+        # Штрафы за брак (50% от штрафа сотрудника)
+        employee_penalty_per_unit = self.employee_task.penalties / max(self.employee_task.defective_quantity, 1)
+        helper_penalty_per_unit = employee_penalty_per_unit * Decimal('0.5')
+        self.penalties = Decimal(str(self.defective_quantity)) * helper_penalty_per_unit
+        
+        # Чистый заработок
+        self.net_earnings = self.earnings - self.penalties
+
+    @property
+    def stage_name(self):
+        """Возвращает название этапа для совместимости с фронтендом"""
+        return self.employee_task.stage.operation if self.employee_task.stage else 'Помощь'
+
+    @property
+    def order_item(self):
+        """Возвращает order_item для совместимости с фронтендом"""
+        return self.employee_task.stage.order_item if self.employee_task.stage else None
+
+    @property
+    def workshop_info(self):
+        """Возвращает информацию о цехе для совместимости с фронтендом"""
+        return self.employee_task.stage.workshop if self.employee_task.stage else None
+
 @receiver(pre_save, sender=EmployeeTask)
 def create_defect_on_defective_change(sender, instance, **kwargs):
     """Создает записи браков в новой системе при изменении defective_quantity"""
@@ -202,3 +271,20 @@ def update_earnings_and_materials(sender, instance, created, **kwargs):
     except Exception as e:
         # Логируем ошибку, но не прерываем выполнение
         print(f"Ошибка в update_earnings_and_materials: {e}")
+
+@receiver(post_save, sender=HelperTask)
+def update_helper_earnings(sender, instance, created, **kwargs):
+    """Обновляет заработок помощника при изменении задачи"""
+    try:
+        with transaction.atomic():
+            # Рассчитываем заработок по текущим значениям
+            instance.calculate_earnings()
+            # Обновляем агрегаты в базе без рекурсии
+            HelperTask.objects.filter(pk=instance.pk).update(
+                earnings=instance.earnings,
+                penalties=instance.penalties,
+                net_earnings=instance.net_earnings
+            )
+    except Exception as e:
+        # Логируем ошибку, но не прерываем выполнение
+        print(f"Ошибка в update_helper_earnings: {e}")
