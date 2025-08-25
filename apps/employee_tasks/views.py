@@ -5,6 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import F
 import json
 from .models import EmployeeTask, HelperTask
 from apps.users.models import User
@@ -62,7 +63,7 @@ def stats_view(request):
         helper_tasks = HelperTask.objects.filter(helper=user)
         total_earnings = sum(task.net_earnings for task in helper_tasks)
         total_tasks = helper_tasks.count()
-        completed_tasks = helper_tasks.filter(completed_quantity__gte=models.F('quantity')).count()
+        completed_tasks = helper_tasks.filter(completed_quantity__gte=F('quantity')).count()
         
         context = {
             'total_earnings': total_earnings,
@@ -75,7 +76,7 @@ def stats_view(request):
         employee_tasks = EmployeeTask.objects.filter(employee=user)
         total_earnings = sum(task.net_earnings for task in employee_tasks)
         total_tasks = employee_tasks.count()
-        completed_tasks = employee_tasks.filter(completed_quantity__gte=models.F('quantity')).count()
+        completed_tasks = employee_tasks.filter(completed_quantity__gte=F('quantity')).count()
         
         context = {
             'total_earnings': total_earnings,
