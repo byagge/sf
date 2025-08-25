@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель мастера — Smart Factory</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         body { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
@@ -319,31 +319,7 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            // Пробуем несколько способов инициализации иконок
-            if (typeof lucide !== 'undefined') {
-                try {
-                    lucide.createIcons();
-                } catch (e) {
-                    console.log('Ошибка lucide.createIcons():', e);
-                }
-            }
-            
-            // Альтернативный способ - проверяем каждые 100мс
-            let iconCheckInterval = setInterval(() => {
-                if (typeof lucide !== 'undefined' && document.querySelectorAll('[data-lucide]').length > 0) {
-                    try {
-                        lucide.createIcons();
-                        clearInterval(iconCheckInterval);
-                    } catch (e) {
-                        console.log('Ошибка при повторной инициализации иконок:', e);
-                    }
-                }
-            }, 100);
-            
-            // Останавливаем проверку через 5 секунд
-            setTimeout(() => {
-                clearInterval(iconCheckInterval);
-            }, 5000);
+            lucide.createIcons();
         });
     </script>
 </body>

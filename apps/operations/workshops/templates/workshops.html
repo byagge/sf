@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Цеха — Smart Factory</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.js" onload="console.log('Lucide UMD загружен')" onerror="console.log('Ошибка загрузки Lucide UMD')"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         .menu-card {
@@ -35,21 +35,6 @@
             from { transform: scale(0.95); opacity: 0; }
             to   { transform: scale(1); opacity: 1; }
         }
-        
-        /* Fallback для иконок, если Lucide не загрузился */
-        .lucide-fallback {
-            display: none !important;
-        }
-        
-        /* Показываем fallback, если иконки Lucide не видны */
-        .icon-container:not(:has(svg)) .lucide-fallback {
-            display: inline-block !important;
-        }
-        
-        /* Дополнительная проверка для случаев, когда :has не поддерживается */
-        .icon-container.show-fallback .lucide-fallback {
-            display: inline-block !important;
-        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" style="font-family: system-ui, -apple-system, sans-serif;">
@@ -66,9 +51,8 @@
                         <p class="text-sm text-gray-600">Всего цехов</p>
                         <p class="text-2xl font-bold text-gray-900">{{ total_workshops }}</p>
                     </div>
-                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center icon-container">
+                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                         <i data-lucide="factory" class="w-5 h-5 text-blue-600"></i>
-                        <span class="lucide-fallback text-blue-600 text-xs font-bold">🏭</span>
                     </div>
                 </div>
                 <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
@@ -76,9 +60,8 @@
                         <p class="text-sm text-gray-600">Сотрудников</p>
                         <p class="text-2xl font-bold text-green-700">{{ total_employees }}</p>
                     </div>
-                    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center icon-container">
+                    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                         <i data-lucide="users" class="w-5 h-5 text-green-600"></i>
-                        <span class="lucide-fallback text-green-600 text-xs font-bold">👥</span>
                     </div>
                 </div>
                 <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
@@ -86,9 +69,8 @@
                         <p class="text-sm text-gray-600">Средняя производительность</p>
                         <p class="text-2xl font-bold text-blue-700">{{ avg_productivity }} ед/мес</p>
                     </div>
-                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center icon-container">
+                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                         <i data-lucide="activity" class="w-5 h-5 text-blue-600"></i>
-                        <span class="lucide-fallback text-blue-600 text-xs font-bold">📊</span>
                     </div>
                 </div>
                 <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
@@ -96,9 +78,8 @@
                         <p class="text-sm text-gray-600">Активные задачи</p>
                         <p class="text-2xl font-bold text-purple-700">{{ total_active_tasks }}</p>
                     </div>
-                    <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center icon-container">
+                    <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
                         <i data-lucide="list-checks" class="w-5 h-5 text-purple-600"></i>
-                        <span class="lucide-fallback text-purple-600 text-xs font-bold">✅</span>
                     </div>
                 </div>
             </div>
@@ -112,7 +93,6 @@
                     <button @click="showOrdersInfo = !showOrdersInfo; if(showOrdersInfo) loadWorkshopsOrdersInfo()" 
                             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
                         <i data-lucide="list" class="w-4 h-4"></i>
-                        <span class="lucide-fallback text-white text-xs font-bold">📋</span>
                         <span x-text="showOrdersInfo ? 'Скрыть заказы' : 'Показать заказы'"></span>
                     </button>
                 </div>
@@ -189,23 +169,20 @@
                                                                 <!-- Характеристики товара -->
                                                                 <div class="flex flex-wrap gap-2 mb-2">
                                                                     <template x-if="order.product.size">
-                                                                        <div class="flex items-center space-x-1 bg-blue-100 px-2 py-1 rounded-full icon-container">
+                                                                        <div class="flex items-center space-x-1 bg-blue-100 px-2 py-1 rounded-full">
                                                                             <i data-lucide="ruler" class="w-3 h-3 text-blue-600"></i>
-                                                                            <span class="lucide-fallback text-blue-600 text-xs">📏</span>
                                                                             <span class="text-xs text-blue-700 font-medium" x-text="order.product.size"></span>
                                                                         </div>
                                                                     </template>
                                                                     <template x-if="order.product.color">
-                                                                        <div class="flex items-center space-x-1 bg-purple-100 px-2 py-1 rounded-full icon-container">
+                                                                        <div class="flex items-center space-x-1 bg-purple-100 px-2 py-1 rounded-full">
                                                                             <i data-lucide="palette" class="w-3 h-3 text-purple-600"></i>
-                                                                            <span class="lucide-fallback text-purple-600 text-xs">🎨</span>
                                                                             <span class="text-xs text-purple-700 font-medium" x-text="order.product.color"></span>
                                                                         </div>
                                                                     </template>
                                                                     <template x-if="order.product.is_glass">
-                                                                        <div class="flex items-center space-x-1 bg-cyan-100 px-2 py-1 rounded-full icon-container">
+                                                                        <div class="flex items-center space-x-1 bg-cyan-100 px-2 py-1 rounded-full">
                                                                             <i data-lucide="droplets" class="w-3 h-3 text-cyan-600"></i>
-                                                                            <span class="lucide-fallback text-cyan-600 text-xs">💧</span>
                                                                             <span class="text-xs text-cyan-700 font-medium">
                                                                                 Стекло: <span x-text="order.product.glass_type_display || 'Не указан'"></span>
                                                                             </span>
@@ -264,9 +241,8 @@
                 <div class="menu-card bg-white rounded-xl p-6 border border-gray-200 hover:border-blue-500 shadow-md flex flex-col justify-between">
                   <div>
                     <div class="flex items-center space-x-4 mb-2">
-                      <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center icon-container">
+                      <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                         <i data-lucide="factory" class="w-6 h-6 text-blue-600"></i>
-                        <span class="lucide-fallback text-blue-600 text-xs font-bold">🏭</span>
                       </div>
                       <div>
                         <h3 class="text-lg font-semibold text-gray-900">{{ workshop.name }}</h3>
@@ -279,7 +255,6 @@
                         <!-- Главный мастер -->
                         <div class="flex items-center text-sm text-gray-700">
                             <i data-lucide="crown" class="w-4 h-4 mr-2 text-yellow-500"></i>
-                            <span class="lucide-fallback text-yellow-500 text-xs font-bold">👑</span>
                             <span class="font-medium">Главный мастер:</span>
                             <span class="ml-2">{{ workshop.manager|default:"Не назначен" }}</span>
                         </div>
@@ -287,7 +262,6 @@
                         <!-- Дополнительные мастера -->
                         <div class="flex items-center text-sm text-gray-600">
                             <i data-lucide="users" class="w-4 h-4 mr-2 text-blue-500"></i>
-                            <span class="lucide-fallback text-blue-500 text-xs font-bold">👥</span>
                             <span>Дополнительные мастера:</span>
                             <span class="ml-2 text-gray-500">{{ workshop.workshop_masters.count }}</span>
                         </div>
@@ -298,7 +272,6 @@
                                 <div class="flex items-center justify-between text-xs">
                                     <div class="flex items-center">
                                         <i data-lucide="user" class="w-3 h-3 mr-1 text-blue-500"></i>
-                                        <span class="lucide-fallback text-blue-500 text-xs font-bold">👤</span>
                                         <span>{{ master.master.get_full_name }}</span>
                                         <span class="ml-1 px-1 py-0.5 rounded text-xs bg-blue-100 text-blue-700">
                                             Доп.
@@ -348,13 +321,11 @@
                     <button @click="openManageMastersModal({{ workshop.id }}, '{{ workshop.name }}')" 
                             class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
                         <i data-lucide="users" class="w-4 h-4 inline mr-1"></i>
-                        <span class="lucide-fallback text-white text-xs font-bold">👥</span>
                         Мастера
                     </button>
                     <button @click="openWorkshopDetails({{ workshop.id }})" 
                             class="flex-1 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm">
                         <i data-lucide="eye" class="w-4 h-4 inline mr-1"></i>
-                        <span class="lucide-fallback text-white text-xs font-bold">👁️</span>
                         Детали
                     </button>
                   </div>
@@ -374,9 +345,8 @@
             <div class="modal-content bg-white rounded-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-xl font-bold text-gray-900">Управление мастерами цеха: <span x-text="selectedWorkshopName"></span></h2>
-                    <button @click="showManageMastersModal = false" class="text-gray-400 hover:text-gray-600 icon-container">
+                    <button @click="showManageMastersModal = false" class="text-gray-400 hover:text-gray-600">
                         <i data-lucide="x" class="w-6 h-6"></i>
-                        <span class="lucide-fallback text-gray-400 text-xs font-bold">✕</span>
                     </button>
                 </div>
                 
@@ -388,12 +358,10 @@
                             <template x-for="master in workshopMasters" :key="master.id">
                                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                                     <div class="flex items-center space-x-3">
-                                        <div class="w-8 h-8 rounded-full flex items-center justify-center icon-container" 
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center" 
                                              :class="master.role === 'main_manager' ? 'bg-yellow-100' : 'bg-blue-100'">
                                             <i data-lucide="user" class="w-4 h-4" 
                                                :class="master.role === 'main_manager' ? 'text-yellow-600' : 'text-blue-600'"></i>
-                                            <span class="lucide-fallback text-xs font-bold" 
-                                                  :class="master.role === 'main_manager' ? 'text-yellow-600' : 'text-blue-600'">👤</span>
                                         </div>
                                         <div>
                                             <div class="font-medium text-gray-900" x-text="master.name"></div>
@@ -419,10 +387,7 @@
                     </template>
                     <template x-if="workshopMasters.length === 0">
                         <div class="text-center py-8 text-gray-500">
-                            <div class="icon-container">
-                                <i data-lucide="users" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
-                                <span class="lucide-fallback text-gray-300 text-2xl font-bold">👥</span>
-                            </div>
+                            <i data-lucide="users" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
                             <div>Мастера не назначены</div>
                         </div>
                     </template>
@@ -434,7 +399,7 @@
                     <div class="space-y-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Выберите сотрудника</label>
-                            <select x-model="newMasterId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 icon-container">
+                            <select x-model="newMasterId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Выберите сотрудника</option>
                                 <template x-for="employee in availableEmployees" :key="employee.id">
                                     <option :value="employee.id" x-text="employee.name"></option>
@@ -472,35 +437,7 @@
                 newMasterId: '',
                 
                 async init() {
-                    try {
-                        if (typeof lucide !== 'undefined') {
-                            lucide.createIcons();
-                        } else {
-                            console.log('Lucide не доступен в init, показываем fallback');
-                            // Показываем fallback иконки
-                            setTimeout(() => {
-                                const icons = document.querySelectorAll('[data-lucide]');
-                                icons.forEach(icon => {
-                                    const container = icon.closest('.icon-container');
-                                    if (container) {
-                                        container.classList.add('show-fallback');
-                                    }
-                                });
-                            }, 100);
-                        }
-                    } catch (e) {
-                        console.log('Ошибка в init:', e);
-                        // Показываем fallback иконки
-                        setTimeout(() => {
-                            const icons = document.querySelectorAll('[data-lucide]');
-                            icons.forEach(icon => {
-                                const container = icon.closest('.icon-container');
-                                if (container) {
-                                    container.classList.add('show-fallback');
-                                }
-                            });
-                        }, 100);
-                    }
+                    lucide.createIcons();
                 },
                 
                 async loadWorkshopsOrdersInfo() {
@@ -639,67 +576,7 @@
         }
         
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM загружен, проверяем Lucide...');
-            console.log('typeof lucide:', typeof lucide);
-            console.log('lucide object:', lucide);
-            
-            // Пробуем несколько способов инициализации иконок
-            if (typeof lucide !== 'undefined') {
-                try {
-                    console.log('Пытаемся создать иконки...');
-                    lucide.createIcons();
-                    console.log('Иконки созданы успешно');
-                } catch (e) {
-                    console.log('Ошибка lucide.createIcons():', e);
-                }
-            } else {
-                console.log('Lucide не загружен');
-            }
-            
-            // Альтернативный способ - проверяем каждые 100мс
-            let iconCheckInterval = setInterval(() => {
-                if (typeof lucide !== 'undefined' && document.querySelectorAll('[data-lucide]').length > 0) {
-                    try {
-                        lucide.createIcons();
-                        clearInterval(iconCheckInterval);
-                    } catch (e) {
-                        console.log('Ошибка при повторной инициализации иконок:', e);
-                    }
-                }
-            }, 100);
-            
-            // Останавливаем проверку через 5 секунд
-            setTimeout(() => {
-                clearInterval(iconCheckInterval);
-                
-                // Проверяем, загрузились ли иконки, и показываем fallback если нет
-                setTimeout(() => {
-                    const icons = document.querySelectorAll('[data-lucide]');
-                    icons.forEach(icon => {
-                        if (!icon.querySelector('svg')) {
-                            // Иконка не загрузилась, показываем fallback
-                            const container = icon.closest('.icon-container');
-                            if (container) {
-                                container.classList.add('show-fallback');
-                            }
-                        }
-                    });
-                }, 1000);
-            }, 5000);
-            
-            // Дополнительная проверка через 3 секунды
-            setTimeout(() => {
-                if (typeof lucide === 'undefined') {
-                    console.log('Lucide не загрузился за 3 секунды, показываем fallback');
-                    const icons = document.querySelectorAll('[data-lucide]');
-                    icons.forEach(icon => {
-                        const container = icon.closest('.icon-container');
-                        if (container) {
-                            container.classList.add('show-fallback');
-                        }
-                    });
-                }
-            }, 3000);
+            lucide.createIcons();
         });
     </script>
 </body>
