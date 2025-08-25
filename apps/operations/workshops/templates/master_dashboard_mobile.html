@@ -15,6 +15,23 @@
         .card { box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04); }
         .stat-card { transition: transform 0.2s ease-in-out; }
         .stat-card:active { transform: scale(0.98); }
+        .modal-bg { 
+            background: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(8px); 
+            animation: fadeInBg 0.3s; 
+        }
+        .modal-content { 
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 20px 20px 0 0;
+        }
+        @keyframes fadeInBg {
+            from { background: rgba(0,0,0,0); }
+            to   { background: rgba(0,0,0,0.4); }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to   { transform: translateY(0); }
+        }
         
         /* Скрываем иконки, пока Lucide не загружен */
         [data-lucide]:not(.lucide) {
@@ -272,6 +289,155 @@
         </template>
     </main>
 
+    <!-- Модальное окно с подробной статистикой цеха -->
+    <template x-if="showWorkshopDetails">
+        <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showWorkshopDetails = false">
+            <div class="modal-content bg-white rounded-t-3xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <!-- Заголовок модального окна -->
+                <div class="sticky top-0 bg-white border-b border-gray-200 px-4 py-4 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="factory" class="w-5 h-5 text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900" x-text="selectedWorkshop?.name"></h3>
+                            <p class="text-sm text-gray-600">Подробная статистика</p>
+                        </div>
+                    </div>
+                    <button @click="showWorkshopDetails = false" class="p-2 rounded-lg hover:bg-gray-100">
+                        <i data-lucide="x" class="w-5 h-5 text-gray-600"></i>
+                    </button>
+                </div>
+
+                <!-- Содержимое модального окна -->
+                <div class="p-4 space-y-6">
+                    <!-- Основные метрики -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-blue-50 rounded-xl p-3 text-center">
+                            <div class="text-sm text-blue-600">Сотрудников</div>
+                            <div class="text-xl font-bold text-blue-700" x-text="selectedWorkshop?.employees_count || 0"></div>
+                        </div>
+                        <div class="bg-green-50 rounded-xl p-3 text-center">
+                            <div class="text-sm text-green-600">Активных задач</div>
+                            <div class="text-xl font-bold text-green-700" x-text="selectedWorkshop?.active_tasks || 0"></div>
+                        </div>
+                    </div>
+
+                    <!-- Статистика по дням (последние 7 дней) -->
+                    <div>
+                        <h4 class="text-base font-semibold text-gray-900 mb-3">Статистика за неделю</h4>
+                        <div class="space-y-3">
+                            <template x-for="(day, index) in weeklyStats" :key="index">
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-700" x-text="day.date"></span>
+                                        <span class="text-xs text-gray-500" x-text="day.dayName"></span>
+                                    </div>
+                                    <div class="grid grid-cols-3 gap-2 text-xs">
+                                        <div class="text-center">
+                                            <div class="font-semibold text-green-600" x-text="day.completed_works || 0"></div>
+                                            <div class="text-gray-500">Работ</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="font-semibold text-red-600" x-text="day.defects || 0"></div>
+                                            <div class="text-gray-500">Брак</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="font-semibold text-blue-600" x-text="(day.efficiency || 0) + '%'"></div>
+                                            <div class="text-gray-500">Эффект.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- График производительности -->
+                    <div>
+                        <h4 class="text-base font-semibold text-gray-900 mb-3">График производительности</h4>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="flex items-end justify-between h-24 space-x-1">
+                                <template x-for="(value, index) in productivityChart" :key="index">
+                                    <div class="flex-1 flex flex-col items-center">
+                                        <div class="w-full bg-blue-200 rounded-t transition-all duration-300" 
+                                             :style="`height: ${Math.max(4, (value / Math.max(...productivityChart)) * 80)}px`"></div>
+                                        <span class="text-xs text-gray-600 mt-1" x-text="value"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-500 mt-2">
+                                <span>Пн</span>
+                                <span>Вт</span>
+                                <span>Ср</span>
+                                <span>Чт</span>
+                                <span>Пт</span>
+                                <span>Сб</span>
+                                <span>Вс</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Детальная статистика по периодам -->
+                    <div class="space-y-4">
+                        <!-- За неделю -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h5 class="text-sm font-semibold text-gray-900 mb-3">За неделю</h5>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-green-600" x-text="selectedWorkshop?.week_stats?.completed_works || 0"></div>
+                                    <div class="text-xs text-gray-600">Выполнено работ</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-red-600" x-text="selectedWorkshop?.week_stats?.defects || 0"></div>
+                                    <div class="text-xs text-gray-600">Брак</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-blue-600" x-text="(selectedWorkshop?.week_stats?.efficiency || 0) + '%'"></div>
+                                    <div class="text-xs text-gray-600">Эффективность</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-purple-600" x-text="selectedWorkshop?.week_stats?.total_hours || 0"></div>
+                                    <div class="text-xs text-gray-600">Часов работы</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- За месяц -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h5 class="text-sm font-semibold text-gray-900 mb-3">За месяц</h5>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-green-600" x-text="selectedWorkshop?.month_stats?.completed_works || 0"></div>
+                                    <div class="text-xs text-gray-600">Выполнено работ</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-red-600" x-text="selectedWorkshop?.month_stats?.defects || 0"></div>
+                                    <div class="text-xs text-gray-600">Брак</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-blue-600" x-text="(selectedWorkshop?.month_stats?.efficiency || 0) + '%'"></div>
+                                    <div class="text-xs text-gray-600">Эффективность</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-purple-600" x-text="selectedWorkshop?.month_stats?.total_hours || 0"></div>
+                                    <div class="text-xs text-gray-600">Часов работы</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Кнопка закрытия -->
+                    <div class="pt-4">
+                        <button @click="showWorkshopDetails = false" 
+                                class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+                            Закрыть
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
     <!-- Bottom Navigation -->
     <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-40">
         <a href="/dashboard/" class="flex flex-col items-center">
@@ -302,6 +468,10 @@
                 userName: '',
                 totalStats: {},
                 workshops: [],
+                showWorkshopDetails: false,
+                selectedWorkshop: null,
+                weeklyStats: [],
+                productivityChart: [],
                 
                 async init() {
                     // Проверяем, что Lucide доступен
@@ -351,6 +521,51 @@
                             }
                         });
                     }
+                },
+                
+                openWorkshopDetails(workshop) {
+                    this.selectedWorkshop = workshop;
+                    this.showWorkshopDetails = true;
+                    this.generateWeeklyStats(workshop);
+                    this.generateProductivityChart(workshop);
+                    
+                    // Пересоздаем иконки в модальном окне
+                    this.$nextTick(() => {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        }
+                    });
+                },
+                
+                generateWeeklyStats(workshop) {
+                    const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+                    const today = new Date();
+                    this.weeklyStats = [];
+                    
+                    for (let i = 6; i >= 0; i--) {
+                        const date = new Date(today);
+                        date.setDate(date.getDate() - i);
+                        
+                        // Генерируем случайные данные для демонстрации
+                        const completedWorks = Math.floor(Math.random() * 20) + 5;
+                        const defects = Math.floor(Math.random() * 3);
+                        const efficiency = Math.max(85, Math.min(98, 100 - (defects * 5) + Math.random() * 10));
+                        
+                        this.weeklyStats.push({
+                            date: date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }),
+                            dayName: days[date.getDay() === 0 ? 6 : date.getDay() - 1], // Понедельник = 0
+                            completed_works: completedWorks,
+                            defects: defects,
+                            efficiency: Math.round(efficiency)
+                        });
+                    }
+                },
+                
+                generateProductivityChart(workshop) {
+                    // Генерируем данные для графика производительности
+                    this.productivityChart = Array.from({ length: 7 }, () => 
+                        Math.floor(Math.random() * 30) + 15
+                    );
                 }
             }
         }
