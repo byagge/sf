@@ -1487,6 +1487,20 @@
                         </div>
                         <div class="text-xs mt-1" :class="maxEditableQuantity <= 5 ? 'text-red-500 font-semibold' : 'text-gray-500'">
                             Доступно для назначения: <span x-text="maxEditableQuantity"></span>
+                            <template x-if="editAssignForm.stage_id && stages.find(s => s.id === editAssignForm.stage_id)">
+                                <template x-if="stages.find(s => s.id === editAssignForm.stage_id).order_item && stages.find(s => s.id === editAssignForm.stage_id).order_item.order && stages.find(s => s.id === editAssignForm.stage_id).order_item.order.items">
+                                    <span class="ml-1 text-blue-600">
+                                        (из <span x-text="(() => {
+                                            const stage = stages.find(s => s.id === editAssignForm.stage_id);
+                                            let totalOrderItemsQuantity = 0;
+                                            if (stage && stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                                        })()"></span> товаров заказа)
+                                    </span>
+                                </template>
+                            </template>
                             <template x-if="maxEditableQuantity <= 5 && maxEditableQuantity > 0">
                                 <span class="ml-1">⚠️ Осталось мало!</span>
                             </template>
@@ -1542,7 +1556,14 @@
                                                      class="w-16 h-16 object-cover rounded border border-gray-200 mx-auto">
                                             </div>
                                         </template>
-                                        <div><span class="font-medium">План:</span> <span x-text="stages.find(s => s.id === transferStageId).plan_quantity"></span></div>
+                                        <div><span class="font-medium">План:</span> <span x-text="(() => {
+                                            const stage = stages.find(s => s.id === transferStageId);
+                                            let totalOrderItemsQuantity = 0;
+                                            if (stage && stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                                        })()"></span></div>
                                         <div><span class="font-medium">Выполнено:</span> <span x-text="stages.find(s => s.id === transferStageId).done_count"></span></div>
                                         
                                         <!-- Все товары заказа в модальном окне перевода -->
@@ -1715,7 +1736,14 @@
                                                      class="w-16 h-16 object-cover rounded border border-gray-200 mx-auto">
                                             </div>
                                         </template>
-                                        <div><span class="font-medium">План:</span> <span x-text="stages.find(s => s.id === noTransferStageId).plan_quantity"></span></div>
+                                        <div><span class="font-medium">План:</span> <span x-text="(() => {
+                                            const stage = stages.find(s => s.id === noTransferStageId);
+                                            let totalOrderItemsQuantity = 0;
+                                            if (stage && stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                                        })()"></span></div>
                                         <div><span class="font-medium">Выполнено:</span> <span x-text="stages.find(s => s.id === noTransferStageId).done_count"></span></div>
                                         
                                         <!-- Все товары заказа в модальном окне "не переводить" -->
@@ -1809,7 +1837,13 @@
                             <div class="space-y-1 text-xs text-blue-700">
                                 <div><span class="font-medium">Заявка:</span> <span x-text="markCompletionStage.order_name || 'Не указано'"></span></div>
                                 <div><span class="font-medium">Операция:</span> <span x-text="markCompletionStage.operation || 'Не указано'"></span></div>
-                                <div><span class="font-medium">План:</span> <span x-text="markCompletionStage.plan_quantity || 0"></span></div>
+                                <div><span class="font-medium">План:</span> <span x-text="(() => {
+                                    let totalOrderItemsQuantity = 0;
+                                    if (markCompletionStage.order_item && markCompletionStage.order_item.order && markCompletionStage.order_item.order.items) {
+                                        totalOrderItemsQuantity = markCompletionStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                    }
+                                    return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : (markCompletionStage.plan_quantity || 0);
+                                })()"></span></div>
                                 <div><span class="font-medium">Выполнено:</span> <span x-text="markCompletionStage.done_count || 0"></span></div>
                             </div>
                         </div>
@@ -1978,13 +2012,20 @@
                 const s = this.stages.find(x => x.id === this.transferStageId);
                 if (!s) return 0;
                 
+                // Получаем общее количество всех товаров заказа как план
+                let totalOrderItemsQuantity = 0;
+                if (s.order_item && s.order_item.order && s.order_item.order.items) {
+                    totalOrderItemsQuantity = s.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : s.plan_quantity;
+                
                 const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
                 if (currentWorkshop && currentWorkshop.id === 1) {
                     // Для цеха распила можно переводить даже 0
-                return Math.max(0, s.done_count);
+                    return Math.max(0, s.done_count);
                 } else {
                     // Для остальных цехов - только если план выполнен полностью
-                    if (s.done_count >= s.plan_quantity) {
+                    if (s.done_count >= planQuantity) {
                         return s.done_count;
                     } else {
                         return 0; // Нельзя переводить неполный план
@@ -2988,6 +3029,9 @@
                                                        min="1" 
                                                        placeholder="1"
                                                        @input="assign.quantity = Math.max(1, Math.min(parseInt(assign.quantity) || 1, quickAssignmentsMaxQuantity))">
+                                                <div class="text-xs text-gray-500 mt-1">
+                                                    Максимум: <span x-text="quickAssignmentsMaxQuantity"></span>
+                                                </div>
                                             </div>
                                             <div>
                                                 <label class="block text-xs text-gray-600 mb-1">Выполнено</label>
