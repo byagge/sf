@@ -32,7 +32,7 @@ def task_list(request):
         'is_helper': user.is_helper()
     }
     
-    return render(request, 'employee_tasks/tasks.html', context)
+    return render(request, 'tasks.html', context)
 
 @login_required
 def task_detail(request, task_id):
@@ -41,10 +41,10 @@ def task_detail(request, task_id):
     
     if user.is_helper():
         task = get_object_or_404(HelperTask, id=task_id, helper=user)
-        template = 'employee_tasks/helper_task_detail.html'
+        template = 'helper_task_detail.html'
     else:
         task = get_object_or_404(EmployeeTask, id=task_id, employee=user)
-        template = 'employee_tasks/task_detail.html'
+        template = 'task_detail.html'
     
     context = {
         'task': task,
@@ -85,7 +85,7 @@ def stats_view(request):
             'is_helper': False
         }
     
-    return render(request, 'employee_tasks/stats.html', context)
+    return render(request, 'stats_employee.html', context)
 
 @login_required
 def assign_task(request):
