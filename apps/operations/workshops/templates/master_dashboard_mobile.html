@@ -25,6 +25,7 @@
             border-radius: 20px 20px 0 0;
             /* Улучшаем скроллинг на iOS */
             -webkit-overflow-scrolling: touch;
+            max-height: 90vh;
         }
         /* Стилизация скроллбара */
         .overflow-y-auto::-webkit-scrollbar {
@@ -39,6 +40,22 @@
         }
         .overflow-y-auto::-webkit-scrollbar-thumb:hover {
             background: rgba(156, 163, 175, 0.7);
+        }
+        
+        /* Улучшенная стилизация скроллбара для модального окна */
+        .modal-content .overflow-y-auto::-webkit-scrollbar {
+            width: 6px;
+        }
+        .modal-content .overflow-y-auto::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 3px;
+        }
+        .modal-content .overflow-y-auto::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.6);
+            border-radius: 3px;
+        }
+        .modal-content .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.8);
         }
         @keyframes fadeInBg {
             from { background: rgba(0,0,0,0); }
@@ -308,7 +325,7 @@
     <!-- Модальное окно с подробной статистикой цеха -->
     <template x-if="showWorkshopDetails">
         <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showWorkshopDetails = false">
-            <div class="modal-content bg-white rounded-t-3xl w-full max-w-md h-[85vh] flex flex-col">
+            <div class="modal-content bg-white rounded-t-3xl w-full max-w-md h-[90vh] flex flex-col">
                 <!-- Заголовок модального окна -->
                 <div class="flex-shrink-0 bg-white border-b border-gray-200 px-3 py-3 flex items-center justify-between rounded-t-3xl">
                     <div class="flex items-center space-x-3 flex-1 min-w-0">
@@ -331,7 +348,7 @@
                 </div>
 
                 <!-- Содержимое модального окна -->
-                <div class="flex-1 overflow-y-auto px-3 pb-2 space-y-4">
+                <div class="flex-1 overflow-y-auto px-3 pb-2 space-y-4" style="-webkit-overflow-scrolling: touch;">
                     <!-- Основные метрики -->
                     <div class="grid grid-cols-2 gap-2">
                         <div class="bg-blue-50 rounded-lg p-2 text-center">
