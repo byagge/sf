@@ -38,12 +38,17 @@
         
         /* Fallback для иконок, если Lucide не загрузился */
         .lucide-fallback {
-            display: none;
+            display: none !important;
         }
         
         /* Показываем fallback, если иконки Lucide не видны */
         .icon-container:not(:has(svg)) .lucide-fallback {
-            display: inline-block;
+            display: inline-block !important;
+        }
+        
+        /* Дополнительная проверка для случаев, когда :has не поддерживается */
+        .icon-container.show-fallback .lucide-fallback {
+            display: inline-block !important;
         }
     </style>
 </head>
@@ -467,7 +472,35 @@
                 newMasterId: '',
                 
                 async init() {
-                    lucide.createIcons();
+                    try {
+                        if (typeof lucide !== 'undefined') {
+                            lucide.createIcons();
+                        } else {
+                            console.log('Lucide не доступен в init, показываем fallback');
+                            // Показываем fallback иконки
+                            setTimeout(() => {
+                                const icons = document.querySelectorAll('[data-lucide]');
+                                icons.forEach(icon => {
+                                    const container = icon.closest('.icon-container');
+                                    if (container) {
+                                        container.classList.add('show-fallback');
+                                    }
+                                });
+                            }, 100);
+                        }
+                    } catch (e) {
+                        console.log('Ошибка в init:', e);
+                        // Показываем fallback иконки
+                        setTimeout(() => {
+                            const icons = document.querySelectorAll('[data-lucide]');
+                            icons.forEach(icon => {
+                                const container = icon.closest('.icon-container');
+                                if (container) {
+                                    container.classList.add('show-fallback');
+                                }
+                            });
+                        }, 100);
+                    }
                 },
                 
                 async loadWorkshopsOrdersInfo() {
@@ -647,10 +680,7 @@
                             // Иконка не загрузилась, показываем fallback
                             const container = icon.closest('.icon-container');
                             if (container) {
-                                const fallback = container.querySelector('.lucide-fallback');
-                                if (fallback) {
-                                    fallback.style.display = 'inline-block';
-                                }
+                                container.classList.add('show-fallback');
                             }
                         }
                     });
@@ -665,10 +695,7 @@
                     icons.forEach(icon => {
                         const container = icon.closest('.icon-container');
                         if (container) {
-                            const fallback = container.querySelector('.lucide-fallback');
-                            if (fallback) {
-                                fallback.style.display = 'inline-block';
-                            }
+                            container.classList.add('show-fallback');
                         }
                     });
                 }
