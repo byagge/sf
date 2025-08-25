@@ -1377,13 +1377,11 @@
                         <div class="flex items-center space-x-2">
                             <button type="button" @click="assignForm.quantity = Math.max(1, assignForm.quantity - 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center hover:bg-gray-200 transition-colors">-</button>
                             <input type="number" 
-                                   x-model.number="assignForm.quantity" 
+                                   x-model="assignForm.quantity" 
                                    class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                   :max="maxAssignableQuantity" 
-                                   min="1" 
                                    required 
-                                   @input="assignForm.quantity = Math.max(1, assignForm.quantity || 1)" 
-                                   @blur="assignForm.quantity = Math.max(1, Math.min(assignForm.quantity || 1, maxAssignableQuantity))">
+                                   placeholder="1"
+                                   @blur="assignForm.quantity = Math.max(1, Math.min(parseInt(assignForm.quantity) || 1, maxAssignableQuantity))">
                             <button type="button" @click="assignForm.quantity = Math.min(maxAssignableQuantity, assignForm.quantity + 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center hover:bg-gray-200 transition-colors">+</button>
                         </div>
                         <div class="text-xs mt-1" :class="maxAssignableQuantity <= 5 ? 'text-red-500 font-semibold' : 'text-gray-500'">
@@ -1518,13 +1516,11 @@
                         <div class="flex items-center space-x-2">
                             <button type="button" @click="editAssignForm.quantity = Math.max(1, editAssignForm.quantity - 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center hover:bg-gray-200 transition-colors">-</button>
                             <input type="number" 
-                                   x-model.number="editAssignForm.quantity" 
+                                   x-model="editAssignForm.quantity" 
                                    class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                   :max="maxEditableQuantity" 
-                                   min="1" 
                                    required 
-                                   @input="editAssignForm.quantity = Math.max(1, editAssignForm.quantity || 1)" 
-                                   @blur="editAssignForm.quantity = Math.max(1, Math.min(editAssignForm.quantity || 1, maxEditableQuantity))">
+                                   placeholder="1"
+                                   @blur="editAssignForm.quantity = Math.max(1, Math.min(parseInt(editAssignForm.quantity) || 1, maxEditableQuantity))">
                             <button type="button" @click="editAssignForm.quantity = Math.min(maxEditableQuantity, editAssignForm.quantity + 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center hover:bg-gray-200 transition-colors">+</button>
                         </div>
                         <div class="text-xs mt-1" :class="maxEditableQuantity <= 5 ? 'text-red-500 font-semibold' : 'text-gray-500'">
@@ -1721,7 +1717,7 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">Сколько передаём</label>
                         <div class="flex items-center space-x-2">
                             <button type="button" @click="transferQuantity = Math.max(0, transferQuantity - 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">-</button>
-                            <input type="number" x-model.number="transferQuantity" class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold" :max="transferMaxQuantity" min="0" @input="transferQuantity = Math.max(0, Math.min(transferQuantity, transferMaxQuantity))">
+                            <input type="number" x-model="transferQuantity" class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold" placeholder="0" @blur="transferQuantity = Math.max(0, Math.min(parseInt(transferQuantity) || 0, transferMaxQuantity))">
                             <button type="button" @click="transferQuantity = Math.min(transferMaxQuantity, transferQuantity + 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center">+</button>
                         </div>
                         <div class="text-xs text-gray-500 mt-1">
@@ -1910,22 +1906,18 @@
                                             <div>
                                                 <label class="block text-xs text-gray-600 mb-1">Выполнено</label>
                                                 <input type="number" 
-                                                       x-model.number="assign.completed_quantity" 
+                                                       x-model="assign.completed_quantity" 
                                                        class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
-                                                       :max="assign.quantity" 
-                                                       min="0" 
                                                        placeholder="0"
-                                                       @input="assign.completed_quantity = Math.max(0, Math.min(parseInt(assign.completed_quantity) || 0, assign.quantity))">
+                                                       @blur="assign.completed_quantity = Math.max(0, Math.min(parseInt(assign.completed_quantity) || 0, assign.quantity))">
                                             </div>
                                             <div>
                                                 <label class="block text-xs text-gray-600 mb-1">Брак</label>
                                                 <input type="number" 
-                                                       x-model.number="assign.defective_quantity" 
+                                                       x-model="assign.defective_quantity" 
                                                        class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
-                                                       :max="assign.quantity" 
-                                                       min="0" 
                                                        placeholder="0"
-                                                       @input="assign.defective_quantity = Math.max(0, Math.min(parseInt(assign.defective_quantity) || 0, assign.quantity))">
+                                                       @blur="assign.defective_quantity = Math.max(0, Math.min(parseInt(assign.defective_quantity) || 0, assign.quantity))">
                                             </div>
                                         </div>
                                         
@@ -3088,13 +3080,10 @@
                                             <div>
                                                 <label class="block text-xs text-gray-600 mb-1">Количество</label>
                                                 <input type="number" 
-                                                       x-model.number="assign.quantity" 
+                                                       x-model="assign.quantity" 
                                                        class="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                       :max="quickAssignmentsMaxQuantity" 
-                                                       min="1" 
                                                        placeholder="1"
-                                                       @input="assign.quantity = Math.max(1, assign.quantity || 1)" 
-                                                       @blur="assign.quantity = Math.max(1, Math.min(assign.quantity || 1, quickAssignmentsMaxQuantity))">
+                                                       @blur="assign.quantity = Math.max(1, Math.min(parseInt(assign.quantity) || 1, quickAssignmentsMaxQuantity))">
                                                 <div class="text-xs text-gray-500 mt-1">
                                                     Максимум: <span x-text="quickAssignmentsMaxQuantity"></span>
                                                 </div>
@@ -3102,22 +3091,18 @@
                                             <div>
                                                 <label class="block text-xs text-gray-600 mb-1">Выполнено</label>
                                                 <input type="number" 
-                                                       x-model.number="assign.completed_quantity" 
+                                                       x-model="assign.completed_quantity" 
                                                        class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
-                                                       :max="assign.quantity" 
-                                                       min="0" 
                                                        placeholder="0"
-                                                       @input="assign.completed_quantity = Math.max(0, Math.min(parseInt(assign.completed_quantity) || 0, assign.quantity))">
+                                                       @blur="assign.completed_quantity = Math.max(0, Math.min(parseInt(assign.completed_quantity) || 0, assign.quantity))">
                                             </div>
                                             <div>
                                                 <label class="block text-xs text-gray-600 mb-1">Брак</label>
                                                 <input type="number" 
-                                                       x-model.number="assign.defective_quantity" 
+                                                       x-model="assign.defective_quantity" 
                                                        class="w-full px-2 py-2 border border-gray-300 rounded text-sm"
-                                                       :max="assign.quantity" 
-                                                       min="0" 
                                                        placeholder="0"
-                                                       @input="assign.defective_quantity = Math.max(0, Math.min(parseInt(assign.defective_quantity) || 0, assign.quantity))">
+                                                       @blur="assign.defective_quantity = Math.max(0, Math.min(parseInt(assign.defective_quantity) || 0, assign.quantity))">
                                             </div>
                                         </div>
                                         
