@@ -171,13 +171,7 @@
                                 <div class="grid grid-cols-4 gap-2 text-xs mb-2">
                                     <div class="text-center">
                                         <div class="text-gray-500">План</div>
-                                        <div class="font-semibold text-gray-900" x-text="(() => {
-                                            let totalOrderItemsQuantity = 0;
-                                            if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
-                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                                            }
-                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
-                                        })()"></div>
+                                        <div class="font-semibold text-gray-900" x-text="getPlanQuantity(stage)"></div>
                                     </div>
                                     <div class="text-center">
                                         <div class="text-gray-500">Назначено</div>
@@ -199,25 +193,11 @@
                                 <div class="mb-2">
                                     <div class="flex justify-between text-xs text-gray-500 mb-1">
                                         <span>Выполнение</span>
-                                        <span x-text="(() => {
-                                            let totalOrderItemsQuantity = 0;
-                                            if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
-                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                                            }
-                                            const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
-                                            return Math.round(((stage.done_count || 0) / planQuantity) * 100) + '%';
-                                        })()"></span>
+                                        <span x-text="Math.round(((stage.done_count || 0) / getPlanQuantity(stage)) * 100) + '%'"></span>
                                     </div>
                                     <div class="w-full bg-gray-200 rounded-full h-1.5">
                                         <div class="bg-green-600 h-1.5 rounded-full transition-all duration-300" 
-                                             :style="(() => {
-                                                let totalOrderItemsQuantity = 0;
-                                                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
-                                                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                                                }
-                                                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
-                                                return 'width: ' + Math.min(100, Math.max(0, ((stage.done_count || 0) / planQuantity) * 100)) + '%';
-                                             })()"></div>
+                                             :style="'width: ' + Math.min(100, Math.max(0, ((stage.done_count || 0) / getPlanQuantity(stage)) * 100)) + '%'"></div>
                                     </div>
                                 </div>
                                 
@@ -1166,11 +1146,24 @@
                                 <div class="grid grid-cols-2 gap-4 text-sm">
                                     <div class="text-center">
                                         <div class="text-purple-600 font-medium">План</div>
-                                        <div class="text-2xl font-bold text-purple-900" x-text="selectedStage.plan_quantity"></div>
+                                        <div class="text-2xl font-bold text-purple-900" x-text="(() => {
+                                            let totalOrderItemsQuantity = 0;
+                                            if (selectedStage.order_item && selectedStage.order_item.order && selectedStage.order_item.order.items) {
+                                                totalOrderItemsQuantity = selectedStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : selectedStage.plan_quantity;
+                                        })()"></div>
                                     </div>
                                     <div class="text-center">
                                         <div class="text-purple-600 font-medium">Назначено</div>
-                                        <div class="text-2xl font-bold" :class="(selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) >= selectedStage.plan_quantity ? 'text-red-600' : 'text-green-600' : 'text-purple-900')">
+                                        <div class="text-2xl font-bold" :class="(() => {
+                                            let totalOrderItemsQuantity = 0;
+                                            if (selectedStage.order_item && selectedStage.order_item.order && selectedStage.order_item.order.items) {
+                                                totalOrderItemsQuantity = selectedStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : selectedStage.plan_quantity;
+                                            return (selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) >= planQuantity ? 'text-red-600' : 'text-green-600' : 'text-purple-900');
+                                        })()">
                                             <span x-text="selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) : 0"></span>
                                         </div>
                                     </div>
@@ -1188,11 +1181,25 @@
                                 <div class="mt-4 pt-4 border-t border-purple-200">
                                     <div class="flex justify-between text-sm text-purple-700 mb-2">
                                         <span>Прогресс выполнения этапа</span>
-                                        <span x-text="Math.round(((selectedStage.done_count || 0) / selectedStage.plan_quantity) * 100) + '%'"></span>
+                                        <span x-text="(() => {
+                                            let totalOrderItemsQuantity = 0;
+                                            if (selectedStage.order_item && selectedStage.order_item.order && selectedStage.order_item.order.items) {
+                                                totalOrderItemsQuantity = selectedStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : selectedStage.plan_quantity;
+                                            return Math.round(((selectedStage.done_count || 0) / planQuantity) * 100) + '%';
+                                        })()"></span>
                                     </div>
                                     <div class="w-full bg-purple-200 rounded-full h-3">
                                         <div class="bg-purple-600 h-3 rounded-full transition-all duration-300" 
-                                             :style="'width: ' + Math.min(100, Math.max(0, ((selectedStage.done_count || 0) / selectedStage.plan_quantity) * 100)) + '%'"></div>
+                                             :style="(() => {
+                                                let totalOrderItemsQuantity = 0;
+                                                if (selectedStage.order_item && selectedStage.order_item.order && selectedStage.order_item.order.items) {
+                                                    totalOrderItemsQuantity = selectedStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                                }
+                                                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : selectedStage.plan_quantity;
+                                                return 'width: ' + Math.min(100, Math.max(0, ((selectedStage.done_count || 0) / planQuantity) * 100)) + '%';
+                                             })()"></div>
                                     </div>
                                     <div class="flex justify-between text-xs text-purple-600 mt-1">
                                         <span>0</span>
@@ -1204,12 +1211,33 @@
                                 <div class="mt-4 pt-4 border-t border-purple-200">
                                     <div class="flex justify-between text-sm text-purple-700 mb-2">
                                         <span>Прогресс назначения задач</span>
-                                        <span x-text="Math.round(((selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) : 0) / selectedStage.plan_quantity) * 100) + '%'"></span>
+                                        <span x-text="(() => {
+                                            let totalOrderItemsQuantity = 0;
+                                            if (selectedStage.order_item && selectedStage.order_item.order && selectedStage.order_item.order.items) {
+                                                totalOrderItemsQuantity = selectedStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                            }
+                                            const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : selectedStage.plan_quantity;
+                                            return Math.round(((selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) : 0) / planQuantity) * 100) + '%';
+                                        })()"></span>
                                     </div>
                                     <div class="w-full bg-purple-200 rounded-full h-3">
                                         <div class="h-3 rounded-full transition-all duration-300" 
-                                             :class="(selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) : 0) >= selectedStage.plan_quantity ? 'bg-red-600' : 'bg-purple-600'"
-                                             :style="'width: ' + Math.min(100, Math.max(0, ((selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) : 0) / selectedStage.plan_quantity) * 100)) + '%'"></div>
+                                             :class="(() => {
+                                                let totalOrderItemsQuantity = 0;
+                                                if (selectedStage.order_item && selectedStage.order_item.order && selectedStage.order_item.order.items) {
+                                                    totalOrderItemsQuantity = selectedStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                                }
+                                                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : selectedStage.plan_quantity;
+                                                return (selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) : 0) >= planQuantity ? 'bg-red-600' : 'bg-purple-600';
+                                             })()"
+                                             :style="(() => {
+                                                let totalOrderItemsQuantity = 0;
+                                                if (selectedStage.order_item && selectedStage.order_item.order && selectedStage.order_item.order.items) {
+                                                    totalOrderItemsQuantity = selectedStage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                                }
+                                                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : selectedStage.plan_quantity;
+                                                return 'width: ' + Math.min(100, Math.max(0, ((selectedStage.assigned && selectedStage.assigned.length > 0 ? selectedStage.assigned.reduce((sum, a) => sum + a.quantity, 0) : 0) / planQuantity) * 100)) + '%';
+                                             })()"></div>
                                     </div>
                                     <div class="flex justify-between text-xs text-purple-600 mt-1">
                                         <span>0</span>
@@ -2485,13 +2513,21 @@
             },
             openTransferModal(stage) {
                 this.transferStageId = stage.id;
+                
+                // Получаем общее количество всех товаров заказа как план
+                let totalOrderItemsQuantity = 0;
+                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                
                 // Для цеха с ID 1 (распил) можно переводить даже 0, для остальных - только выполненное количество
                 const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
                 if (currentWorkshop && currentWorkshop.id === 1) {
-                this.transferQuantity = Math.max(0, stage.done_count);
+                    this.transferQuantity = Math.max(0, stage.done_count);
                 } else {
                     // Для остальных цехов - только если план выполнен полностью
-                    if (stage.done_count >= stage.plan_quantity) {
+                    if (stage.done_count >= planQuantity) {
                         this.transferQuantity = stage.done_count;
                     } else {
                         this.showToast('Для перевода необходимо выполнить план полностью!', 'error');
@@ -2529,9 +2565,16 @@
                     return;
                 }
                 
+                // Получаем общее количество всех товаров заказа как план
+                let totalOrderItemsQuantity = 0;
+                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                
                 // Для цехов кроме распила проверяем выполнение плана
                 if (!(currentWorkshop && currentWorkshop.id === 1)) {
-                    if (stage.done_count < stage.plan_quantity) {
+                    if (stage.done_count < planQuantity) {
                         this.showToast('Ошибка: для перевода необходимо выполнить план полностью!', 'error');
                         return;
                     }
@@ -2950,6 +2993,14 @@
                 } catch (error) {
                     console.warn('Ошибка при обновлении задач сотрудников:', error);
                 }
+            },
+            
+            getPlanQuantity(stage) {
+                let totalOrderItemsQuantity = 0;
+                if (stage && stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                }
+                return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
             },
             
             getCsrfToken() {
