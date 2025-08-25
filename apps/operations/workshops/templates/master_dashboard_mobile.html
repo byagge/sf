@@ -308,63 +308,63 @@
     <!-- Модальное окно с подробной статистикой цеха -->
     <template x-if="showWorkshopDetails">
         <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showWorkshopDetails = false">
-            <div class="modal-content bg-white rounded-t-3xl w-full max-w-md h-[95vh] flex flex-col">
+            <div class="modal-content bg-white rounded-t-3xl w-full max-w-md h-[85vh] flex flex-col">
                 <!-- Заголовок модального окна -->
-                <div class="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-4 flex items-center justify-between rounded-t-3xl">
+                <div class="flex-shrink-0 bg-white border-b border-gray-200 px-3 py-3 flex items-center justify-between rounded-t-3xl">
                     <div class="flex items-center space-x-3 flex-1 min-w-0">
-                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <i data-lucide="factory" class="w-5 h-5 text-blue-600"></i>
+                        <div class="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="factory" class="w-4 h-4 text-blue-600"></i>
                         </div>
                         <div class="min-w-0 flex-1">
-                            <h3 class="text-lg font-semibold text-gray-900 truncate" x-text="selectedWorkshop?.name"></h3>
-                            <p class="text-sm text-gray-600">Подробная статистика</p>
+                            <h3 class="text-base font-semibold text-gray-900 truncate" x-text="selectedWorkshop?.name"></h3>
+                            <p class="text-xs text-gray-600">Подробная статистика</p>
                         </div>
                     </div>
-                    <button @click="closeWorkshopDetails()" class="p-2 rounded-lg hover:bg-gray-100 flex-shrink-0 ml-2">
-                        <i data-lucide="x" class="w-5 h-5 text-gray-600"></i>
+                    <button @click="closeWorkshopDetails()" class="p-1.5 rounded-lg hover:bg-gray-100 flex-shrink-0 ml-2">
+                        <i data-lucide="x" class="w-4 h-4 text-gray-600"></i>
                     </button>
                 </div>
                 
                 <!-- Индикатор скролла -->
-                <div class="flex-shrink-0 bg-gray-100 h-1 rounded-full mx-4 mb-2">
-                    <div class="bg-gray-300 h-1 rounded-full w-16 mx-auto"></div>
+                <div class="flex-shrink-0 bg-gray-100 h-1 rounded-full mx-3 mb-1">
+                    <div class="bg-gray-300 h-1 rounded-full w-12 mx-auto"></div>
                 </div>
 
                 <!-- Содержимое модального окна -->
-                <div class="flex-1 overflow-y-auto px-4 pb-4 space-y-6">
+                <div class="flex-1 overflow-y-auto px-3 pb-2 space-y-4">
                     <!-- Основные метрики -->
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-blue-50 rounded-xl p-3 text-center">
-                            <div class="text-sm text-blue-600">Сотрудников</div>
-                            <div class="text-xl font-bold text-blue-700" x-text="selectedWorkshop?.employees_count || 0"></div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-blue-50 rounded-lg p-2 text-center">
+                            <div class="text-xs text-blue-600">Сотрудников</div>
+                            <div class="text-lg font-bold text-blue-700" x-text="selectedWorkshop?.employees_count || 0"></div>
                         </div>
-                        <div class="bg-green-50 rounded-xl p-3 text-center">
-                            <div class="text-sm text-green-600">Активных задач</div>
-                            <div class="text-xl font-bold text-green-700" x-text="selectedWorkshop?.active_tasks || 0"></div>
+                        <div class="bg-green-50 rounded-lg p-2 text-center">
+                            <div class="text-xs text-green-600">Активных задач</div>
+                            <div class="text-lg font-bold text-green-700" x-text="selectedWorkshop?.active_tasks || 0"></div>
                         </div>
                     </div>
 
                     <!-- Статистика по дням (последние 7 дней) -->
                     <div>
-                        <h4 class="text-base font-semibold text-gray-900 mb-3">Статистика за неделю</h4>
-                        <div class="space-y-2">
+                        <h4 class="text-sm font-semibold text-gray-900 mb-2">Статистика за неделю</h4>
+                        <div class="space-y-1">
                             <template x-for="(day, index) in weeklyStats" :key="index">
-                                <div class="bg-gray-50 rounded-lg p-3">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <span class="text-sm font-medium text-gray-700" x-text="day.date"></span>
-                                        <span class="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full" x-text="day.dayName"></span>
+                                <div class="bg-gray-50 rounded-lg p-2">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-medium text-gray-700" x-text="day.date"></span>
+                                        <span class="text-xs text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded-full" x-text="day.dayName"></span>
                                     </div>
                                     <div class="grid grid-cols-3 gap-1 text-xs">
-                                        <div class="text-center bg-white rounded-lg p-2">
-                                            <div class="font-semibold text-green-600 text-sm" x-text="day.completed_works || 0"></div>
+                                        <div class="text-center bg-white rounded p-1">
+                                            <div class="font-semibold text-green-600 text-xs" x-text="day.completed_works || 0"></div>
                                             <div class="text-gray-500 text-xs">Работ</div>
                                         </div>
-                                        <div class="text-center bg-white rounded-lg p-2">
-                                            <div class="font-semibold text-red-600 text-sm" x-text="day.defects || 0"></div>
+                                        <div class="text-center bg-white rounded p-1">
+                                            <div class="font-semibold text-red-600 text-xs" x-text="day.defects || 0"></div>
                                             <div class="text-gray-500 text-xs">Брак</div>
                                         </div>
-                                        <div class="text-center bg-white rounded-lg p-2">
-                                            <div class="font-semibold text-blue-600 text-sm" x-text="(day.efficiency || 0) + '%'"></div>
+                                        <div class="text-center bg-white rounded p-1">
+                                            <div class="font-semibold text-blue-600 text-xs" x-text="(day.efficiency || 0) + '%'"></div>
                                             <div class="text-gray-500 text-xs">Эффект.</div>
                                         </div>
                                     </div>
@@ -375,18 +375,18 @@
 
                     <!-- График производительности -->
                     <div>
-                        <h4 class="text-base font-semibold text-gray-900 mb-3">График производительности</h4>
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <div class="flex items-end justify-between h-20 space-x-1">
+                        <h4 class="text-sm font-semibold text-gray-900 mb-2">График производительности</h4>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="flex items-end justify-between h-16 space-x-1">
                                 <template x-for="(value, index) in productivityChart" :key="index">
                                     <div class="flex-1 flex flex-col items-center">
                                         <div class="w-full bg-gradient-to-t from-blue-400 to-blue-600 rounded-t transition-all duration-300 shadow-sm" 
-                                             :style="`height: ${Math.max(8, (value / Math.max(...productivityChart)) * 60)}px`"></div>
+                                             :style="`height: ${Math.max(6, (value / Math.max(...productivityChart)) * 50)}px`"></div>
                                         <span class="text-xs text-gray-600 mt-1 font-medium" x-text="value"></span>
                                     </div>
                                 </template>
                             </div>
-                            <div class="flex justify-between text-xs text-gray-500 mt-3">
+                            <div class="flex justify-between text-xs text-gray-500 mt-2">
                                 <span class="text-center flex-1">Пн</span>
                                 <span class="text-center flex-1">Вт</span>
                                 <span class="text-center flex-1">Ср</span>
@@ -399,48 +399,48 @@
                     </div>
 
                     <!-- Детальная статистика по периодам -->
-                    <div class="space-y-3">
+                    <div class="space-y-2">
                         <!-- За неделю -->
-                        <div class="bg-gray-50 rounded-lg p-3">
-                            <h5 class="text-sm font-semibold text-gray-900 mb-2">За неделю</h5>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div class="text-center bg-white rounded-lg p-2">
-                                    <div class="text-lg font-bold text-green-600" x-text="selectedWorkshop?.week_stats?.completed_works || 0"></div>
+                        <div class="bg-gray-50 rounded-lg p-2">
+                            <h5 class="text-xs font-semibold text-gray-900 mb-1">За неделю</h5>
+                            <div class="grid grid-cols-2 gap-1">
+                                <div class="text-center bg-white rounded p-1">
+                                    <div class="text-sm font-bold text-green-600" x-text="selectedWorkshop?.week_stats?.completed_works || 0"></div>
                                     <div class="text-xs text-gray-600">Работ</div>
                                 </div>
-                                <div class="text-center bg-white rounded-lg p-2">
-                                    <div class="text-lg font-bold text-red-600" x-text="selectedWorkshop?.week_stats?.defects || 0"></div>
+                                <div class="text-center bg-white rounded p-1">
+                                    <div class="text-sm font-bold text-red-600" x-text="selectedWorkshop?.week_stats?.defects || 0"></div>
                                     <div class="text-xs text-gray-600">Брак</div>
                                 </div>
-                                <div class="text-center bg-white rounded-lg p-2">
-                                    <div class="text-lg font-bold text-blue-600" x-text="(selectedWorkshop?.week_stats?.efficiency || 0) + '%'"></div>
+                                <div class="text-center bg-white rounded p-1">
+                                    <div class="text-sm font-bold text-blue-600" x-text="(selectedWorkshop?.week_stats?.efficiency || 0) + '%'"></div>
                                     <div class="text-xs text-gray-600">Эффективность</div>
                                 </div>
-                                <div class="text-center bg-white rounded-lg p-2">
-                                    <div class="text-lg font-bold text-purple-600" x-text="selectedWorkshop?.week_stats?.total_hours || 0"></div>
+                                <div class="text-center bg-white rounded p-1">
+                                    <div class="text-sm font-bold text-purple-600" x-text="selectedWorkshop?.week_stats?.total_hours || 0"></div>
                                     <div class="text-xs text-gray-600">Часов</div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- За месяц -->
-                        <div class="bg-gray-50 rounded-lg p-3">
-                            <h5 class="text-sm font-semibold text-gray-900 mb-2">За месяц</h5>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div class="text-center bg-white rounded-lg p-2">
-                                    <div class="text-lg font-bold text-green-600" x-text="selectedWorkshop?.month_stats?.completed_works || 0"></div>
+                        <div class="bg-gray-50 rounded-lg p-2">
+                            <h5 class="text-xs font-semibold text-gray-900 mb-1">За месяц</h5>
+                            <div class="grid grid-cols-2 gap-1">
+                                <div class="text-center bg-white rounded p-1">
+                                    <div class="text-sm font-bold text-green-600" x-text="selectedWorkshop?.month_stats?.completed_works || 0"></div>
                                     <div class="text-xs text-gray-600">Работ</div>
                                 </div>
-                                <div class="text-center bg-white rounded-lg p-2">
-                                    <div class="text-lg font-bold text-red-600" x-text="selectedWorkshop?.month_stats?.defects || 0"></div>
+                                <div class="text-center bg-white rounded p-1">
+                                    <div class="text-sm font-bold text-red-600" x-text="selectedWorkshop?.month_stats?.defects || 0"></div>
                                     <div class="text-xs text-gray-600">Брак</div>
                                 </div>
-                                <div class="text-center bg-white rounded-lg p-2">
-                                    <div class="text-lg font-bold text-blue-600" x-text="(selectedWorkshop?.month_stats?.efficiency || 0) + '%'"></div>
+                                <div class="text-center bg-white rounded p-1">
+                                    <div class="text-sm font-bold text-blue-600" x-text="(selectedWorkshop?.month_stats?.efficiency || 0) + '%'"></div>
                                     <div class="text-xs text-gray-600">Эффективность</div>
                                 </div>
-                                <div class="text-center bg-white rounded-lg p-2">
-                                    <div class="text-lg font-bold text-purple-600" x-text="selectedWorkshop?.month_stats?.total_hours || 0"></div>
+                                <div class="text-center bg-white rounded p-1">
+                                    <div class="text-sm font-bold text-purple-600" x-text="selectedWorkshop?.month_stats?.total_hours || 0"></div>
                                     <div class="text-xs text-gray-600">Часов</div>
                                 </div>
                             </div>
@@ -448,18 +448,18 @@
                     </div>
 
                                         <!-- Кнопка закрытия -->
-                    <div class="pt-4 pb-6">
+                    <div class="pt-2 pb-4">
                         <button @click="closeWorkshopDetails()" 
-                                class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-200 transition-colors">
+                                class="w-full bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors">
                             Закрыть
                         </button>
                     </div>
                 </div>
                 
                 <!-- Фиксированная кнопка закрытия внизу -->
-                <div class="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-3 rounded-b-3xl">
+                <div class="flex-shrink-0 bg-white border-t border-gray-200 px-3 py-2 rounded-b-3xl">
                     <button @click="closeWorkshopDetails()" 
-                            class="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 transition-colors">
+                            class="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
                         Закрыть
                     </button>
                 </div>
