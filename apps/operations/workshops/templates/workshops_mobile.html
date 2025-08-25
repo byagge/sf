@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#2563eb">
     <title>Цеха — Smart Factory</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <style>
         body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
@@ -39,7 +39,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 pt-20 pb-20 px-4 max-w-md mx-auto w-full">
+    <main class="flex-1 pt-20 pb-24 px-4 max-w-md mx-auto w-full">
         <!-- Информация о заказах -->
         <template x-if="showOrdersInfo">
             <div class="mb-6">
@@ -198,26 +198,25 @@
     </main>
 
     <!-- Bottom Navigation -->
-    <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40 max-w-md mx-auto w-full">
+    <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-16 z-40">
         <a href="/dashboard/" class="flex flex-col items-center">
             <i data-lucide="home" class="w-5 h-5"></i>
-            <span class="text-xs">Главная</span>
+            <span class="text-xs mt-1">Главная</span>
         </a>
         <a href="/employees/" class="flex flex-col items-center">
             <i data-lucide="users" class="w-5 h-5"></i>
-            <span class="text-xs">Сотрудники</span>
+            <span class="text-xs mt-1">Сотрудники</span>
+        </a>
+        <a href="/attendance/scan/" class="flex flex-col items-center justify-center w-12 h-12 bg-blue-600 rounded-full -mt-4 shadow-lg">
+            <i data-lucide="qr-code" class="w-6 h-6 text-white"></i>
         </a>
         <a href="/workshops/" class="flex flex-col items-center nav-active">
             <i data-lucide="factory" class="w-5 h-5"></i>
-            <span class="text-xs">Цеха</span>
+            <span class="text-xs mt-1">Цеха</span>
         </a>
-        <a href="/orders/" class="flex flex-col items-center">
-            <i data-lucide="clipboard-list" class="w-5 h-5"></i>
-            <span class="text-xs">Заказы</span>
-        </a>
-        <a href="/notifications/" class="flex flex-col items-center">
-            <i data-lucide="bell" class="w-5 h-5"></i>
-            <span class="text-xs">Уведомления</span>
+        <a href="/settings/" class="flex flex-col items-center">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+            <span class="text-xs mt-1">Настройки</span>
         </a>
     </nav>
 
