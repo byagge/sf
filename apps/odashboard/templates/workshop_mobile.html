@@ -524,6 +524,7 @@
                 weeklyStats: [],
                 productivityChart: [],
                 touchHandlers: null,
+                greeting: '',
                 
                 async init() {
                     // Проверяем, что Lucide доступен
@@ -542,6 +543,7 @@
                         });
                     }
                     
+                    this.greeting = this.getGreeting();
                     await this.loadData();
                     await this.loadUnreadNotifications();
                     this.$nextTick(() => {
@@ -699,6 +701,43 @@
                     this.productivityChart = Array.from({ length: 7 }, () => 
                         Math.floor(Math.random() * 30) + 15
                     );
+                },
+                
+                getGreeting() {
+                    const hour = new Date().getHours();
+                    let greetings = [];
+
+                    if (hour >= 5 && hour < 12) {
+                        greetings = [
+                            'Доброе утро',
+                            'Прекрасного утра',
+                            'Светлого утра',
+                            'Хорошего утра'
+                        ];
+                    } else if (hour >= 12 && hour < 18) {
+                        greetings = [
+                            'Добрый день',
+                            'Прекрасного дня',
+                            'Солнечного дня',
+                            'Хорошего дня'
+                        ];
+                    } else if (hour >= 18 && hour < 23) {
+                        greetings = [
+                            'Добрый вечер',
+                            'Приятного вечера',
+                            'Теплого вечера',
+                            'Доброго вечера'
+                        ];
+                    } else {
+                        greetings = [
+                            'Доброй ночи',
+                            'Спокойной ночи',
+                            'Тихой ночи',
+                            'Уютной ночи'
+                        ];
+                    }
+
+                    return greetings[Math.floor(Math.random() * greetings.length)];
                 }
             }
         }
