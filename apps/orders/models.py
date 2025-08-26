@@ -201,6 +201,27 @@ class OrderStage(models.Model):
         """Возвращает информацию для цеха на основе связанной позиции заказа"""
         if self.order_item and self.order_item.product:
             return self.order_item.get_workshop_info(self.workshop.name if self.workshop else '')
+        # Для агрегированного этапа (без конкретной позиции) вернем сводную информацию по всем товарам заказа
+        if not self.order_item and self.order and self.order.items.exists():
+            workshop_name = self.workshop.name if self.workshop else ''
+            items_info = []
+            total_qty = 0
+            product_names = []
+            for item in self.order.items.all():
+                info = item.get_workshop_info(workshop_name)
+                # добавим название товара в каждую запись
+                try:
+                    info['product'] = item.product.name if item.product else 'Не указан'
+                    product_names.append(info['product'])
+                except Exception:
+                    info['product'] = 'Не указан'
+                total_qty += info.get('quantity', 0) or 0
+                items_info.append(info)
+            return {
+                'items': items_info,
+                'total_quantity': total_qty,
+                'products': ', '.join(product_names),
+            }
         return {}
     
     def is_glass_stage(self):
