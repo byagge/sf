@@ -41,16 +41,21 @@
 
     <!-- Main Content -->
     <main class="flex-1 pt-20 pb-20 px-4 max-w-md mx-auto w-full">
-        <!-- Workshop Selector -->
+        <!-- Workshop Selector as grid navigation -->
         <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Цех</label>
             <div class="text-xs text-gray-500 mb-2" x-text="`Доступно цехов: ${userWorkshopList.length}`"></div>
-            <select x-model="selectedWorkshopId" @change="loadAllEmployees()" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <template x-for="workshop in userWorkshopList" :key="workshop.id">
-                    <option :value="workshop.id" x-text="workshop.name"></option>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <template x-for="(workshop, idx) in userWorkshopList" :key="workshop.id">
+                    <button @click="selectWorkshop(workshop.id)"
+                            class="relative w-full rounded-xl overflow-hidden shadow card border"
+                            :class="selectedWorkshopId === workshop.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-800 border-gray-200'"
+                            style="padding-top: 50%;">
+                        <div class="absolute inset-0 flex flex-col items-center justify-center p-2">
+                            <div class="text-sm font-bold" x-text="workshop.name"></div>
+                        </div>
+                    </button>
                 </template>
-            </select>
-            <div class="text-xs text-gray-400 mt-1" x-text="`Выбран: ${selectedWorkshopId || 'не выбран'}`"></div>
+            </div>
         </div>
         <!-- Header -->
         <div class="flex justify-between items-center mb-6">
@@ -850,7 +855,11 @@
                 console.log('userWorkshopList from window:', window.userWorkshopList);
                 
                 if (this.userWorkshopList.length > 0) {
-                    this.selectedWorkshopId = this.userWorkshopList[0].id;
+                    const savedWorkshopId = parseInt(localStorage.getItem('master_selected_workshop_id'));
+                    const exists = this.userWorkshopList.some(w => w && w.id === savedWorkshopId);
+                    this.selectedWorkshopId = exists ? savedWorkshopId : this.userWorkshopList[0].id;
+                    // Сохраняем текущий выбранный цех
+                    localStorage.setItem('master_selected_workshop_id', this.selectedWorkshopId);
                     console.log('Selected workshop ID:', this.selectedWorkshopId);
                 } else {
                     console.warn('No workshops found for user');
@@ -890,10 +899,13 @@
                 console.log('Final employeesByWorkshop:', this.employeesByWorkshop);
                 this.loading = false;
             },
-            selectWorkshop(workshopId) {
+            async selectWorkshop(workshopId) {
                 console.log(`selectWorkshop called with workshopId: ${workshopId}`);
                 this.selectedWorkshopId = workshopId;
+                localStorage.setItem('master_selected_workshop_id', this.selectedWorkshopId);
                 console.log(`selectedWorkshopId set to: ${this.selectedWorkshopId}`);
+                await this.loadAllEmployees();
+                this.reinitializeIcons();
             },
             filteredEmployees(workshopId) {
                 console.log(`filteredEmployees called with workshopId: ${workshopId}`);
