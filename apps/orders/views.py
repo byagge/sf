@@ -195,7 +195,87 @@ class OrderStageTransferAPIView(APIView):
 		if completed_qty > stage.plan_quantity:
 			completed_qty = stage.plan_quantity
 		
+		# Ограничения и логика для стеклянных изделий: только цеха 2 и 12; при переводе в 12 — агрегируем
+		is_glass = bool(getattr(getattr(getattr(stage, 'order_item', None), 'product', None), 'is_glass', False))
+		current_workshop_id = getattr(getattr(stage, 'workshop', None), 'id', None)
+		
 		if target_workshop_id:
+			try:
+				target_workshop_id = int(target_workshop_id)
+			except (TypeError, ValueError):
+				return Response({'error': 'target_workshop_id must be an integer'}, status=400)
+			
+			if is_glass:
+				# Допускаем только перемещения между цехами 2 и 12
+				if current_workshop_id not in (2, 12):
+					return Response({'error': 'Glass items may only be processed in workshops 2 and 12'}, status=400)
+				if target_workshop_id not in (2, 12):
+					return Response({'error': 'Glass items can only be transferred to workshop 2 or 12'}, status=400)
+				
+				# Завершаем текущий этап на указанное количество (частично или полностью)
+				stage.confirm_stage(completed_qty)
+				from apps.operations.workshops.models import Workshop
+				workshop = get_object_or_404(Workshop, pk=target_workshop_id)
+				
+				# Если переводим в 12 — агрегируем по заявке (order_item=NULL) в цехе 12
+				if target_workshop_id == 12:
+					# Ищем существующий агрегирующий этап по заказу без привязки к позиции в 12 цехе
+					aggregate_stage = OrderStage.objects.filter(
+						order=stage.order,
+						order_item__isnull=True,
+						workshop_id=12,
+						stage_type='workshop',
+						parallel_group=stage.parallel_group,
+					).order_by('sequence').first()
+					if aggregate_stage:
+						aggregate_stage.plan_quantity += completed_qty
+						aggregate_stage.status = 'in_progress'
+						aggregate_stage.save(update_fields=['plan_quantity', 'status'])
+					else:
+						# Создаем новый агрегирующий этап
+						OrderStage.objects.create(
+							order=stage.order,
+							order_item=None,
+							sequence=(stage.sequence or 0) + 1,
+							stage_type='workshop',
+							workshop=workshop,
+							operation=f"Сборка заказа (стекло) из: {stage.workshop.name if stage.workshop else ''}",
+							plan_quantity=completed_qty,
+							deadline=timezone.now().date(),
+							status='in_progress',
+							parallel_group=stage.parallel_group,
+						)
+					return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': target_workshop_id, 'completed_quantity': completed_qty, 'aggregated': True})
+				
+				# Иначе (перевод в 2) — ведем обычным образом, но только внутри 2/12
+				# Ищем следующий этап по заказу и позиции в выбранном цехе (без учёта sequence)
+				next_stage = OrderStage.objects.filter(
+					order=stage.order,
+					order_item=stage.order_item,
+					workshop_id=target_workshop_id,
+					stage_type='workshop',
+					parallel_group=stage.parallel_group,
+				).order_by('sequence').first()
+				if next_stage:
+					next_stage.plan_quantity += completed_qty
+					next_stage.status = 'in_progress'
+					next_stage.save(update_fields=['plan_quantity', 'status'])
+				else:
+					OrderStage.objects.create(
+						order=stage.order,
+						order_item=stage.order_item,
+						sequence=(stage.sequence or 0) + 1,
+						stage_type='workshop',
+						workshop=workshop,
+						operation=f"Передано из: {stage.workshop.name if stage.workshop else ''}",
+						plan_quantity=completed_qty,
+						deadline=timezone.now().date(),
+						status='in_progress',
+						parallel_group=stage.parallel_group,
+					)
+				return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': target_workshop_id, 'completed_quantity': completed_qty})
+			
+			# Нестеклянные — прежняя логика явного перевода
 			# Завершаем текущий этап на указанное количество (частично или полностью)
 			stage.confirm_stage(completed_qty)
 			# Явно создаём/активируем этап в выбранном цехе
