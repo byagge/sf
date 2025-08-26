@@ -787,12 +787,11 @@ def create_order_stages(order):
         # Если нет позиций, не создаем этапы
         print(f"Warning: No items found for order {order.id}, skipping stage creation")
         return
-    
+
     # Создаем только один этап для всего заказа
-        try:
-        _create_stage_for_order(order)
-        except Exception as e:
-        print(f"Error creating stage for order {order.id}: {e}")
+    _create_stage_for_order(order)
+    return
+
 
 def _create_stage_for_order(order):
     """Создает один этап для всего заказа"""
