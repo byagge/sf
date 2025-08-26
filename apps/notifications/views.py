@@ -251,3 +251,28 @@ class NotificationsComingSoonView(TemplateView):
 		if is_mobile:
 			return ['notifications/coming_soon_mobile.html']
 		return ['notifications/coming_soon.html'] 
+
+
+class AdminNotificationListView(LoginRequiredMixin, ListView):
+	"""Административный список уведомлений (использует общий мобильный шаблон)"""
+	model = Notification
+	template_name = 'notifications/mobile.html'
+	context_object_name = 'notifications'
+	paginate_by = 50
+	
+	def get_queryset(self):
+		return Notification.objects.all().order_by('-created_at')
+	
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context['unread_count'] = Notification.objects.filter(is_read=False).count()
+		context['page_title'] = 'Все уведомления'
+		return context
+
+
+class AdminNotificationCreateView(LoginRequiredMixin, CreateView):
+	"""Административное создание уведомлений (минимально)"""
+	model = Notification
+	template_name = 'notifications/notification_form.html'
+	fields = ['title', 'message', 'notification_type', 'user']
+	success_url = reverse_lazy('notifications:admin_list') 
