@@ -78,33 +78,42 @@ class EmployeeSerializer(serializers.ModelSerializer):
     
     def get_salary(self, obj):
         """Получить оклад из статистики"""
-        if hasattr(obj, 'statistics') and obj.statistics and obj.statistics.salary is not None:
-            return float(obj.statistics.salary)
+        if hasattr(obj, 'statistics') and obj.statistics:
+            return float(obj.statistics.salary) if obj.statistics.salary else 0
         return 0
     
+    def _get_or_compute_stats(self, obj):
+        # Кэшируем вычисленные значения на объекте, чтобы не пересчитывать несколько раз
+        cached = getattr(obj, '_computed_employee_stats', None)
+        if cached is not None:
+            return cached
+        stats = calculate_employee_stats(obj)
+        setattr(obj, '_computed_employee_stats', stats)
+        return stats
+
     def get_completed_works(self, obj):
         """Получить количество выполненных работ"""
-        if hasattr(obj, 'statistics') and obj.statistics and obj.statistics.completed_works is not None:
+        if hasattr(obj, 'statistics') and obj.statistics and (obj.statistics.completed_works or 0) > 0:
             return obj.statistics.completed_works
-        return self._calc_stats(obj).get('completed_works', 0)
+        return self._get_or_compute_stats(obj).get('completed_works', 0)
     
     def get_defects(self, obj):
         """Получить количество браков"""
-        if hasattr(obj, 'statistics') and obj.statistics and obj.statistics.defects is not None:
+        if hasattr(obj, 'statistics') and obj.statistics and (obj.statistics.defects or 0) > 0:
             return obj.statistics.defects
-        return self._calc_stats(obj).get('defects', 0)
+        return self._get_or_compute_stats(obj).get('defects', 0)
     
     def get_efficiency(self, obj):
         """Получить эффективность"""
-        if hasattr(obj, 'statistics') and obj.statistics and obj.statistics.efficiency is not None:
+        if hasattr(obj, 'statistics') and obj.statistics and (obj.statistics.efficiency or 0) > 0:
             return obj.statistics.efficiency
-        return self._calc_stats(obj).get('efficiency', 0)
+        return self._get_or_compute_stats(obj).get('efficiency', 0)
     
     def get_monthly_salary(self, obj):
         """Получить заработок за месяц"""
-        if hasattr(obj, 'statistics') and obj.statistics and obj.statistics.monthly_salary is not None:
-            return float(obj.statistics.monthly_salary)
-        return float(self._calc_stats(obj).get('monthly_salary', 0))
+        if hasattr(obj, 'statistics') and obj.statistics and (obj.statistics.monthly_salary or 0) > 0:
+            return float(obj.statistics.monthly_salary) if obj.statistics.monthly_salary else 0
+        return float(self._get_or_compute_stats(obj).get('monthly_salary', 0))
     
     def get_tasks(self, obj):
         """Получить задачи сотрудника"""
