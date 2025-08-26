@@ -26,6 +26,20 @@ class ProductFullSerializer(serializers.ModelSerializer):
         model = Product
         fields = ['id', 'name', 'type', 'description', 'is_glass', 'glass_type', 'glass_type_display', 'img', 'price', 'created_at', 'updated_at']
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        for key in ['name', 'type', 'description']:
+            if key in data:
+                data[key] = _safe_str(data.get(key))
+        # Normalize img to URL string if possible
+        try:
+            img = getattr(instance, 'img', None)
+            if img:
+                data['img'] = getattr(img, 'url', None) or _safe_str(str(img))
+        except Exception:
+            pass
+        return data
+
 class WorkshopFullSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workshop
