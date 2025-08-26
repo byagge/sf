@@ -280,7 +280,7 @@
                 const endpoint = this.isHelper ? '/employee_tasks/api/helper-tasks/' : '/employee_tasks/api/employee-tasks/';
                 const resp = await fetch(endpoint);
                 const data = await resp.json();
-                this.tasks = (data.results || data).filter(task => String(task.helper || task.employee) === String(this.userId));
+                this.tasks = (data.results || data);
                 
                 // Отладочная информация
                 console.log('Loaded tasks:', this.tasks);
