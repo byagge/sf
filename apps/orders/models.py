@@ -687,6 +687,7 @@ ORDER_WORKFLOW = [
     {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": None},
 ]
 
+
 def create_order_stages(order):
     from apps.operations.workshops.models import Workshop
     
@@ -698,13 +699,41 @@ def create_order_stages(order):
         print(f"Warning: No items found for order {order.id}, skipping stage creation")
         return
     
-    # Создаем этапы для каждой позиции заказа
-    for item in order_items:
-        try:
-            _create_stage_for_order_item(order, item)
-        except Exception as e:
-            print(f"Error creating stage for item {item.id}: {e}")
-            # Продолжаем с другими позициями
+    # Суммируем количество по всем позициям и создаем ОДИН общий этап без привязки к позиции
+    try:
+        workshop = Workshop.objects.get(pk=1)  # Цех ID 1
+    except Workshop.DoesNotExist:
+        print("Workshop with ID 1 not found, skipping stage creation")
+        return
+    
+    total_qty = sum(item.quantity for item in order_items)
+    now = timezone.now()
+    deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
+    if now.hour >= 18:
+        deadline_dt += timedelta(days=1)
+    
+    # Если похожий этап уже существует — обновляем его, иначе создаём новый
+    stage, created_stage = OrderStage.objects.get_or_create(
+        order=order,
+        order_item=None,
+        stage_type='workshop',
+        workshop=workshop,
+        sequence=1,
+        defaults={
+            'operation': 'Резка',
+            'plan_quantity': total_qty,
+            'deadline': deadline_dt.date(),
+            'status': 'in_progress',
+        }
+    )
+    if not created_stage:
+        # Обновляем плановое количество и статус
+        stage.plan_quantity = total_qty
+        stage.status = 'in_progress'
+        # Обновляем срок
+        stage.deadline = deadline_dt.date()
+        stage.save(update_fields=['plan_quantity', 'status', 'deadline'])
+
 
 def _create_stage_for_order_item(order, order_item):
     """Создает этап для конкретной позиции заказа"""
