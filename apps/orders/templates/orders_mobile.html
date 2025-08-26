@@ -760,8 +760,6 @@
             editClientMode: 'existing',
             editClientForm: { name: '', phone: '', email: '', company: '', address: '' },
             showEditSuccess: false,
-            isSubmittingCreate: false,
-            isSubmittingEdit: false,
             // removed showMoreMenu and its handlers
             openOrderModal(order) {
                 this.selectedOrder = order;
@@ -990,8 +988,6 @@
                 this.$nextTick(() => lucide.createIcons());
             },
             async submitOrder() {
-                if (this.isSubmittingCreate) return;
-                this.isSubmittingCreate = true;
                 let clientId = this.newOrder.client_id;
                 if (this.clientMode === 'new') {
                     // Проверка email
@@ -1043,11 +1039,8 @@
                     const errorMessage = errorData.error || errorData.detail || 'Ошибка создания заказа';
                     alert(errorMessage);
                 }
-                this.isSubmittingCreate = false;
             },
             async submitEditOrder() {
-                if (this.isSubmittingEdit) return;
-                this.isSubmittingEdit = true;
                 try {
                     let clientId = this.editOrder.client_id;
                     
@@ -1153,7 +1146,6 @@
                     console.error('Ошибка при обновлении заказа:', error);
                     alert('Произошла ошибка при обновлении заказа. Попробуйте еще раз.');
                 }
-                this.isSubmittingEdit = false;
             },
             getCsrfToken() {
                 const name = 'csrftoken';

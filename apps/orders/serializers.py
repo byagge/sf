@@ -5,29 +5,10 @@ from apps.products.models import Product
 from apps.operations.workshops.models import Workshop
 from apps.employee_tasks.serializers import EmployeeTaskSerializer
 
-
-def _safe_str(value):
-    """Converts bytes to utf-8 string safely; leaves other types unchanged."""
-    try:
-        if isinstance(value, (bytes, bytearray)):
-            return value.decode('utf-8', errors='ignore')
-        return value
-    except Exception:
-        return ''
-
-
 class ClientFullSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = ['id', 'name', 'company', 'phone', 'email', 'address', 'created_at', 'updated_at']
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        for key in ['name', 'company', 'phone', 'email', 'address']:
-            if key in data:
-                data[key] = _safe_str(data.get(key))
-        return data
-
 
 class ProductFullSerializer(serializers.ModelSerializer):
     glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
@@ -36,39 +17,15 @@ class ProductFullSerializer(serializers.ModelSerializer):
         model = Product
         fields = ['id', 'name', 'type', 'description', 'is_glass', 'glass_type', 'glass_type_display', 'img', 'price', 'created_at', 'updated_at']
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        for key in ['name', 'type', 'description']:
-            if key in data:
-                data[key] = _safe_str(data.get(key))
-        # Normalize img to URL string if possible
-        try:
-            img = getattr(instance, 'img', None)
-            if img:
-                data['img'] = getattr(img, 'url', None) or _safe_str(str(img))
-        except Exception:
-            pass
-        return data
-
-
 class WorkshopFullSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workshop
         fields = ['id', 'name', 'description', 'is_active', 'created_at', 'updated_at']
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        for key in ['name', 'description']:
-            if key in data:
-                data[key] = _safe_str(data.get(key))
-        return data
-
-
 class WorkshopShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workshop
         fields = ['id', 'name']
-
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductFullSerializer(read_only=True, allow_null=True)
@@ -135,25 +92,6 @@ class OrderItemSerializer(serializers.ModelSerializer):
                 'items': []
             }
 
-    def to_representation(self, instance):
-        """Переопределяем для безопасной обработки null значений"""
-        data = super().to_representation(instance)
-        # Sanitize potentially byte-valued fields
-        for key in ['size', 'color', 'glass_type', 'paint_type', 'paint_color', 'cnc_specs', 'cutting_specs', 'packaging_notes']:
-            if key in data:
-                data[key] = _safe_str(data.get(key))
-        # Sanitize nested product name if present
-        if isinstance(data.get('product'), dict) and 'name' in data['product']:
-            data['product']['name'] = _safe_str(data['product']['name'])
-        # Sanitize minimal order info if present
-        if isinstance(data.get('order'), dict):
-            if 'name' in data['order']:
-                data['order']['name'] = _safe_str(data['order']['name'])
-            if 'comment' in data['order']:
-                data['order']['comment'] = _safe_str(data['order']['comment'])
-        return data
-
-
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
     assigned = EmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
@@ -182,26 +120,16 @@ class OrderStageSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """Переопределяем для безопасной обработки null значений"""
         data = super().to_representation(instance)
-        # Sanitize string fields
-        for key in ['operation', 'comment']:
-            if key in data:
-                data[key] = _safe_str(data.get(key))
-        # Also sanitize nested order_item fields already handled in OrderItemSerializer
+        # Убеждаемся, что order_item не вызывает ошибок
+        if not instance.order_item:
+            data['order_item'] = None
         return data
-
 
 class OrderDefectSerializer(serializers.ModelSerializer):
     workshop = WorkshopFullSerializer(read_only=True)
     class Meta:
         model = OrderDefect
         fields = ['id', 'workshop', 'quantity', 'date', 'comment']
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        if 'comment' in data:
-            data['comment'] = _safe_str(data.get('comment'))
-        return data
-
 
 class OrderSerializer(serializers.ModelSerializer):
     client = ClientFullSerializer(read_only=True)
@@ -288,19 +216,6 @@ class OrderSerializer(serializers.ModelSerializer):
                     # Продолжаем выполнение, этапы не критичны
         
         return instance
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        for key in ['name', 'comment', 'status_display']:
-            if key in data:
-                data[key] = _safe_str(data.get(key))
-        # Sanitize client/product nested names
-        if isinstance(data.get('client'), dict) and 'name' in data['client']:
-            data['client']['name'] = _safe_str(data['client']['name'])
-        if isinstance(data.get('product'), dict) and 'name' in data['product']:
-            data['product']['name'] = _safe_str(data['product']['name'])
-        return data
-
 
 class OrderStageConfirmSerializer(serializers.Serializer):
     completed_quantity = serializers.IntegerField(min_value=0) 
