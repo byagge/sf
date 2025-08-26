@@ -132,6 +132,9 @@
                                     <template x-for="stage in order.stages" :key="stage.id">
                                         <li>
                                             <b x-text="stage.workshop && stage.workshop.name ? stage.workshop.name : ''"></b>:
+                                                <template x-if="stage.products">
+                                                    <span class="text-gray-700"> — <span x-text="stage.products"></span></span>
+                                                </template>
                                                 <template x-if="stage.in_progress > 0">
                                                     <span class="text-blue-600">В работе: <span x-text="stage.in_progress"></span></span>
                                                 </template>

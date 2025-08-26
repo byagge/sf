@@ -445,6 +445,9 @@
                                                     <div>
                                                         <label class="block text-sm font-medium text-gray-700 mb-1">Цех</label>
                                                         <p class="text-gray-900 font-semibold" x-text="stage.workshop && stage.workshop.name"></p>
+                                                        <template x-if="stage.products">
+                                                            <p class="text-sm text-gray-700 mt-1" x-text="stage.products"></p>
+                                                        </template>
                                                     </div>
                                                     <div>
                                                         <label class="block text-sm font-medium text-gray-700 mb-1">В работе</label>
