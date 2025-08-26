@@ -1331,46 +1331,62 @@
                     
                     <!-- Информация о товарах заказа -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Товары заказа</label>
-                        <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
-                            <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items)">
-                                <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                    <div class="text-xs font-medium text-gray-700 mb-2">Все товары будут назначены разом:</div>
-                                <div class="space-y-2">
-                                    <template x-for="item in stages.find(s => s.id === assignForm.stage_id).order_item.order.items" :key="item.id">
-                                            <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200">
-                                                <div class="flex items-center space-x-2">
-                                                <!-- Фото товара -->
-                                                <template x-if="item.product && item.product.img">
-                                                        <img :src="item.product.img" 
-                                                             :alt="item.product.name"
-                                                             class="w-8 h-8 object-cover rounded border border-gray-200">
-                                                </template>
-                                                    <div>
-                                                        <div class="text-sm font-medium text-gray-900" x-text="item.product && item.product.name ? item.product.name : 'Не указан'"></div>
-                                                        <div class="text-xs text-gray-600">
+                                                        <label class="block text-sm font-medium text-gray-700 mb-1">Товары заказа</label>
+                                <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
+                                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div class="text-xs font-medium text-gray-700 mb-2">Все товары будут назначены разом:</div>
+                                        <div class="space-y-2">
+                                            <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items)">
+                                                <template x-for="item in stages.find(s => s.id === assignForm.stage_id).order_item.order.items" :key="item.id">
+                                                    <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200">
+                                                        <div class="flex items-center space-x-2">
+                                                            <template x-if="item.product && item.product.img">
+                                                                <img :src="item.product.img" :alt="item.product.name" class="w-8 h-8 object-cover rounded border border-gray-200">
+                                                            </template>
+                                                            <div>
+                                                                <div class="text-sm font-medium text-gray-900" x-text="item.product && item.product.name ? item.product.name : 'Не указан'"></div>
+                                                                <div class="text-xs text-gray-600">
+                                                                    <span x-text="item.quantity"></span> шт.
+                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-xs text-gray-500">
                                                             <span x-text="item.quantity"></span> шт.
-                                                            <template x-if="item.size"> • <span x-text="item.size"></span></template>
-                                                            <template x-if="item.color"> • <span x-text="item.color"></span></template>
-                                            </div>
-                                            </div>
-                                                </div>
-                                                <div class="text-xs text-gray-500">
-                                                    <span x-text="item.quantity"></span> шт.
-                                                </div>
-                                            </div>
-                                    </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </template>
+                                            <template x-if="!(stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items) && stages.find(s => s.id === assignForm.stage_id).aggregated_items && stages.find(s => s.id === assignForm.stage_id).aggregated_items.length">
+                                                <template x-for="item in stages.find(s => s.id === assignForm.stage_id).aggregated_items" :key="item.id">
+                                                    <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200">
+                                                        <div class="flex items-center space-x-2">
+                                                            <template x-if="item.product && item.product.img">
+                                                                <img :src="item.product.img" :alt="item.product.name" class="w-8 h-8 object-cover rounded border border-gray-200">
+                                                            </template>
+                                                            <div>
+                                                                <div class="text-sm font-medium text-gray-900" x-text="item.product && item.product.name ? item.product.name : 'Не указан'"></div>
+                                                                <div class="text-xs text-gray-600">
+                                                                    <span x-text="item.quantity"></span> шт.
+                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
+                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-xs text-gray-500">
+                                                            <span x-text="item.quantity"></span> шт.
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </template>
+                                        </div>
+                                        <div class="mt-2 text-xs text-gray-600">
+                                            <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
+                                            Все товары заказа будут назначены сотруднику одновременно
+                                        </div>
                                     </div>
-                                    <div class="mt-2 text-xs text-gray-600">
-                                        <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
-                                        Все товары заказа будут назначены сотруднику одновременно
-                                    </div>
-                                </div>
-                            </template>
-                            <template x-if="!(stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items)">
-                                <div class="text-gray-400 text-sm py-2">Товары заказа недоступны</div>
-                            </template>
-                        </template>
+                                </template>
                     </div>
                     
                     <div>

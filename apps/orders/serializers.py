@@ -192,12 +192,20 @@ class OrderStageSerializer(serializers.ModelSerializer):
             workshop_name = obj.workshop.name if obj.workshop else ''
             for it in obj.order.items.all():
                 info = it.get_workshop_info(workshop_name)
+                # try to resolve product image url
+                img_url = None
+                try:
+                    if it.product and getattr(it.product, 'img', None):
+                        img_url = getattr(it.product.img, 'url', None) or str(it.product.img)
+                except Exception:
+                    img_url = None
                 item_data = {
                     'id': it.id,
                     'product': {
                         'id': it.product.id if it.product else None,
                         'name': it.product.name if it.product else 'Не указан',
                         'is_glass': bool(getattr(it.product, 'is_glass', False)) if it.product else False,
+                        'img': img_url,
                     },
                     'quantity': it.quantity,
                     'size': info.get('size') if isinstance(info, dict) else it.size,
