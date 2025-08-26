@@ -235,7 +235,7 @@ class OrderStage(models.Model):
             return combined_info
         except Exception as e:
             print(f"Error getting combined workshop info: {e}")
-            return {}
+        return {}
     
     def is_glass_stage(self):
         """Проверяет, относится ли этап к обработке стекла"""
@@ -424,18 +424,18 @@ class OrderStage(models.Model):
                     sequence=next_seq
                 ).first()
             else:
-                next_stage = OrderStage.objects.filter(
-                    order=self.order,
-                    order_item=current_order_item,
-                    parallel_group__isnull=True,
-                    sequence=next_seq
-                ).first()
+            next_stage = OrderStage.objects.filter(
+                order=self.order,
+                order_item=current_order_item,
+                parallel_group__isnull=True,
+                sequence=next_seq
+            ).first()
         
         if next_stage:
             # Активируем существующий этап
-            next_stage.plan_quantity += qty
-            next_stage.status = 'in_progress'
-            next_stage.save()
+                next_stage.plan_quantity += qty
+                next_stage.status = 'in_progress'
+                next_stage.save()
         else:
             # Создаем новый этап по workflow
             if current_parallel_group is not None:
@@ -789,9 +789,9 @@ def create_order_stages(order):
         return
     
     # Создаем только один этап для всего заказа
-    try:
+        try:
         _create_stage_for_order(order)
-    except Exception as e:
+        except Exception as e:
         print(f"Error creating stage for order {order.id}: {e}")
 
 def _create_stage_for_order(order):
