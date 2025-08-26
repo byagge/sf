@@ -51,7 +51,7 @@ urlpatterns = [
 	path('api/workshops/', include('apps.workshops.urls')),  # Прямой маршрут для API
 	path('admin/', admin.site.urls),
 	path('stats/', TemplateView.as_view(template_name='stats_master.html'), name='stats-master'),
-	path('notifications/', TemplateView.as_view(template_name='coming_soon.html'), name='coming_soon'),
+	path('notifications/', include('apps.notifications.urls', namespace='notifications')),
 	path('menu/', TemplateView.as_view(template_name='mobile/menu.html'), name='mobile-menu'),
 	path('error/', custom_error, name='custom_error'),
 	

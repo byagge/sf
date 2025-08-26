@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apps.services',   # управление услугами
     'apps.products',   # управление продуктами
     'apps.defects',    # браки
+    'apps.notifications',  # уведомления
     'apps.orders',
     'apps.finished_goods',
     'apps.attendance',

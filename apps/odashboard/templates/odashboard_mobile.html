@@ -36,6 +36,10 @@
             <span class="font-semibold text-lg text-gray-900">Smart Factory</span>
         </div>
         <div class="flex items-center gap-3">
+            <a href="/notifications/" class="relative inline-flex items-center justify-center">
+                <i data-lucide="bell" class="w-5 h-5 text-gray-700"></i>
+                <span x-show="unreadNotifications > 0" x-text="unreadNotifications" class="absolute -top-2 -right-3 text-[10px] leading-4 px-1.5 min-w-[16px] text-center rounded-full bg-red-600 text-white"></span>
+            </a>
             <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                 <span class="text-white text-sm" x-text="(overview.user_name || 'П').charAt(0).toUpperCase()"></span>
             </div>
@@ -241,10 +245,12 @@
             period: 'week',
             chartRequestId: 0,
             chartMetric: 'revenue',
+            unreadNotifications: 0,
             // removed showMoreMenu/openMoreMenu/closeMoreMenu
             async init() {
                 await this.loadDashboardData();
                 await this.initChart();
+                await this.loadUnreadNotifications();
                 lucide.createIcons();
                 this.$nextTick(() => {
                     lucide.createIcons();
@@ -253,6 +259,18 @@
 
             // Removed openMoreMenu()
             // Removed closeMoreMenu()
+
+            async loadUnreadNotifications() {
+                try {
+                    const resp = await fetch('/notifications/unread-count/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.unreadNotifications = data.unread_count || 0;
+                    }
+                } catch (e) {
+                    this.unreadNotifications = 0;
+                }
+            },
 
             async loadDashboardData() {
                 try {
