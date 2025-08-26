@@ -424,7 +424,7 @@ class OrderStage(models.Model):
                     sequence=next_seq
                 ).first()
             else:
-            next_stage = OrderStage.objects.filter(
+                next_stage = OrderStage.objects.filter(
                 order=self.order,
                 order_item=current_order_item,
                 parallel_group__isnull=True,
