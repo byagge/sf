@@ -2393,24 +2393,29 @@
                 if (submitBtn) submitBtn.disabled = true;
                 
                 try {
-                    // Назначаем задачи для всех товаров заказа
-                    const orderItems = stage.order_item && stage.order_item.order ? stage.order_item.order.items : [];
+                    // Назначаем задачи для всех товаров заказа (учитываем агрегированные этапы)
+                    let orderItems = [];
+                    if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
+                        orderItems = stage.order_item.order.items;
+                    } else if (stage.aggregated_items && Array.isArray(stage.aggregated_items) && stage.aggregated_items.length) {
+                        orderItems = stage.aggregated_items;
+                    }
                     let successCount = 0;
                     let errorCount = 0;
                     
                     for (const item of orderItems) {
-                try {
-                    const payload = { 
-                        stage: this.assignForm.stage_id, 
-                        employee: this.assignForm.employee_id, 
-                        quantity: this.assignForm.quantity,
+                        try {
+                            const payload = { 
+                                stage: this.assignForm.stage_id, 
+                                employee: this.assignForm.employee_id, 
+                                quantity: this.assignForm.quantity,
                                 order_item: item.id
-                    };
-                    const resp = await fetch('/employee_tasks/assign/', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
-                        body: JSON.stringify(payload)
-                    });
+                            };
+                            const resp = await fetch('/employee_tasks/assign/', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                                body: JSON.stringify(payload)
+                            });
                     
                     if (resp.ok) {
                                 successCount++;
