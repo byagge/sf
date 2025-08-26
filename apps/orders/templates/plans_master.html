@@ -2553,6 +2553,10 @@
             },
             async tabChanged(idx) {
                 this.selectedWorkshopIdx = idx;
+                const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
+                if (currentWorkshop) {
+                    localStorage.setItem('master_selected_workshop_id', currentWorkshop.id);
+                }
                 
                 // Закрываем модальное окно быстрого управления назначениями при смене цеха
                 if (this.showQuickAssignmentsModal) {
