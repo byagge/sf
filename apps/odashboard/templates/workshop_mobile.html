@@ -92,9 +92,10 @@
                 <p class="text-xs text-gray-600" x-text="userName || 'Загрузка...'"></p>
             </div>
         </div>
-        <!-- <a href="/workshops/" class="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">
-            Все цеха
-        </a> -->
+        <a href="/notifications/" class="relative inline-flex items-center justify-center">
+            <i data-lucide="bell" class="w-5 h-5 text-gray-700"></i>
+            <span x-show="unreadNotifications > 0" x-text="unreadNotifications" class="absolute -top-2 -right-3 text-[10px] leading-4 px-1.5 min-w-[16px] text-center rounded-full bg-red-600 text-white"></span>
+        </a>
     </header>
 
     <!-- Main Content -->
@@ -517,6 +518,7 @@
                 userName: '',
                 totalStats: {},
                 workshops: [],
+                unreadNotifications: 0,
                 showWorkshopDetails: false,
                 selectedWorkshop: null,
                 weeklyStats: [],
@@ -541,6 +543,7 @@
                     }
                     
                     await this.loadData();
+                    await this.loadUnreadNotifications();
                     this.$nextTick(() => {
                         if (typeof lucide !== 'undefined') {
                             lucide.createIcons();
@@ -548,6 +551,18 @@
                     });
                 },
                 
+                async loadUnreadNotifications() {
+                    try {
+                        const resp = await fetch('/notifications/unread-count/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            this.unreadNotifications = data.unread_count || 0;
+                        }
+                    } catch (e) {
+                        this.unreadNotifications = 0;
+                    }
+                },
+
                 async loadData() {
                     try {
                         // Загружаем статистику мастера
@@ -694,5 +709,6 @@
             }
         });
     </script>
+    
 </body>
 </html> 
