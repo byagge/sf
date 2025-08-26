@@ -10,9 +10,11 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script id="user-id" type="application/json">{{ request.user.id|default:'null' }}</script>
     <script id="task-id" type="application/json">{{ task_id|default:'null' }}</script>
+    <script id="is-helper" type="application/json">{{ is_helper|yesno:"true,false" }}</script>
     <script>
       window.user_id = JSON.parse(document.getElementById('user-id').textContent);
       window.task_id = JSON.parse(document.getElementById('task-id').textContent);
+      window.is_helper = JSON.parse(document.getElementById('is-helper').textContent);
     </script>
     <style>
         body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
@@ -824,6 +826,7 @@
             defectiveInput: 0,
             userId: null,
             taskId: null,
+            isHelper: false,
             showImageModal: false,
             selectedImage: { src: '', alt: '' },
             imageZoomed: false,
@@ -837,14 +840,18 @@
             async init() {
                 this.userId = window.user_id || null;
                 this.taskId = window.task_id || null;
+                this.isHelper = window.is_helper || false;
                 
                 console.log('=== DEBUG: INIT ===');
                 console.log('User ID from window:', this.userId);
                 console.log('Task ID from window:', this.taskId);
+                console.log('Is helper from window:', this.isHelper);
                 console.log('User ID type:', typeof this.userId);
                 console.log('Task ID type:', typeof this.taskId);
+                console.log('Is helper type:', typeof this.isHelper);
                 console.log('Window user_id:', window.user_id);
                 console.log('Window task_id:', window.task_id);
+                console.log('Window is_helper:', window.is_helper);
                 
                 // Add keyboard event listeners
                 document.addEventListener('keydown', this.handleKeyDown.bind(this));
@@ -867,7 +874,9 @@
                 
                 this.loading = true;
                 try {
-                    const apiUrl = `/employee_tasks/api/employee-tasks/${this.taskId}/`;
+                    const apiUrl = this.isHelper 
+                        ? `/employee_tasks/api/helper-tasks/${this.taskId}/`
+                        : `/employee_tasks/api/employee-tasks/${this.taskId}/`;
                     console.log('API URL:', apiUrl);
                     
                     const resp = await fetch(apiUrl);
@@ -880,17 +889,23 @@
                         console.log('=== DEBUG: TASK DATA RECEIVED ===');
                         console.log('Raw task data:', taskData);
                         console.log('Task employee ID:', taskData.employee);
+                        console.log('Task helper ID:', taskData.helper);
                         console.log('Task employee type:', typeof taskData.employee);
                         console.log('Current user ID:', this.userId);
                         console.log('Current user ID type:', typeof this.userId);
                         console.log('Employee comparison:', String(taskData.employee) === String(this.userId));
+                        console.log('Helper comparison:', String(taskData.helper) === String(this.userId));
                         
                         this.task = taskData;
                         
                         // Проверяем, что задача принадлежит текущему пользователю
-                        if (String(this.task.employee) !== String(this.userId)) {
+                        const belongsToUser = this.isHelper 
+                            ? String(this.task.helper) === String(this.userId)
+                            : String(this.task.employee) === String(this.userId);
+                        if (!belongsToUser) {
                             console.log('=== DEBUG: ACCESS DENIED ===');
                             console.log('Task employee ID:', this.task.employee);
+                            console.log('Task helper ID:', this.task.helper);
                             console.log('Current user ID:', this.userId);
                             console.log('Access denied - task does not belong to current user');
                             this.task = null;
