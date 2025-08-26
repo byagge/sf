@@ -2,6 +2,8 @@ from rest_framework import serializers
 from apps.users.models import User
 from django.utils import timezone
 from .utils import calculate_employee_stats
+from django.db.models import Sum
+from apps.employee_tasks.models import EmployeeTask
 
 class WorkScheduleField(serializers.Field):
     def to_representation(self, value):
@@ -91,6 +93,23 @@ class EmployeeSerializer(serializers.ModelSerializer):
         setattr(obj, '_computed_employee_stats', stats)
         return stats
 
+    def _get_task_aggregates(self, obj):
+        """Агрегации по задачам сотрудника как на странице stats_employee.html"""
+        cached = getattr(obj, '_task_aggregates', None)
+        if cached is not None:
+            return cached
+        agg = EmployeeTask.objects.filter(employee=obj).aggregate(
+            total_defects=Sum('defective_quantity'),
+            total_net=Sum('net_earnings'),
+        )
+        # Нормализуем None в 0
+        agg = {
+            'total_defects': agg.get('total_defects') or 0,
+            'total_net': agg.get('total_net') or 0,
+        }
+        setattr(obj, '_task_aggregates', agg)
+        return agg
+
     def get_completed_works(self, obj):
         """Получить количество выполненных работ"""
         if hasattr(obj, 'statistics') and obj.statistics and (obj.statistics.completed_works or 0) > 0:
@@ -99,9 +118,13 @@ class EmployeeSerializer(serializers.ModelSerializer):
     
     def get_defects(self, obj):
         """Получить количество браков"""
+        # Приоритет: реальные данные по задачам, как на stats_employee.html
+        task_agg = self._get_task_aggregates(obj)
+        if (task_agg.get('total_defects') or 0) > 0:
+            return int(task_agg.get('total_defects') or 0)
         if hasattr(obj, 'statistics') and obj.statistics and (obj.statistics.defects or 0) > 0:
             return obj.statistics.defects
-        return self._get_or_compute_stats(obj).get('defects', 0)
+        return int(self._get_or_compute_stats(obj).get('defects', 0))
     
     def get_efficiency(self, obj):
         """Получить эффективность"""
@@ -111,6 +134,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
     
     def get_monthly_salary(self, obj):
         """Получить заработок за месяц"""
+        # Приоритет: сумма net_earnings по задачам (как на stats_employee.html -> total_net_earnings)
+        task_agg = self._get_task_aggregates(obj)
+        if (task_agg.get('total_net') or 0) != 0:
+            return float(task_agg.get('total_net') or 0)
         if hasattr(obj, 'statistics') and obj.statistics and (obj.statistics.monthly_salary or 0) > 0:
             return float(obj.statistics.monthly_salary) if obj.statistics.monthly_salary else 0
         return float(self._get_or_compute_stats(obj).get('monthly_salary', 0))
