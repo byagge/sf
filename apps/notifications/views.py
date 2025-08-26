@@ -42,7 +42,7 @@ from .utils import NotificationService
 class NotificationListView(LoginRequiredMixin, ListView):
     """Список уведомлений пользователя"""
     model = Notification
-    template_name = 'notifications/notification_list.html'
+    template_name = 'notifications/mobile.html'
     context_object_name = 'notifications'
     paginate_by = 20
     
@@ -57,8 +57,7 @@ class NotificationListView(LoginRequiredMixin, ListView):
             user=self.request.user,
             is_read=False
         ).count()
-        # Типы как варианты из CharField
-        context['notification_types'] = dict(Notification.NOTIFICATION_TYPES)
+        context['page_title'] = 'Уведомления'
         return context
 
 
@@ -173,19 +172,20 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
 @login_required
 def notification_bell(request):
-    """Компонент колокольчика уведомлений"""
+    """Страница уведомлений (мобильная)"""
     unread_count = Notification.objects.filter(
         user=request.user,
         is_read=False
     ).count()
     
-    recent_notifications = Notification.objects.filter(
+    notifications = Notification.objects.filter(
         user=request.user
-    )[:5]
+    ).order_by('-created_at')[:50]
     
-    return render(request, 'notifications/notification_bell.html', {
+    return render(request, 'notifications/mobile.html', {
         'unread_count': unread_count,
-        'recent_notifications': recent_notifications
+        'notifications': notifications,
+        'page_title': 'Уведомления'
     })
 
 

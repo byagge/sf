@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-192x192.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-192x192.png">
+	<link rel="shortcut icon" href="/static/icons/icon-192x192.png">
+	<title>{{ page_title|default:'Уведомления' }}</title>
+	<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" media="all">
+	<script src="https://unpkg.com/lucide@latest" defer></script>
+	<style>
+		.mobile-nav { box-shadow: 0 -2px 12px rgba(0,0,0,0.06); }
+		.card { background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.92) 100%); backdrop-filter: blur(8px); }
+	</style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" style="font-family: system-ui, -apple-system, sans-serif;">
+	<header class="fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 flex items-center justify-between h-14 px-4">
+		<div class="flex items-center gap-2">
+			<a href="/dashboard/" class="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+				<span class="text-white font-bold text-lg">S</span>
+			</a>
+			<span class="font-semibold text-lg text-gray-900">Уведомления</span>
+		</div>
+		<a href="/notifications/" class="relative inline-flex items-center justify-center">
+			<i data-lucide="bell" class="w-5 h-5 text-gray-700"></i>
+			{% if unread_count and unread_count > 0 %}
+			<span class="absolute -top-2 -right-3 text-[10px] leading-4 px-1.5 min-w-[16px] text-center rounded-full bg-red-600 text-white">{{ unread_count }}</span>
+			{% endif %}
+		</a>
+	</header>
+
+	<main class="pt-16 pb-16 px-3 max-w-md mx-auto">
+		{% if notifications %}
+			<div class="space-y-3">
+				{% for n in notifications %}
+				<div class="card rounded-xl p-4 border border-gray-200">
+					<div class="flex items-start justify-between gap-3">
+						<div class="flex-1">
+							<div class="flex items-center gap-2 mb-1">
+								<i data-lucide="bell" class="w-4 h-4 text-blue-600"></i>
+								<p class="text-sm font-semibold text-gray-900">{{ n.title }}</p>
+								{% if not n.is_read %}
+								<span class="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Новое</span>
+								{% endif %}
+							</div>
+							<p class="text-sm text-gray-700">{{ n.message }}</p>
+							<p class="text-xs text-gray-400 mt-1">{{ n.created_at }}</p>
+						</div>
+						{% if not n.is_read %}
+						<form method="post" action="#" onsubmit="return false;" class="shrink-0">
+							<button type="button" class="text-xs text-blue-600" onclick="markAsRead({{ n.id }})">Прочитано</button>
+						</form>
+						{% endif %}
+					</div>
+				</div>
+				{% endfor %}
+			</div>
+		{% else %}
+			<div class="text-center text-gray-500 py-12">
+				<p class="text-sm">Нет уведомлений</p>
+			</div>
+		{% endif %}
+	</main>
+
+	<nav class="mobile-nav fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40">
+		<a href="/dashboard/" class="flex flex-col items-center text-gray-500">
+			<i data-lucide="home" class="w-5 h-5"></i>
+			<span class="text-xs">Главная</span>
+		</a>
+		<a href="/clients/" class="flex flex-col items-center text-gray-500">
+			<i data-lucide="user" class="w-5 h-5"></i>
+			<span class="text-xs">Клиенты</span>
+		</a>
+		<a href="/orders/?create=1/" class="flex flex-col items-center justify-center w-12 h-12 bg-blue-600 rounded-full -mt-4 shadow-lg">
+			<i data-lucide="plus" class="w-6 h-6 text-white"></i>
+		</a>
+		<a href="/inventory/" class="flex flex-col items-center text-gray-500">
+			<i data-lucide="archive" class="w-5 h-5"></i>
+			<span class="text-xs">Склад</span>
+		</a>
+		<a href="/menu/" class="flex flex-col items-center text-gray-500">
+			<i data-lucide="menu" class="w-5 h-5"></i>
+			<span class="text-xs">Другое</span>
+		</a>
+	</nav>
+
+	<script>
+	async function markAsRead(id) {
+		try {
+			const resp = await fetch('/notifications/api/notifications/mark_as_read/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ids: [id] })
+			});
+			if (resp.ok) {
+				location.reload();
+			}
+		} catch (e) {}
+	}
+		document.addEventListener('DOMContentLoaded', function() { 
+			if (window.lucide) lucide.createIcons(); 
+		});
+	</script>
+</body>
+</html> 
