@@ -18,15 +18,6 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView, RedirectView
 from .views import HomeView
-from .error_views import (
-    custom_400, custom_401, custom_403, custom_404, 
-    custom_500, custom_502, custom_503, custom_error
-)
-from .test_error_views import (
-    test_400_view, test_401_view, test_403_view, test_404_view,
-    test_500_view, test_502_view, test_503_view, test_custom_error_view,
-    test_trigger_500, test_trigger_403, test_trigger_400
-)
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -53,31 +44,8 @@ urlpatterns = [
 	path('stats/', TemplateView.as_view(template_name='stats_master.html'), name='stats-master'),
 	path('notifications/', TemplateView.as_view(template_name='coming_soon.html'), name='coming_soon'),
 	path('menu/', TemplateView.as_view(template_name='mobile/menu.html'), name='mobile-menu'),
-	path('error/', custom_error, name='custom_error'),
-	
-	# Тестовые URL для проверки страниц ошибок (только для разработки)
-	path('test/error/400/', test_400_view, name='test_400'),
-	path('test/error/401/', test_401_view, name='test_401'),
-	path('test/error/403/', test_403_view, name='test_403'),
-	path('test/error/404/', test_404_view, name='test_404'),
-	path('test/error/500/', test_500_view, name='test_500'),
-	path('test/error/502/', test_502_view, name='test_502'),
-	path('test/error/503/', test_503_view, name='test_503'),
-	path('test/error/custom/', test_custom_error_view, name='test_custom_error'),
-	path('test/error/trigger/500/', test_trigger_500, name='test_trigger_500'),
-	path('test/error/trigger/403/', test_trigger_403, name='test_trigger_403'),
-	path('test/error/trigger/400/', test_trigger_400, name='test_trigger_400'),
 ]
 
 if settings.DEBUG:
 	urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-# Обработчики ошибок
-handler400 = 'core.error_views.custom_400'
-handler401 = 'core.error_views.custom_401'
-handler403 = 'core.error_views.custom_403'
-handler404 = 'core.error_views.custom_404'
-handler500 = 'core.error_views.custom_500'
-handler502 = 'core.error_views.custom_502'
-handler503 = 'core.error_views.custom_503'
 
