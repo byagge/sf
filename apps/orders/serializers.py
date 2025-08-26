@@ -162,6 +162,9 @@ class OrderStageSerializer(serializers.ModelSerializer):
     done_count = serializers.IntegerField(read_only=True)
     defective_count = serializers.IntegerField(read_only=True)
     workshop_info = serializers.SerializerMethodField()
+    aggregated_items = serializers.SerializerMethodField()
+    products = serializers.SerializerMethodField()
+    total_quantity = serializers.SerializerMethodField()
     
     class Meta:
         model = OrderStage
@@ -169,7 +172,8 @@ class OrderStageSerializer(serializers.ModelSerializer):
             'id', 'workshop', 'order_name', 'order_item', 'operation', 'sequence', 
             'parallel_group', 'plan_quantity', 'completed_quantity', 'done_count', 
             'defective_count', 'deadline', 'status', 'in_progress', 'defective', 
-            'completed', 'date', 'comment', 'assigned', 'workshop_info'
+            'completed', 'date', 'comment', 'assigned', 'workshop_info',
+            'aggregated_items', 'products', 'total_quantity'
         ]
     
     def get_workshop_info(self, obj):
@@ -178,6 +182,62 @@ class OrderStageSerializer(serializers.ModelSerializer):
             return obj.get_workshop_info()
         except:
             return {}
+    
+    def get_aggregated_items(self, obj):
+        """Если этап агрегированный (order_item is None), вернуть список товаров заказа"""
+        try:
+            if obj.order_item is not None or not obj.order:
+                return None
+            items = []
+            workshop_name = obj.workshop.name if obj.workshop else ''
+            for it in obj.order.items.all():
+                info = it.get_workshop_info(workshop_name)
+                item_data = {
+                    'id': it.id,
+                    'product': {
+                        'id': it.product.id if it.product else None,
+                        'name': it.product.name if it.product else 'Не указан',
+                        'is_glass': bool(getattr(it.product, 'is_glass', False)) if it.product else False,
+                    },
+                    'quantity': it.quantity,
+                    'size': info.get('size') if isinstance(info, dict) else it.size,
+                    'color': info.get('color') if isinstance(info, dict) else it.color,
+                }
+                # Дополнительные поля если присутствуют
+                for k in ['glass_type','paint_type','paint_color','cnc_specs','cutting_specs','packaging_notes']:
+                    v = None
+                    if isinstance(info, dict):
+                        v = info.get(k)
+                    if v is None:
+                        v = getattr(it, k, '')
+                    if v:
+                        item_data[k] = _safe_str(v)
+                items.append(item_data)
+            return items
+        except Exception:
+            return []
+    
+    def get_products(self, obj):
+        try:
+            if obj.order_item is not None or not obj.order:
+                return None
+            names = []
+            for it in obj.order.items.all():
+                try:
+                    names.append(_safe_str(it.product.name if it.product else 'Не указан'))
+                except Exception:
+                    names.append('Не указан')
+            return ', '.join(names)
+        except Exception:
+            return None
+    
+    def get_total_quantity(self, obj):
+        try:
+            if obj.order_item is not None or not obj.order:
+                return None
+            return sum((it.quantity or 0) for it in obj.order.items.all())
+        except Exception:
+            return None
     
     def to_representation(self, instance):
         """Переопределяем для безопасной обработки null значений"""
