@@ -9,41 +9,6 @@ class ClientFullSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = ['id', 'name', 'company', 'phone', 'email', 'address', 'created_at', 'updated_at']
-    
-    def to_representation(self, instance):
-        """Безопасная сериализация с обработкой некорректных данных"""
-        try:
-            data = super().to_representation(instance)
-            
-            # Безопасно обрабатываем текстовые поля
-            text_fields = ['name', 'company', 'phone', 'email', 'address']
-            for field in text_fields:
-                if field in data and data[field]:
-                    try:
-                        # Пытаемся декодировать как UTF-8, если это bytes
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        # Если это строка, проверяем на корректность
-                        elif isinstance(data[field], str):
-                            # Проверяем, что строка может быть закодирована в UTF-8
-                            data[field].encode('utf-8')
-                    except (UnicodeDecodeError, UnicodeEncodeError):
-                        # Заменяем некорректные символы
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        else:
-                            data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
-            
-            return data
-        except Exception as e:
-            # В случае критической ошибки возвращаем минимальную информацию
-            print(f"Critical serialization error for client {instance.id}: {e}")
-            return {
-                'id': instance.id,
-                'name': f'Клиент #{instance.id} (ошибка сериализации)',
-                'error': 'Ошибка загрузки данных клиента',
-                'status': 'error'
-            }
 
 class ProductFullSerializer(serializers.ModelSerializer):
     glass_type_display = serializers.CharField(source='get_glass_type_display', read_only=True)
@@ -51,119 +16,16 @@ class ProductFullSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'type', 'description', 'is_glass', 'glass_type', 'glass_type_display', 'img', 'price', 'created_at', 'updated_at']
-    
-    def to_representation(self, instance):
-        """Безопасная сериализация с обработкой некорректных данных"""
-        try:
-            data = super().to_representation(instance)
-            
-            # Безопасно обрабатываем текстовые поля
-            text_fields = ['name', 'type', 'description', 'glass_type']
-            for field in text_fields:
-                if field in data and data[field]:
-                    try:
-                        # Пытаемся декодировать как UTF-8, если это bytes
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        # Если это строка, проверяем на корректность
-                        elif isinstance(data[field], str):
-                            # Проверяем, что строка может быть закодирована в UTF-8
-                            data[field].encode('utf-8')
-                    except (UnicodeDecodeError, UnicodeEncodeError):
-                        # Заменяем некорректные символы
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        else:
-                            data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
-            
-            return data
-        except Exception as e:
-            # В случае критической ошибки возвращаем минимальную информацию
-            print(f"Critical serialization error for product {instance.id}: {e}")
-            return {
-                'id': instance.id,
-                'name': f'Товар #{instance.id} (ошибка сериализации)',
-                'error': 'Ошибка загрузки данных товара',
-                'status': 'error'
-            }
 
 class WorkshopFullSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workshop
         fields = ['id', 'name', 'description', 'is_active', 'created_at', 'updated_at']
-    
-    def to_representation(self, instance):
-        """Безопасная сериализация с обработкой некорректных данных"""
-        try:
-            data = super().to_representation(instance)
-            
-            # Безопасно обрабатываем текстовые поля
-            text_fields = ['name', 'description']
-            for field in text_fields:
-                if field in data and data[field]:
-                    try:
-                        # Пытаемся декодировать как UTF-8, если это bytes
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        # Если это строка, проверяем на корректность
-                        elif isinstance(data[field], str):
-                            # Проверяем, что строка может быть закодирована в UTF-8
-                            data[field].encode('utf-8')
-                    except (UnicodeDecodeError, UnicodeEncodeError):
-                        # Заменяем некорректные символы
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        else:
-                            data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
-            
-            return data
-        except Exception as e:
-            # В случае критической ошибки возвращаем минимальную информацию
-            print(f"Critical serialization error for workshop {instance.id}: {e}")
-            return {
-                'id': instance.id,
-                'name': f'Цех #{instance.id} (ошибка сериализации)',
-                'error': 'Ошибка загрузки данных цеха',
-                'status': 'error'
-            }
 
 class WorkshopShortSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workshop
         fields = ['id', 'name']
-    
-    def to_representation(self, instance):
-        """Безопасная сериализация с обработкой некорректных данных"""
-        try:
-            data = super().to_representation(instance)
-            
-            # Безопасно обрабатываем текстовые поля
-            if 'name' in data and data['name']:
-                try:
-                    # Пытаемся декодировать как UTF-8, если это bytes
-                    if isinstance(data['name'], bytes):
-                        data['name'] = data['name'].decode('utf-8', errors='replace')
-                    # Если это строка, проверяем на корректность
-                    elif isinstance(data['name'], str):
-                        # Проверяем, что строка может быть закодирована в UTF-8
-                        data['name'].encode('utf-8')
-                except (UnicodeDecodeError, UnicodeEncodeError):
-                    # Заменяем некорректные символы
-                    if isinstance(data['name'], bytes):
-                        data['name'] = data['name'].decode('utf-8', errors='replace')
-                    else:
-                        data['name'] = str(data['name']).encode('utf-8', errors='replace').decode('utf-8')
-            
-            return data
-        except Exception as e:
-            # В случае критической ошибки возвращаем минимальную информацию
-            print(f"Critical serialization error for workshop short {instance.id}: {e}")
-            return {
-                'id': instance.id,
-                'name': f'Цех #{instance.id} (ошибка сериализации)',
-                'error': 'Ошибка загрузки данных цеха',
-                'status': 'error'
-            }
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductFullSerializer(read_only=True, allow_null=True)
@@ -230,42 +92,6 @@ class OrderItemSerializer(serializers.ModelSerializer):
                 'items': []
             }
 
-    def to_representation(self, instance):
-        """Безопасная сериализация с обработкой некорректных данных"""
-        try:
-            data = super().to_representation(instance)
-            
-            # Безопасно обрабатываем текстовые поля
-            text_fields = ['size', 'color', 'glass_type', 'paint_type', 'paint_color', 'cnc_specs', 'cutting_specs', 'packaging_notes']
-            for field in text_fields:
-                if field in data and data[field]:
-                    try:
-                        # Пытаемся декодировать как UTF-8, если это bytes
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        # Если это строка, проверяем на корректность
-                        elif isinstance(data[field], str):
-                            # Проверяем, что строка может быть закодирована в UTF-8
-                            data[field].encode('utf-8')
-                    except (UnicodeDecodeError, UnicodeEncodeError):
-                        # Заменяем некорректные символы
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        else:
-                            data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
-            
-            return data
-        except Exception as e:
-            # В случае критической ошибки возвращаем минимальную информацию
-            print(f"Critical serialization error for order item {instance.id}: {e}")
-            return {
-                'id': instance.id,
-                'product': None,
-                'quantity': instance.quantity if hasattr(instance, 'quantity') else 0,
-                'error': 'Ошибка загрузки данных позиции заказа',
-                'status': 'error'
-            }
-
 class OrderStageSerializer(serializers.ModelSerializer):
     workshop = WorkshopShortSerializer(read_only=True)
     assigned = EmployeeTaskSerializer(source='employee_tasks', many=True, read_only=True)
@@ -293,41 +119,11 @@ class OrderStageSerializer(serializers.ModelSerializer):
     
     def to_representation(self, instance):
         """Переопределяем для безопасной обработки null значений"""
-        try:
-            data = super().to_representation(instance)
-            # Убеждаемся, что order_item не вызывает ошибок
-            if not instance.order_item:
-                data['order_item'] = None
-            
-            # Безопасно обрабатываем текстовые поля
-            text_fields = ['operation', 'comment']
-            for field in text_fields:
-                if field in data and data[field]:
-                    try:
-                        # Пытаемся декодировать как UTF-8, если это bytes
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        # Если это строка, проверяем на корректность
-                        elif isinstance(data[field], str):
-                            # Проверяем, что строка может быть закодирована в UTF-8
-                            data[field].encode('utf-8')
-                    except (UnicodeDecodeError, UnicodeEncodeError):
-                        # Заменяем некорректные символы
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        else:
-                            data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
-            
-            return data
-        except Exception as e:
-            # В случае критической ошибки возвращаем минимальную информацию
-            print(f"Critical serialization error for order stage {instance.id}: {e}")
-            return {
-                'id': instance.id,
-                'operation': 'Ошибка загрузки этапа',
-                'error': 'Ошибка загрузки данных этапа',
-                'status': 'error'
-            }
+        data = super().to_representation(instance)
+        # Убеждаемся, что order_item не вызывает ошибок
+        if not instance.order_item:
+            data['order_item'] = None
+        return data
 
 class OrderDefectSerializer(serializers.ModelSerializer):
     workshop = WorkshopFullSerializer(read_only=True)
@@ -367,41 +163,6 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_regular_items(self, obj):
         return [OrderItemSerializer(item).data for item in obj.regular_items]
-
-    def to_representation(self, instance):
-        """Безопасная сериализация с обработкой некорректных данных"""
-        try:
-            data = super().to_representation(instance)
-            
-            # Безопасно обрабатываем текстовые поля, которые могут содержать некорректные символы
-            text_fields = ['name', 'comment']
-            for field in text_fields:
-                if field in data and data[field]:
-                    try:
-                        # Пытаемся декодировать как UTF-8, если это bytes
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        # Если это строка, проверяем на корректность
-                        elif isinstance(data[field], str):
-                            # Проверяем, что строка может быть закодирована в UTF-8
-                            data[field].encode('utf-8')
-                    except (UnicodeDecodeError, UnicodeEncodeError):
-                        # Заменяем некорректные символы
-                        if isinstance(data[field], bytes):
-                            data[field] = data[field].decode('utf-8', errors='replace')
-                        else:
-                            data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
-            
-            return data
-        except Exception as e:
-            # В случае критической ошибки возвращаем минимальную информацию
-            print(f"Critical serialization error for order {instance.id}: {e}")
-            return {
-                'id': instance.id,
-                'name': f'Заказ #{instance.id} (ошибка сериализации)',
-                'error': 'Ошибка загрузки данных заказа',
-                'status': 'error'
-            }
 
     def validate(self, attrs):
         # Для создания заказа требуем либо items, либо product+quantity
