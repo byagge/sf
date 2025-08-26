@@ -2178,7 +2178,14 @@
                 const resp = await fetch('/api/workshops/api/my-workshops/');
                 this.workshops = await resp.json();
                 if (this.workshops.length > 0) {
-                    this.selectedWorkshopIdx = 0;
+                    const savedWorkshopId = parseInt(localStorage.getItem('master_selected_workshop_id'));
+                    const savedIdx = this.workshops.findIndex(w => w && w.id === savedWorkshopId);
+                    this.selectedWorkshopIdx = savedIdx >= 0 ? savedIdx : 0;
+                    // Сохраняем текущий выбранный цех, чтобы закрепить поведение по умолчанию
+                    const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
+                    if (currentWorkshop) {
+                        localStorage.setItem('master_selected_workshop_id', currentWorkshop.id);
+                    }
                     await this.loadStages();
                 }
                 
