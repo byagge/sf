@@ -2400,45 +2400,30 @@
                     } else if (stage.aggregated_items && Array.isArray(stage.aggregated_items) && stage.aggregated_items.length) {
                         orderItems = stage.aggregated_items;
                     }
-                    let successCount = 0;
-                    let errorCount = 0;
-                    
-                    for (const item of orderItems) {
-                        try {
-                            const payload = { 
-                                stage: this.assignForm.stage_id, 
-                                employee: this.assignForm.employee_id, 
-                                quantity: this.assignForm.quantity,
-                                order_item: item.id
-                            };
-                            const resp = await fetch('/employee_tasks/assign/', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
-                                body: JSON.stringify(payload)
-                            });
-                    
-                    if (resp.ok) {
-                                successCount++;
-                            } else {
-                                errorCount++;
-                            }
-                        } catch (e) {
-                            errorCount++;
+                                        // Отправляем одно назначение на весь этап (без разбивки по товарам)
+                    try {
+                        const payload = { 
+                            stage: this.assignForm.stage_id, 
+                            employee: this.assignForm.employee_id, 
+                            quantity: this.assignForm.quantity
+                        };
+                        const resp = await fetch('/employee_tasks/assign/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!resp.ok) {
+                            const data = await resp.json().catch(() => ({}));
+                            this.showToast(data.error || data.message || 'Ошибка при назначении задачи', 'error');
+                        } else {
+                            await this.loadStages();
+                            this.showAssignModal = false;
+                            this.showToast('Задача успешно назначена!', 'success');
+                            lucide.createIcons();
                         }
+                    } catch (e) {
+                        this.showToast('Ошибка сети при назначении задачи', 'error');
                     }
-                    
-                        await this.loadStages();
-                        this.showAssignModal = false;
-                    
-                    if (errorCount === 0) {
-                        this.showToast(`Задачи успешно назначены для всех товаров (${successCount} товаров)!`, 'success');
-                    } else if (successCount > 0) {
-                        this.showToast(`Задачи назначены для ${successCount} товаров, ошибок: ${errorCount}`, 'success');
-                    } else {
-                        this.showToast('Ошибка при назначении задач', 'error');
-                    }
-                    
-                    lucide.createIcons();
                 } catch (e) {
                     this.showToast('Ошибка сети при назначении задач', 'error');
                 } finally {
