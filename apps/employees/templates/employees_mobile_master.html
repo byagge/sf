@@ -127,23 +127,23 @@
                             <div class="flex flex-col items-end space-y-2">
                                 <span :class="getRoleClass(employee.role)" class="px-2 py-1 text-xs rounded-full font-medium" x-text="getRoleLabel(employee.role)"></span>
                                 <div class="flex items-center space-x-1">
-                                    <div class="w-2 h-2 rounded-full" :class="getEfficiencyColor(getEmployeeStats(employee.id).efficiency || 0)"></div>
-                                    <span class="text-xs text-gray-500" x-text="getEmployeeStats(employee.id).efficiency || 0 + '%'">0%</span>
+                                    <div class="w-2 h-2 rounded-full" :class="getEfficiencyColor((employee.efficiency || 0))"></div>
+                                    <span class="text-xs text-gray-500" x-text="(employee.efficiency || 0) + '%'">0%</span>
                                 </div>
                             </div>
                         </div>
                         <!-- Quick Stats -->
                         <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100">
                             <div class="text-center">
-                                <div class="text-sm font-semibold text-green-600" x-text="getEmployeeStats(employee.id).completed_works || 0">0</div>
+                                <div class="text-sm font-semibold text-green-600" x-text="employee.completed_works || 0">0</div>
                                 <div class="text-xs text-gray-500">Работ</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-sm font-semibold text-red-600" x-text="getEmployeeStats(employee.id).defects || 0">0</div>
+                                <div class="text-sm font-semibold text-red-600" x-text="employee.defects || 0">0</div>
                                 <div class="text-xs text-gray-500">Браков</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-sm font-semibold text-blue-600" x-text="formatCurrency(getEmployeeStats(employee.id).monthly_salary || 0)">⃀0</div>
+                                <div class="text-sm font-semibold text-blue-600" x-text="formatCurrency(employee.monthly_salary || 0)">⃀0</div>
                                 <div class="text-xs text-gray-500">Зарплата</div>
                             </div>
                         </div>
@@ -331,19 +331,19 @@
                         <div x-show="profileTab === 'stats'" class="space-y-4">
                             <div class="grid grid-cols-2 gap-3">
                                 <div class="bg-green-50 rounded-lg p-3 text-center">
-                                    <div class="text-lg font-bold text-green-700" x-text="getEmployeeStats(selectedEmployee.id).completed_works || 0">0</div>
+                                    <div class="text-lg font-bold text-green-700" x-text="selectedEmployee.completed_works || 0">0</div>
                                     <div class="text-xs text-green-600">Выполнено работ</div>
                                 </div>
                                 <div class="bg-red-50 rounded-lg p-3 text-center">
-                                    <div class="text-lg font-bold text-red-700" x-text="getEmployeeStats(selectedEmployee.id).defects || 0">0</div>
+                                    <div class="text-lg font-bold text-red-700" x-text="selectedEmployee.defects || 0">0</div>
                                     <div class="text-xs text-red-600">Браков</div>
                                 </div>
                                 <div class="bg-blue-50 rounded-lg p-3 text-center">
-                                    <div class="text-lg font-bold text-blue-700" x-text="formatCurrency(getEmployeeStats(selectedEmployee.id).monthly_salary || 0)">⃀0</div>
+                                    <div class="text-lg font-bold text-blue-700" x-text="formatCurrency(selectedEmployee.monthly_salary || 0)">⃀0</div>
                                     <div class="text-xs text-blue-600">Заработок</div>
                                 </div>
                                 <div class="bg-purple-50 rounded-lg p-3 text-center">
-                                    <div class="text-lg font-bold text-purple-700" x-text="getEmployeeStats(selectedEmployee.id).efficiency || 0 + '%'">0%</div>
+                                    <div class="text-lg font-bold text-purple-700" x-text="(selectedEmployee.efficiency || 0) + '%'">0%</div>
                                     <div class="text-xs text-purple-600">Эффективность</div>
                                 </div>
                             </div>
@@ -971,7 +971,7 @@
                 console.log(`Filtered employees for average:`, filtered);
                 
                 if (filtered.length === 0) return 0;
-                const total = filtered.reduce((sum, emp) => sum + (this.getEmployeeStats(emp.id).efficiency || 0), 0);
+                const total = filtered.reduce((sum, emp) => sum + (emp.efficiency || 0), 0);
                 const average = Math.round(total / filtered.length);
                 console.log(`Average efficiency: ${average}%`);
                 return average;
