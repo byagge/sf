@@ -2292,8 +2292,15 @@
                 return true;
             },
             canTransfer(stage) {
-                // Всегда разрешаем переводить дальше
-                return true;
+                // Для стеклянных изделий разрешаем перевод только из цеха 12 в цех 2
+                const isGlass = !!(stage && stage.order_item && stage.order_item.product && stage.order_item.product.is_glass);
+                if (!isGlass) {
+                    return true;
+                }
+                const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
+                if (!currentWorkshop) return true;
+                // Разрешаем только когда находимся в цехе 12 (целевой выбор будет ограничен до 2)
+                return currentWorkshop.id === 12;
             },
 
             openStageModal(stage) {
@@ -2553,8 +2560,15 @@
                 }
                 const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
                 
-                // Для цеха с ID 1 (распил) можно переводить даже 0, для остальных - только выполненное количество
+                // Ограничение для стеклянных изделий: перевод только из 12 в 2
+                const isGlass = !!(stage && stage.order_item && stage.order_item.product && stage.order_item.product.is_glass);
                 const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
+                if (isGlass && currentWorkshop && currentWorkshop.id !== 12) {
+                    this.showToast('Для стеклянных изделий перевод доступен только из цеха 12 в цех 2', 'error');
+                    return;
+                }
+                
+                // Для цеха с ID 1 (распил) можно переводить даже 0, для остальных - только выполненное количество
                 if (currentWorkshop && currentWorkshop.id === 1) {
                     this.transferQuantity = Math.max(0, stage.done_count);
                 } else {
@@ -2582,7 +2596,14 @@
                 this.showTransferConfirmModal = false;
                 await this.loadAllWorkshops();
                 const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
-                this.allWorkshops = this.allWorkshops.filter(w => !currentWorkshop || w.id !== currentWorkshop.id);
+                const stage = this.stages.find(s => s.id === this.transferStageId);
+                const isGlass = !!(stage && stage.order_item && stage.order_item.product && stage.order_item.product.is_glass);
+                if (isGlass) {
+                    // Для стеклянных изделий целевой цех только 2
+                    this.allWorkshops = this.allWorkshops.filter(w => w.id === 2);
+                } else {
+                    this.allWorkshops = this.allWorkshops.filter(w => !currentWorkshop || w.id !== currentWorkshop.id);
+                }
                 this.transferTargetWorkshopId = this.allWorkshops.length ? this.allWorkshops[0].id : null;
                 this.showTransferDestinationModal = true;
                 lucide.createIcons();
@@ -2603,6 +2624,19 @@
                     totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
                 }
                 const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
+                
+                // Ограничение для стеклянных изделий: перевод только из 12 в 2
+                const isGlass = !!(stage && stage.order_item && stage.order_item.product && stage.order_item.product.is_glass);
+                if (isGlass) {
+                    if (!(currentWorkshop && currentWorkshop.id === 12)) {
+                        this.showToast('Для стеклянных изделий перевод возможен только из цеха 12', 'error');
+                        return;
+                    }
+                    if (this.transferTargetWorkshopId !== 2) {
+                        this.showToast('Для стеклянных изделий целевой цех должен быть 2', 'error');
+                        return;
+                    }
+                }
                 
                 // Для цехов кроме распила проверяем выполнение плана
                 if (!(currentWorkshop && currentWorkshop.id === 1)) {
