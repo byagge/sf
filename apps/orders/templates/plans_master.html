@@ -2287,48 +2287,17 @@
                 lucide.createIcons();
             },
                         async submitAssign() {
-                // Строгая валидация перед отправкой
-                if (!this.assignForm.employee_id) {
-                    this.showToast('Ошибка: выберите сотрудника', 'error');
-                    return;
-                }
-                
-                if (!this.assignForm.quantity || this.assignForm.quantity <= 0) {
-                    this.showToast('Ошибка: укажите корректное количество', 'error');
-                    return;
-                }
-                
                 const stage = this.stages.find(s => s.id === this.assignForm.stage_id);
                 if (!stage) {
                     this.showToast('Ошибка: этап не найден', 'error');
                     return;
                 }
-                
-                // Получаем общее количество всех товаров заказа
-                let totalOrderItemsQuantity = 0;
-                if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
-                    totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                }
-                
-                // Используем общее количество товаров заказа как план
-                const planQuantity = totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
-                const currentAssigned = (stage.assigned || []).reduce((sum, a) => sum + a.quantity, 0);
-                const availableQuantity = planQuantity - currentAssigned;
-                
-                // Проверяем, не назначен ли уже этот сотрудник
-                const isAlreadyAssigned = (stage.assigned || []).some(a => a.employee_id === this.assignForm.employee_id);
-                if (isAlreadyAssigned) {
-                    this.showToast('Ошибка: этот сотрудник уже назначен на данный этап', 'error');
+                if (this.totalBulkAssign < 1) {
+                    this.showToast('Ошибка: укажите количество для хотя бы одного сотрудника', 'error');
                     return;
                 }
-                
-                if (this.assignForm.quantity > availableQuantity) {
-                    this.showToast(`Ошибка: превышено плановое количество. Доступно: ${availableQuantity}`, 'error');
-                    return;
-                }
-                
-                if (this.assignForm.quantity <= 0) {
-                    this.showToast('Ошибка: количество должно быть больше 0', 'error');
+                if (this.totalBulkAssign > this.maxAssignableQuantity) {
+                    this.showToast('Ошибка: превышено доступное количество к назначению', 'error');
                     return;
                 }
                 
@@ -2338,37 +2307,26 @@
                 if (submitBtn) submitBtn.disabled = true;
                 
                 try {
-                    // Назначаем задачи для всех товаров заказа (учитываем агрегированные этапы)
-                    let orderItems = [];
-                    if (stage.order_item && stage.order_item.order && stage.order_item.order.items) {
-                        orderItems = stage.order_item.order.items;
-                    } else if (stage.aggregated_items && Array.isArray(stage.aggregated_items) && stage.aggregated_items.length) {
-                        orderItems = stage.aggregated_items;
+                    const entries = Object.entries(this.bulkAssign)
+                        .map(([employeeId, qty]) => ({ employee: parseInt(employeeId), quantity: parseInt(qty) || 0 }))
+                        .filter(e => e.quantity > 0);
+                    
+                    // Последовательно или параллельно отправляем назначения
+                    const promises = entries.map(e => fetch('/employee_tasks/assign/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
+                        body: JSON.stringify({ stage: this.assignForm.stage_id, employee: e.employee, quantity: e.quantity })
+                    }));
+                    const results = await Promise.all(promises);
+                    const anyFailed = results.some(r => !r.ok);
+                    if (anyFailed) {
+                        this.showToast('Часть назначений не удалось выполнить', 'error');
+                    } else {
+                        this.showToast('Назначения успешно созданы!', 'success');
                     }
-                                        // Отправляем одно назначение на весь этап (без разбивки по товарам)
-                    try {
-                        const payload = { 
-                            stage: this.assignForm.stage_id, 
-                            employee: this.assignForm.employee_id, 
-                            quantity: this.assignForm.quantity
-                        };
-                        const resp = await fetch('/employee_tasks/assign/', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
-                            body: JSON.stringify(payload)
-                        });
-                        if (!resp.ok) {
-                            const data = await resp.json().catch(() => ({}));
-                            this.showToast(data.error || data.message || 'Ошибка при назначении задачи', 'error');
-                        } else {
-                            await this.loadStages();
-                            this.showAssignModal = false;
-                            this.showToast('Задача успешно назначена!', 'success');
-                            lucide.createIcons();
-                        }
-                    } catch (e) {
-                        this.showToast('Ошибка сети при назначении задачи', 'error');
-                    }
+                    await this.loadStages();
+                    this.showAssignModal = false;
+                    lucide.createIcons();
                 } catch (e) {
                     this.showToast('Ошибка сети при назначении задач', 'error');
                 } finally {
