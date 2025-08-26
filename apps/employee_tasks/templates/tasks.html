@@ -7,15 +7,13 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-192x192.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/icon-192x192.png">
     <link rel="shortcut icon" href="/static/icons/icon-192x192.png">
-    <title>{% if is_helper %}Задачи помощи{% else %}Задачи сотрудников{% endif %}</title>
+    <title>Задачи сотрудников</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script id="user-id" type="application/json">{{ request.user.id|default:'null' }}</script>
-    <script id="is-helper" type="application/json">{{ is_helper|yesno:"true,false" }}</script>
     <script>
       window.user_id = JSON.parse(document.getElementById('user-id').textContent);
-      window.is_helper = JSON.parse(document.getElementById('is-helper').textContent);
     </script>
     <style>
         body { background: linear-gradient(135deg, #f3f4f6 0%, #dbeafe 100%); }
@@ -41,9 +39,9 @@
     <header class="fixed top-0 left-0 right-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200 flex items-center justify-between px-3 h-14">
         <div class="flex items-center space-x-2">
             <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span class="text-white font-bold text-lg">{% if is_helper %}H{% else %}S{% endif %}</span>
+                <span class="text-white font-bold text-lg">S</span>
             </div>
-            <span class="text-base font-semibold text-gray-900">{% if is_helper %}Задачи помощи{% else %}Задачи{% endif %}</span>
+            <span class="text-base font-semibold text-gray-900">Задачи</span>
         </div>
         {% if request.session.impersonator_id %}
             <div class="bg-yellow-200 text-yellow-900 text-xs text-center py-1 px-2 rounded">
@@ -56,7 +54,7 @@
     <!-- Main Content -->
     <main class="flex-1 pt-16 pb-16 px-3 w-full">
         <div class="flex justify-between items-center mb-4">
-            <h1 class="text-xl font-bold text-gray-900">{% if is_helper %}Мои задачи помощи{% else %}Мои задачи{% endif %}</h1>
+            <h1 class="text-xl font-bold text-gray-900">Мои задачи</h1>
         </div>
         
         <!-- Поиск -->
@@ -83,12 +81,12 @@
                             <i data-lucide="check-square" class="w-8 h-8 text-gray-400"></i>
                         </div>
                         <h3 class="text-base font-semibold text-gray-900 mb-1">Нет задач</h3>
-                        <p class="text-sm text-gray-600">{% if is_helper %}У вас пока нет задач помощи{% else %}У вас пока нет задач{% endif %}</p>
+                        <p class="text-sm text-gray-600">У вас пока нет задач</p>
                     </div>
                 </template>
                 
                 <template x-for="task in filteredTasks" :key="task.id">
-                    <a :href="`${'/employee_tasks/tasks/' + task.id + '/'}${is_helper ? '?helper=1' : ''}`" class="block">
+                    <a :href="`/employee_tasks/tasks/${task.id}/`" class="block">
                         <div class="card bg-white rounded-lg p-3 mb-3 flex items-start space-x-3 cursor-pointer hover:shadow-md transition-shadow duration-200 mobile-card"
                              :class="isTaskOverdue(task) ? 'bg-red-50 border-l-4 border-l-red-400' : ''">
                             <!-- Checkbox -->
@@ -103,13 +101,7 @@
                             <div class="flex-1 min-w-0">
                                 <!-- Task Title with Overdue Indicator -->
                                 <div class="flex items-center space-x-2 mb-2">
-                                    <div class="font-semibold text-gray-900 text-sm" x-text="task.title || task.stage_name || ('Этап №' + task.stage)"></div>
-                                    <template x-if="is_helper && task.employee_task && task.employee_task.employee">
-                                        <div class="flex items-center space-x-1 bg-blue-100 px-2 py-1 rounded-full">
-                                            <i data-lucide="user" class="w-3 h-3 text-blue-600"></i>
-                                            <span class="text-xs text-blue-700 font-medium" x-text="'Помощь ' + (task.employee_task.employee.first_name || task.employee_task.employee.username)"></span>
-                                        </div>
-                                    </template>
+                                    <div class="font-semibold text-gray-900 text-sm" x-text="task.stage_name ? task.stage_name : ('Этап №' + task.stage)"></div>
                                     <template x-if="task.is_combined && task.combined_tasks">
                                         <div class="flex items-center space-x-1 bg-blue-100 px-2 py-1 rounded-full">
                                             <i data-lucide="package" class="w-3 h-3 text-blue-600"></i>
@@ -137,55 +129,55 @@
                                 </template>
                                 
                                 <!-- Product Info -->
-                                <template x-if="getOrderItem(task)">
+                                <template x-if="task.order_item">
                                     <div class="mb-2">
                                         <!-- Product Image -->
-                                        <template x-if="getOrderItem(task).product && getOrderItem(task).product.img">
+                                        <template x-if="task.order_item.product && task.order_item.product.img">
                                             <div class="mb-2">
-                                                <img :src="getOrderItem(task).product.img" :alt="getOrderItem(task).product.name" 
+                                                <img :src="task.order_item.product.img" :alt="task.order_item.product.name" 
                                                      class="w-full h-20 rounded-lg product-image bg-gray-100">
                                             </div>
                                         </template>
                                         
                                         <!-- Product Details -->
                                         <div class="bg-gray-50 rounded-lg p-2 mb-2">
-                                            <div class="font-medium text-gray-900 text-sm mb-1" x-text="getOrderItem(task).product ? getOrderItem(task).product.name : 'Товар'"></div>
+                                            <div class="font-medium text-gray-900 text-sm mb-1" x-text="task.order_item.product ? task.order_item.product.name : 'Товар'"></div>
                                             
                                             <!-- Tags -->
                                             <div class="flex flex-wrap gap-1 mb-1">
-                                                <template x-if="getOrderItem(task).size">
+                                                <template x-if="task.order_item.size">
                                                     <div class="flex items-center space-x-1 bg-blue-100 px-1.5 py-0.5 rounded-full">
                                                         <i data-lucide="ruler" class="w-2.5 h-2.5 text-blue-600"></i>
-                                                        <span class="text-xs text-blue-700 font-medium" x-text="getOrderItem(task).size"></span>
+                                                        <span class="text-xs text-blue-700 font-medium" x-text="task.order_item.size"></span>
                                                     </div>
                                                 </template>
-                                                <template x-if="getOrderItem(task).color">
+                                                <template x-if="task.order_item.color">
                                                     <div class="flex items-center space-x-1 bg-purple-100 px-1.5 py-0.5 rounded-full">
                                                         <i data-lucide="palette" class="w-2.5 h-2.5 text-purple-600"></i>
-                                                        <span class="text-xs text-purple-700 font-medium" x-text="getOrderItem(task).color"></span>
+                                                        <span class="text-xs text-purple-700 font-medium" x-text="task.order_item.color"></span>
                                                     </div>
                                                 </template>
-                                                <template x-if="getOrderItem(task).product && getOrderItem(task).product.is_glass">
+                                                <template x-if="task.order_item.product && task.order_item.product.is_glass">
                                                     <div class="flex items-center space-x-1 bg-cyan-100 px-1.5 py-0.5 rounded-full">
                                                         <i data-lucide="droplets" class="w-2.5 h-2.5 text-cyan-600"></i>
-                                                        <span class="text-xs text-cyan-700 font-medium" x-text="getOrderItem(task).glass_type_display || 'Стекло'"></span>
+                                                        <span class="text-xs text-cyan-700 font-medium" x-text="task.order_item.glass_type_display || 'Стекло'"></span>
                                                     </div>
                                                 </template>
                                             </div>
                                             
                                             <!-- Paint Info -->
-                                            <template x-if="getOrderItem(task).paint_type || getOrderItem(task).paint_color">
+                                            <template x-if="task.order_item.paint_type || task.order_item.paint_color">
                                                 <div class="flex flex-wrap gap-1">
-                                                    <template x-if="getOrderItem(task).paint_type">
+                                                    <template x-if="task.order_item.paint_type">
                                                         <div class="flex items-center space-x-1 bg-orange-100 px-1.5 py-0.5 rounded-full">
                                                             <i data-lucide="brush" class="w-2.5 h-2.5 text-orange-600"></i>
-                                                            <span class="text-xs text-orange-700 font-medium" x-text="getOrderItem(task).paint_type"></span>
+                                                            <span class="text-xs text-orange-700 font-medium" x-text="task.order_item.paint_type"></span>
                                                         </div>
                                                     </template>
-                                                    <template x-if="getOrderItem(task).paint_color">
+                                                    <template x-if="task.order_item.paint_color">
                                                         <div class="flex items-center space-x-1 bg-red-100 px-1.5 py-0.5 rounded-full">
                                                             <i data-lucide="droplet" class="w-2.5 h-2.5 text-red-600"></i>
-                                                            <span class="text-xs text-red-700 font-medium" x-text="getOrderItem(task).paint_color"></span>
+                                                            <span class="text-xs text-red-700 font-medium" x-text="task.order_item.paint_color"></span>
                                                         </div>
                                                     </template>
                                                 </div>
@@ -195,7 +187,7 @@
                                 </template>
                                 
                                 <!-- No Product Info -->
-                                <template x-if="!getOrderItem(task)">
+                                <template x-if="!task.order_item">
                                     <div class="mb-2 bg-yellow-50 p-2 rounded-lg">
                                         <div class="text-xs text-yellow-800">
                                             <i data-lucide="alert-triangle" class="w-3 h-3 inline mr-1"></i>
@@ -238,6 +230,8 @@
         </template>
     </main>
     
+
+    
     <!-- Bottom Navigation -->
     <nav class="nav-bar fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around items-center h-14 z-40 w-full">
         <a href="/employee_tasks/tasks/" class="flex flex-col items-center nav-active">
@@ -268,25 +262,34 @@
             tasks: [],
             searchTerm: '',
             userId: null,
-            isHelper: false,
             async init() {
                 this.userId = window.user_id || null;
-                this.isHelper = window.is_helper || false;
                 await this.loadTasks();
                 lucide.createIcons();
             },
             async loadTasks() {
                 this.loading = true;
-                const endpoint = this.isHelper ? '/employee_tasks/api/helper-tasks/' : '/employee_tasks/api/employee-tasks/';
-                const resp = await fetch(endpoint);
+                const resp = await fetch('/employee_tasks/api/employee-tasks/');
                 const data = await resp.json();
-                this.tasks = (data.results || data);
+                this.tasks = (data.results || data).filter(task => String(task.employee) === String(this.userId));
                 
                 // Отладочная информация
                 console.log('Loaded tasks:', this.tasks);
                 if (this.tasks.length > 0) {
                     console.log('First task structure:', this.tasks[0]);
                     console.log('First task keys:', Object.keys(this.tasks[0]));
+                    if (this.tasks[0].workshop_info) {
+                        console.log('First task workshop_info:', this.tasks[0].workshop_info);
+                    }
+                    if (this.tasks[0].workshop) {
+                        console.log('First task workshop:', this.tasks[0].workshop);
+                    }
+                    if (this.tasks[0].stage) {
+                        console.log('First task stage:', this.tasks[0].stage);
+                    }
+                    if (this.tasks[0].title) {
+                        console.log('First task title:', this.tasks[0].title);
+                    }
                 }
                 
                 this.loading = false;
@@ -295,18 +298,18 @@
                 const term = this.searchTerm.toLowerCase();
                 const filtered = this.tasks
                     .filter(task => this.isTaskVisible(task))
-                    .filter(task => {
-                        const title = task.title || task.stage_name || '';
-                        const productName = this.getOrderItem(task)?.product?.name || '';
-                        return title.toLowerCase().includes(term) || productName.toLowerCase().includes(term);
-                    });
+                    .filter(task =>
+                    (task.title || '').toLowerCase().includes(term) ||
+                    (task.stage_name || '').toLowerCase().includes(term) ||
+                    (task.order_item && task.order_item.product && task.order_item.product.name ? task.order_item.product.name.toLowerCase().includes(term) : false)
+                );
                 
                 // Группируем задачи по товарам для отображения
                 const groupedTasks = [];
                 const taskGroups = {};
                 
                 filtered.forEach(task => {
-                    const key = `${task.stage || task.employee_task?.stage}_${this.getOrderItem(task)?.id || 'no_item'}`;
+                    const key = `${task.stage}_${task.order_item?.id || 'no_item'}`;
                     if (!taskGroups[key]) {
                         taskGroups[key] = [];
                     }
@@ -346,11 +349,49 @@
                     return;
                 }
                 
-                const endpoint = this.isHelper ? `/employee_tasks/api/helper-tasks/${task.id}/` : `/employee_tasks/api/employee-tasks/${task.id}/`;
-                const newCompleted = task.quantity || 0;
-                
-                try {
-                    const resp = await fetch(endpoint, {
+                if (task.is_combined && task.combined_tasks) {
+                    // Для объединенных задач обновляем все входящие задачи
+                    const newCompleted = task.quantity || 0;
+                    
+                    // Распределяем количество пропорционально между задачами
+                    const totalQuantity = task.combined_tasks.reduce((sum, t) => sum + (t.quantity || 0), 0);
+                    
+                    for (const subTask of task.combined_tasks) {
+                        const subTaskQuantity = subTask.quantity || 0;
+                        const subTaskNewCompleted = totalQuantity > 0 ? Math.round((subTaskQuantity / totalQuantity) * newCompleted) : 0;
+                        
+                        try {
+                            const resp = await fetch(`/employee_tasks/api/employee-tasks/${subTask.id}/`, {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': this.getCsrfToken()
+                                },
+                                body: JSON.stringify({ 
+                                    completed_quantity: subTaskNewCompleted
+                                })
+                            });
+                            
+                            if (resp.ok) {
+                                const updated = await resp.json();
+                                Object.assign(subTask, updated);
+                            }
+                        } catch (e) {
+                            subTask.completed_quantity = subTaskNewCompleted;
+                            if (subTaskNewCompleted > 0 && !subTask.completed_at) subTask.completed_at = new Date().toISOString();
+                            if (subTaskNewCompleted === 0) subTask.completed_at = null;
+                        }
+                    }
+                    
+                    // Обновляем объединенную задачу
+                    task.completed_quantity = task.combined_tasks.reduce((sum, t) => sum + (t.completed_quantity || 0), 0);
+                    if (task.completed_quantity > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
+                    if (task.completed_quantity === 0) task.completed_at = null;
+                } else {
+                    // Для обычных задач
+                    const newCompleted = task.quantity || 0;
+                    
+                    const resp = await fetch(`/employee_tasks/api/employee-tasks/${task.id}/`, {
                         method: 'PATCH',
                         headers: {
                             'Content-Type': 'application/json',
@@ -360,15 +401,14 @@
                             completed_quantity: newCompleted
                         })
                     });
-                    
-                    if (resp.ok) {
+                    try {
                         const updated = await resp.json();
                         Object.assign(task, updated);
+                    } catch (e) {
+                        task.completed_quantity = newCompleted;
+                        if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
+                        if (newCompleted === 0) task.completed_at = null;
                     }
-                } catch (e) {
-                    task.completed_quantity = newCompleted;
-                    if (newCompleted > 0 && !task.completed_at) task.completed_at = new Date().toISOString();
-                    if (newCompleted === 0) task.completed_at = null;
                 }
             },
             isTaskVisible(task) {
@@ -432,14 +472,6 @@
                 }
                 
                 return quantity;
-            },
-            
-            // Получение order_item для совместимости с помощниками
-            getOrderItem(task) {
-                if (this.isHelper && task.employee_task) {
-                    return task.employee_task.stage?.order_item || task.order_item;
-                }
-                return task.stage?.order_item || task.order_item;
             },
             
             // Проверяем, нужно ли показать предупреждение для цехов ID 1 и 3

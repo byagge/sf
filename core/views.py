@@ -41,10 +41,6 @@ class HomeView(TemplateView):
         elif user_role == User.Role.WORKER:
             return redirect('/employee_tasks/tasks/')
         
-        # Помощник -> задачи помощи (та же страница задач)
-        elif user_role == User.Role.HELPER:
-            return redirect('/employee_tasks/tasks/')
-        
         # Если роль не определена, показываем домашнюю страницу
         return super().dispatch(request, *args, **kwargs)
 
@@ -62,7 +58,6 @@ class HomeView(TemplateView):
             User.Role.ACCOUNTANT: '/finance/',
             User.Role.MASTER: '/dashboard/',
             User.Role.WORKER: '/employee_tasks/tasks/',
-            User.Role.HELPER: '/employee_tasks/tasks/',
         }
         
         return role_redirects.get(role, None)
