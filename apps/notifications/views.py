@@ -240,3 +240,14 @@ def unread_count(request):
     """Простой endpoint для получения количества непрочитанных уведомлений"""
     count = Notification.objects.filter(user=request.user, is_read=False).count()
     return JsonResponse({'unread_count': count}) 
+
+
+class NotificationsComingSoonView(TemplateView):
+	template_name = 'notifications/coming_soon.html'
+
+	def get_template_names(self):
+		ua = self.request.META.get('HTTP_USER_AGENT', '').lower()
+		is_mobile = any(k in ua for k in ['iphone', 'android', 'mobile'])
+		if is_mobile:
+			return ['notifications/coming_soon_mobile.html']
+		return ['notifications/coming_soon.html'] 
