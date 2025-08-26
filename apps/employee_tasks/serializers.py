@@ -2,14 +2,6 @@ from rest_framework import serializers
 from .models import EmployeeTask, HelperTask
 from apps.users.serializers import UserSerializer
 
-def _safe_str(value):
-    try:
-        if isinstance(value, (bytes, bytearray)):
-            return value.decode('utf-8', errors='ignore')
-        return value
-    except Exception:
-        return ''
-
 class EmployeeTaskSerializer(serializers.ModelSerializer):
     employee = UserSerializer(read_only=True)
     title = serializers.ReadOnlyField()
@@ -23,26 +15,6 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeTask
         fields = '__all__'
-
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        # Sanitize some common string fields if present
-        for key in ['title', 'stage_name']:
-            if key in data:
-                data[key] = _safe_str(data.get(key))
-        # Sanitize nested order_item
-        if isinstance(data.get('order_item'), dict):
-            for k in ['size', 'color', 'paint_type', 'paint_color', 'cnc_specs', 'cutting_specs', 'packaging_notes']:
-                if k in data['order_item']:
-                    data['order_item'][k] = _safe_str(data['order_item'][k])
-            if isinstance(data['order_item'].get('product'), dict) and 'name' in data['order_item']['product']:
-                data['order_item']['product']['name'] = _safe_str(data['order_item']['product']['name'])
-        # Sanitize nested workshop_info
-        if isinstance(data.get('workshop_info'), dict):
-            for k in ['name', 'description']:
-                if k in data['workshop_info']:
-                    data['workshop_info'][k] = _safe_str(data['workshop_info'][k])
-        return data
 
     def get_stage_name(self, obj):
         try:
