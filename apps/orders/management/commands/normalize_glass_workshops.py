@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from django.db.models import Q
 
 from apps.orders.models import OrderStage
 from apps.operations.workshops.models import Workshop
@@ -38,10 +39,22 @@ class Command(BaseCommand):
             return
 
         # Find glass stages not in workshops 2 or 12
+        # Includes: (a) stages tied to a glass order_item, (b) aggregated stages (order_item IS NULL)
+        # where the order contains any glass items
         offending_qs = (
             OrderStage.objects.select_related("order_item__product", "workshop", "order")
-            .filter(order_item__product__is_glass=True)
+            .filter(
+                (
+                    # stages explicitly tied to glass order_item
+                    Q(order_item__product__is_glass=True)
+                ) |
+                (
+                    # aggregated stages for orders that include at least one glass item
+                    Q(order_item__isnull=True, order__items__product__is_glass=True)
+                )
+            )
             .exclude(workshop_id__in=(2, 12))
+            .distinct()
         )
 
         total = offending_qs.count()
