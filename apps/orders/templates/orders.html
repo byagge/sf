@@ -565,6 +565,7 @@
             clientForm: { name: '', phone: '', email: '', company: '', address: '' },
             newOrder: { name: '', client_id: '', items: [{ product_id: '', quantity: 1, size: '', color: '' }] },
             showSuccess: false,
+            isSubmittingCreate: false,
             
             openCreate() {
                 this.showCreatePane = true;
@@ -778,6 +779,9 @@
             },
             
             async submitOrder() {
+                if (this.isSubmittingCreate) return;
+                this.isSubmittingCreate = true;
+                
                 let clientId = this.newOrder.client_id;
                 
                 if (this.clientMode === 'new') {
@@ -834,6 +838,7 @@
                 } else {
                     alert('Ошибка создания заказа');
                 }
+                this.isSubmittingCreate = false;
             },
             
             getCsrfToken() {
