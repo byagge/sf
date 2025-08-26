@@ -45,4 +45,23 @@ class RoleBasedRedirectMiddleware:
             User.Role.WORKER: '/employee_tasks/tasks/',  # Рабочий -> задачи сотрудника
         }
         
-        return role_redirects.get(role, None) 
+        return role_redirects.get(role, None)
+
+
+class AuthenticationErrorMiddleware:
+    """
+    Middleware для обработки ошибок аутентификации и авторизации
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        
+        # Если получили 401 статус, перенаправляем на страницу ошибки
+        if response.status_code == 401:
+            from .error_views import custom_401
+            return custom_401(request)
+        
+        return response 
