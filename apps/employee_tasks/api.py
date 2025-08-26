@@ -14,6 +14,73 @@ User = get_user_model()
 class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
     queryset = EmployeeTask.objects.all().order_by('-created_at', 'id')
     serializer_class = EmployeeTaskSerializer 
+    
+    def create(self, request, *args, **kwargs):
+        try:
+            from django.db.models import Sum
+            from apps.orders.models import OrderStage
+            
+            stage_id = request.data.get('stage')
+            employee_id = request.data.get('employee')
+            try:
+                quantity = int(request.data.get('quantity', 0))
+            except Exception:
+                quantity = 0
+            
+            if not stage_id or not employee_id:
+                return Response({'error': 'Необходимо указать stage и employee'}, status=400)
+            
+            # Получаем этап и план
+            try:
+                stage = OrderStage.objects.get(id=stage_id)
+            except OrderStage.DoesNotExist:
+                return Response({'error': 'Этап не найден'}, status=404)
+            
+            plan = int(stage.plan_quantity or 0)
+            if plan <= 0:
+                return Response({'error': 'План этапа равен 0'}, status=400)
+            
+            # Сколько уже назначено по этапу (всех задач суммарно)
+            already_assigned = EmployeeTask.objects.filter(stage=stage).aggregate(s=Sum('quantity'))['s'] or 0
+            remaining = max(0, plan - int(already_assigned))
+            if remaining <= 0:
+                return Response({'error': 'План уже полностью распределен'}, status=400)
+            
+            # Количество не может превышать остаток и должно быть >=1
+            if quantity <= 0:
+                return Response({'error': 'Количество должно быть больше 0'}, status=400)
+            if quantity > remaining:
+                quantity = remaining
+            
+            # Разрешаем только ОДНУ задачу на (stage, employee): upsert
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            try:
+                employee = User.objects.get(id=employee_id)
+            except User.DoesNotExist:
+                return Response({'error': 'Сотрудник не найден'}, status=404)
+            
+            task, created = EmployeeTask.objects.get_or_create(
+                stage=stage,
+                employee=employee,
+                defaults={
+                    'quantity': quantity
+                }
+            )
+            if not created:
+                # Увеличиваем количество, но не превышая общий план
+                new_qty = int(task.quantity or 0) + quantity
+                # Пересчитываем остаток с учетом текущей задачи
+                already_assigned_excluding_current = (already_assigned - int(task.quantity or 0))
+                max_allowed_for_task = max(0, plan - already_assigned_excluding_current)
+                task.quantity = min(new_qty, max_allowed_for_task)
+                task.save(update_fields=['quantity'])
+            
+            serializer = self.get_serializer(task)
+            status_code = 201 if created else 200
+            return Response(serializer.data, status=status_code)
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
