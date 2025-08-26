@@ -34,6 +34,22 @@ class ClientFullSerializer(serializers.ModelSerializer):
                         else:
                             data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
             
+            # Дополнительная защита: проверяем все поля на некорректные данные
+            for key, value in data.items():
+                if isinstance(value, str) and value:
+                    try:
+                        # Проверяем, что строка может быть закодирована в UTF-8
+                        value.encode('utf-8')
+                    except UnicodeEncodeError:
+                        # Заменяем некорректные символы
+                        data[key] = value.encode('utf-8', errors='replace').decode('utf-8')
+                elif isinstance(value, bytes):
+                    # Если это bytes, декодируем
+                    try:
+                        data[key] = value.decode('utf-8', errors='replace')
+                    except UnicodeDecodeError:
+                        data[key] = value.decode('utf-8', errors='replace')
+            
             return data
         except Exception as e:
             # В случае критической ошибки возвращаем минимальную информацию
@@ -76,6 +92,22 @@ class ProductFullSerializer(serializers.ModelSerializer):
                         else:
                             data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
             
+            # Дополнительная защита: проверяем все поля на некорректные данные
+            for key, value in data.items():
+                if isinstance(value, str) and value:
+                    try:
+                        # Проверяем, что строка может быть закодирована в UTF-8
+                        value.encode('utf-8')
+                    except UnicodeEncodeError:
+                        # Заменяем некорректные символы
+                        data[key] = value.encode('utf-8', errors='replace').decode('utf-8')
+                elif isinstance(value, bytes):
+                    # Если это bytes, декодируем
+                    try:
+                        data[key] = value.decode('utf-8', errors='replace')
+                    except UnicodeDecodeError:
+                        data[key] = value.decode('utf-8', errors='replace')
+            
             return data
         except Exception as e:
             # В случае критической ошибки возвращаем минимальную информацию
@@ -116,6 +148,22 @@ class WorkshopFullSerializer(serializers.ModelSerializer):
                         else:
                             data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
             
+            # Дополнительная защита: проверяем все поля на некорректные данные
+            for key, value in data.items():
+                if isinstance(value, str) and value:
+                    try:
+                        # Проверяем, что строка может быть закодирована в UTF-8
+                        value.encode('utf-8')
+                    except UnicodeEncodeError:
+                        # Заменяем некорректные символы
+                        data[key] = value.encode('utf-8', errors='replace').decode('utf-8')
+                elif isinstance(value, bytes):
+                    # Если это bytes, декодируем
+                    try:
+                        data[key] = value.decode('utf-8', errors='replace')
+                    except UnicodeDecodeError:
+                        data[key] = value.decode('utf-8', errors='replace')
+            
             return data
         except Exception as e:
             # В случае критической ошибки возвращаем минимальную информацию
@@ -153,6 +201,22 @@ class WorkshopShortSerializer(serializers.ModelSerializer):
                         data['name'] = data['name'].decode('utf-8', errors='replace')
                     else:
                         data['name'] = str(data['name']).encode('utf-8', errors='replace').decode('utf-8')
+            
+            # Дополнительная защита: проверяем все поля на некорректные данные
+            for key, value in data.items():
+                if isinstance(value, str) and value:
+                    try:
+                        # Проверяем, что строка может быть закодирована в UTF-8
+                        value.encode('utf-8')
+                    except UnicodeEncodeError:
+                        # Заменяем некорректные символы
+                        data[key] = value.encode('utf-8', errors='replace').decode('utf-8')
+                elif isinstance(value, bytes):
+                    # Если это bytes, декодируем
+                    try:
+                        data[key] = value.decode('utf-8', errors='replace')
+                    except UnicodeDecodeError:
+                        data[key] = value.decode('utf-8', errors='replace')
             
             return data
         except Exception as e:
@@ -254,6 +318,22 @@ class OrderItemSerializer(serializers.ModelSerializer):
                         else:
                             data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
             
+            # Дополнительная защита: проверяем все поля на некорректные данные
+            for key, value in data.items():
+                if isinstance(value, str) and value:
+                    try:
+                        # Проверяем, что строка может быть закодирована в UTF-8
+                        value.encode('utf-8')
+                    except UnicodeEncodeError:
+                        # Заменяем некорректные символы
+                        data[key] = value.encode('utf-8', errors='replace').decode('utf-8')
+                elif isinstance(value, bytes):
+                    # Если это bytes, декодируем
+                    try:
+                        data[key] = value.decode('utf-8', errors='replace')
+                    except UnicodeDecodeError:
+                        data[key] = value.decode('utf-8', errors='replace')
+            
             return data
         except Exception as e:
             # В случае критической ошибки возвращаем минимальную информацию
@@ -317,6 +397,22 @@ class OrderStageSerializer(serializers.ModelSerializer):
                             data[field] = data[field].decode('utf-8', errors='replace')
                         else:
                             data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
+            
+            # Дополнительная защита: проверяем все поля на некорректные данные
+            for key, value in data.items():
+                if isinstance(value, str) and value:
+                    try:
+                        # Проверяем, что строка может быть закодирована в UTF-8
+                        value.encode('utf-8')
+                    except UnicodeEncodeError:
+                        # Заменяем некорректные символы
+                        data[key] = value.encode('utf-8', errors='replace').decode('utf-8')
+                elif isinstance(value, bytes):
+                    # Если это bytes, декодируем
+                    try:
+                        data[key] = value.decode('utf-8', errors='replace')
+                    except UnicodeDecodeError:
+                        data[key] = value.decode('utf-8', errors='replace')
             
             return data
         except Exception as e:
@@ -391,6 +487,22 @@ class OrderSerializer(serializers.ModelSerializer):
                             data[field] = data[field].decode('utf-8', errors='replace')
                         else:
                             data[field] = str(data[field]).encode('utf-8', errors='replace').decode('utf-8')
+            
+            # Дополнительная защита: проверяем все поля на некорректные данные
+            for key, value in data.items():
+                if isinstance(value, str) and value:
+                    try:
+                        # Проверяем, что строка может быть закодирована в UTF-8
+                        value.encode('utf-8')
+                    except UnicodeEncodeError:
+                        # Заменяем некорректные символы
+                        data[key] = value.encode('utf-8', errors='replace').decode('utf-8')
+                elif isinstance(value, bytes):
+                    # Если это bytes, декодируем
+                    try:
+                        data[key] = value.decode('utf-8', errors='replace')
+                    except UnicodeDecodeError:
+                        data[key] = value.decode('utf-8', errors='replace')
             
             return data
         except Exception as e:
