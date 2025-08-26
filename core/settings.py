@@ -29,7 +29,7 @@ sys.path.insert(0, str(APPS_DIR))
 SECRET_KEY = 'django-insecure-se9x7st*@o62&^mwej@a2x%$j)44xsmjy-g@^o!sf$zj04=pt='
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['185.104.248.103', '127.0.0.1', 'localhost', 'sf.monocode.app']
 
@@ -168,7 +168,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DEFAULT_RENDERER_CLASSES': [
-        'core.renderers.SafeJSONRenderer',  # Кастомный безопасный JSON renderer
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
@@ -177,7 +176,6 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.FormParser',
         'rest_framework.parsers.MultiPartParser',
     ],
-    'EXCEPTION_HANDLER': 'core.utils.custom_exception_handler',  # Кастомный обработчик исключений
 }
 
 # Authentication settings

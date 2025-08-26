@@ -4,48 +4,6 @@ from django.utils import timezone
 
 # Create your models here.
 
-class SafeOrderManager(models.Manager):
-    """
-    Менеджер для безопасной работы с заказами, содержащими некорректные данные
-    """
-    
-    def safe_get_queryset(self):
-        """
-        Возвращает QuerySet с безопасной обработкой некорректных данных
-        """
-        queryset = super().get_queryset()
-        
-        # Добавляем аннотации для безопасного извлечения текстовых полей
-        from django.db.models import Case, When, Value, CharField
-        
-        queryset = queryset.annotate(
-            safe_name=Case(
-                When(name__isnull=True, then=Value('Без названия')),
-                default=models.functions.Cast('name', CharField()),
-                output_field=CharField(),
-            ),
-            safe_comment=Case(
-                When(comment__isnull=True, then=Value('')),
-                default=models.functions.Cast('comment', CharField()),
-                output_field=CharField(),
-            )
-        )
-        
-        return queryset
-    
-    def safe_all(self):
-        """
-        Безопасно возвращает все заказы
-        """
-        return self.safe_get_queryset()
-    
-    def safe_filter(self, **kwargs):
-        """
-        Безопасно фильтрует заказы
-        """
-        return self.safe_get_queryset().filter(**kwargs)
-
-
 class Order(models.Model):
     STATUS_CHOICES = [
         ('production', 'В производстве'),
@@ -63,9 +21,6 @@ class Order(models.Model):
     comment = models.CharField('Комментарий', max_length=255, blank=True)
     # Это поле будет вычисляться в будущем (расходы на сырье, услуги, браки)
     expenses = models.FloatField('Расходы', default=0, editable=False)
-
-    # Используем кастомный менеджер
-    objects = SafeOrderManager()
 
     class Meta:
         verbose_name = 'Заявка'
@@ -246,40 +201,6 @@ class OrderStage(models.Model):
         """Возвращает информацию для цеха на основе связанной позиции заказа"""
         if self.order_item and self.order_item.product:
             return self.order_item.get_workshop_info(self.workshop.name if self.workshop else '')
-        elif self.order_item is None:
-            # Если этап не привязан к позиции, возвращаем сводную информацию по всем позициям
-            return self._get_combined_workshop_info()
-        return {}
-    
-    def _get_combined_workshop_info(self):
-        """Возвращает сводную информацию по всем позициям заказа для этапа без привязки к позиции"""
-        try:
-            combined_info = {
-                'order_items': [],
-                'total_quantity': 0,
-                'has_glass_items': False,
-                'has_regular_items': False,
-            }
-            
-            for item in self.order.items.all():
-                if not item.product:
-                    continue
-                    
-                item_info = item.get_workshop_info(self.workshop.name if self.workshop else '')
-                item_info['item_id'] = item.id
-                item_info['product_name'] = item.product.name if item.product else 'Не указан'
-                
-                combined_info['order_items'].append(item_info)
-                combined_info['total_quantity'] += item.quantity
-                
-                if item.product.is_glass:
-                    combined_info['has_glass_items'] = True
-                else:
-                    combined_info['has_regular_items'] = True
-            
-            return combined_info
-        except Exception as e:
-            print(f"Error getting combined workshop info: {e}")
         return {}
     
     def is_glass_stage(self):
@@ -322,20 +243,10 @@ class OrderStage(models.Model):
                     self.order_item.glass_cutting_completed = True
                     self.order_item.glass_cutting_quantity = completed_qty
                     self.order_item.save()
-                else:
-                    # Если этап не привязан к позиции, отмечаем все стеклянные позиции как завершенные
-                    for item in self.order.items.all():
-                        if item.product and item.product.is_glass:
-                            item.glass_cutting_completed = True
-                            item.glass_cutting_quantity = min(completed_qty, item.quantity)
-                            item.save()
-                            completed_qty -= item.glass_cutting_quantity
-                            if completed_qty <= 0:
-                                break
             
             # Если это этап упаковки, создаем запись в finished_goods
             if self.is_packaging_stage():
-                self._create_finished_good(self.plan_quantity)
+                self._create_finished_good(completed_qty)
             
             self._activate_next_stage(self.plan_quantity)
         elif completed_qty > 0:
@@ -350,16 +261,6 @@ class OrderStage(models.Model):
                     self.order_item.glass_cutting_completed = True
                     self.order_item.glass_cutting_quantity = completed_qty
                     self.order_item.save()
-                else:
-                    # Если этап не привязан к позиции, отмечаем стеклянные позиции как завершенные
-                    remaining_qty = completed_qty
-                    for item in self.order.items.all():
-                        if item.product and item.product.is_glass and remaining_qty > 0:
-                            item_qty = min(remaining_qty, item.quantity)
-                            item.glass_cutting_completed = True
-                            item.glass_cutting_quantity = item_qty
-                            item.save()
-                            remaining_qty -= item_qty
             
             # Если это этап упаковки, создаем запись в finished_goods
             if self.is_packaging_stage():
@@ -388,36 +289,9 @@ class OrderStage(models.Model):
     
     def _create_finished_good(self, quantity):
         """Создает запись в finished_goods при завершении упаковки"""
-        # Если этап не привязан к конкретной позиции, создаем записи для всех позиций заказа
         if not self.order_item:
-            from apps.finished_goods.models import FinishedGood
-            
-            # Создаем записи для всех позиций заказа
-            for item in self.order.items.all():
-                # Распределяем количество пропорционально
-                item_quantity = min(quantity, item.quantity)
-                if item_quantity > 0:
-                    finished_good = FinishedGood.objects.create(
-                        product=item.product,
-                        order_item=item,
-                        order=self.order,
-                        quantity=item_quantity,
-                        workshop=self.workshop,
-                        status='stock'
-                    )
-                    
-                    # Отмечаем как упакованный
-                    finished_good.mark_as_packaged(self.workshop)
-                    
-                    # Обновляем количество полученное в упаковке
-                    item.record_packaging_receipt(item_quantity)
-                    
-                    quantity -= item_quantity
-                    if quantity <= 0:
-                        break
             return
         
-        # Оригинальная логика для этапов с привязкой к позиции
         from apps.finished_goods.models import FinishedGood
         
         # Создаем запись о готовой продукции
@@ -460,16 +334,7 @@ class OrderStage(models.Model):
             ).first()
         else:
             # Для основного потока ищем следующий этап
-            # Если текущий этап не привязан к позиции, ищем этап тоже без привязки
-            if current_order_item is None:
-                next_stage = OrderStage.objects.filter(
-                    order=self.order,
-                    order_item__isnull=True,
-                    parallel_group__isnull=True,
-                    sequence=next_seq
-                ).first()
-            else:
-                next_stage = OrderStage.objects.filter(
+            next_stage = OrderStage.objects.filter(
                 order=self.order,
                 order_item=current_order_item,
                 parallel_group__isnull=True,
@@ -497,7 +362,7 @@ class OrderStage(models.Model):
                 
                 OrderStage.objects.create(
                     order=self.order,
-                    order_item=current_order_item,  # Может быть None для этапов без привязки
+                    order_item=current_order_item,
                     sequence=next_seq,
                     stage_type='workshop',
                     workshop=workshop,
@@ -832,14 +697,17 @@ def create_order_stages(order):
         # Если нет позиций, не создаем этапы
         print(f"Warning: No items found for order {order.id}, skipping stage creation")
         return
+    
+    # Создаем этапы для каждой позиции заказа
+    for item in order_items:
+        try:
+            _create_stage_for_order_item(order, item)
+        except Exception as e:
+            print(f"Error creating stage for item {item.id}: {e}")
+            # Продолжаем с другими позициями
 
-    # Создаем только один этап для всего заказа
-    _create_stage_for_order(order)
-    return
-
-
-def _create_stage_for_order(order):
-    """Создает один этап для всего заказа"""
+def _create_stage_for_order_item(order, order_item):
+    """Создает этап для конкретной позиции заказа"""
     from apps.operations.workshops.models import Workshop
     
     try:
@@ -853,18 +721,15 @@ def _create_stage_for_order(order):
     if now.hour >= 18:
         deadline_dt += timedelta(days=1)
     
-    # Вычисляем общее количество товаров в заказе
-    total_quantity = sum(item.quantity for item in order.items.all())
-    
-    # Создаем один этап для всего заказа (без привязки к конкретной позиции)
+    # Создаем этап для конкретной позиции заказа
     OrderStage.objects.create(
         order=order,
-        order_item=None,  # Не привязываем к конкретной позиции
+        order_item=order_item,  # Привязываем к конкретной позиции
         workshop=workshop,
         operation="Резка",
         sequence=1,
         stage_type='workshop',
-        plan_quantity=total_quantity,  # Общее количество всех товаров
+        plan_quantity=order_item.quantity,  # Количество из позиции заказа
         deadline=deadline_dt.date(),
         status='in_progress',
     )
@@ -880,37 +745,3 @@ def create_stages_on_order(sender, instance, created, **kwargs):
         # Создаем этапы только если есть позиции заказа
         if instance.items.exists():
             create_order_stages(instance)
-
-    @property
-    def safe_name(self):
-        """Безопасно возвращает название заказа"""
-        try:
-            if self.name:
-                # Проверяем, что название может быть закодировано в UTF-8
-                self.name.encode('utf-8')
-                return self.name
-            else:
-                return 'Без названия'
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            # Если произошла ошибка кодировки, возвращаем безопасное значение
-            try:
-                return str(self.name).encode('utf-8', errors='replace').decode('utf-8')
-            except:
-                return f'Заказ #{self.id} (ошибка названия)'
-    
-    @property
-    def safe_comment(self):
-        """Безопасно возвращает комментарий заказа"""
-        try:
-            if self.comment:
-                # Проверяем, что комментарий может быть закодирован в UTF-8
-                self.comment.encode('utf-8')
-                return self.comment
-            else:
-                return ''
-        except (UnicodeEncodeError, UnicodeDecodeError):
-            # Если произошла ошибка кодировки, возвращаем безопасное значение
-            try:
-                return str(self.comment).encode('utf-8', errors='replace').decode('utf-8')
-            except:
-                return 'Ошибка загрузки комментария'

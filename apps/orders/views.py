@@ -24,18 +24,6 @@ class OrderViewSet(viewsets.ModelViewSet):
 	serializer_class = OrderSerializer
 	permission_classes = [permissions.IsAuthenticated]
 	
-	def get_queryset(self):
-		"""
-		Возвращает QuerySet с безопасной обработкой некорректных данных
-		"""
-		try:
-			# Пытаемся использовать стандартный QuerySet
-			return super().get_queryset()
-		except Exception as e:
-			# Если произошла ошибка, используем безопасный менеджер
-			print(f"Error in standard queryset, using safe manager: {e}")
-			return Order.objects.safe_all().select_related('client', 'workshop', 'product').prefetch_related('items__product', 'stages__workshop', 'order_defects__workshop').order_by('-created_at')
-
 	def update(self, request, *args, **kwargs):
 		instance = self.get_object()
 		data = request.data.copy()
