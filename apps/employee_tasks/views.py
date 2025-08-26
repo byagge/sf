@@ -36,22 +36,14 @@ def task_list(request):
 
 @login_required
 def task_detail(request, task_id):
-    """Детальная информация о задаче"""
-    user = request.user
-    
-    if user.is_helper():
-        task = get_object_or_404(HelperTask, id=task_id, helper=user)
-        template = 'helper_task_detail.html'
-    else:
-        task = get_object_or_404(EmployeeTask, id=task_id, employee=user)
-        template = 'task_detail.html'
-    
+    """Детальная информация о задаче (отрисовывается на клиенте)"""
+    # Флаг помощника: роль пользователя или query (?helper=1)
+    is_helper_flag = request.user.is_helper() or request.GET.get('helper') in ('1', 'true', 'True')
     context = {
-        'task': task,
-        'is_helper': user.is_helper()
+        'task_id': task_id,
+        'is_helper': is_helper_flag,
     }
-    
-    return render(request, template, context)
+    return render(request, 'task_detail.html', context)
 
 @login_required
 def stats_view(request):
