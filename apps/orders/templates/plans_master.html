@@ -151,19 +151,34 @@
                                                      :alt="stage.order_item.product.name"
                                              class="w-12 h-12 object-cover rounded border border-gray-200">
                                         </template>
-                                    <div class="flex-1">
-                                        <div class="text-sm font-medium text-gray-900" x-text="stage.order_item && stage.order_item.product ? stage.order_item.product.name : 'Товар не указан'"></div>
+                                                                        <div class="flex-1">
+                                        <div class="text-sm font-medium text-gray-900" x-text="stage.order_item && stage.order_item.product ? stage.order_item.product.name : (stage.products || 'Товары не указаны')"></div>
                                         <div class="text-xs text-gray-500">
                                             <template x-if="stage.order_item && stage.order_item.size">
                                                 <span x-text="stage.order_item.size"></span>
-                                        </template>
+                                            </template>
                                             <template x-if="stage.order_item && stage.order_item.color">
                                                 <span class="ml-1">• <span x-text="stage.order_item.color"></span></span>
-                                        </template>
+                                            </template>
                                             <template x-if="stage.order_item && stage.order_item.quantity && stage.order_item.quantity > 1">
                                                 <span class="ml-1">• <span x-text="stage.order_item.quantity"></span> шт.</span>
+                                            </template>
+                                            <template x-if="!stage.order_item && stage.total_quantity">
+                                                <span class="ml-1">• <span x-text="stage.total_quantity"></span> шт.</span>
+                                            </template>
+                                        </div>
+                                        <template x-if="!stage.order_item && stage.aggregated_items && stage.aggregated_items.length">
+                                            <div class="mt-1 space-y-0.5">
+                                                <template x-for="it in stage.aggregated_items" :key="it.id">
+                                                    <div class="text-xs text-gray-600">
+                                                        <span class="font-medium" x-text="it.product && it.product.name ? it.product.name : 'Товар'"></span>
+                                                        — <span x-text="it.quantity"></span> шт.
+                                                        <template x-if="it.size">• <span x-text="it.size"></span></template>
+                                                        <template x-if="it.color">• <span x-text="it.color"></span></template>
+                                                    </div>
+                                                </template>
+                                            </div>
                                         </template>
-                                    </div>
                                     </div>
                                 </div>
                                 
