@@ -255,19 +255,22 @@ def impersonate_user(request, user_id):
 
     # Save original user id to allow release later
     request.session['impersonator_id'] = request.user.id
-    from django.contrib.auth import login
-    login(request, target_user)
-    return redirect('/dashboard/')
+    from django.contrib.auth import login, get_backends
+    backend = get_backends()[0]
+    login(request, target_user, backend=f"{backend.__module__}.{backend.__class__.__name__}")
+    next_url = request.GET.get('next') or '/dashboard/'
+    return redirect(next_url)
 
 @login_required
 def release_impersonation(request):
     """Return to original admin user if impersonation session exists."""
     original_id = request.session.pop('impersonator_id', None)
     if original_id:
-        from django.contrib.auth import login
+        from django.contrib.auth import login, get_backends
         try:
             original_user = User.objects.get(pk=original_id)
-            login(request, original_user)
+            backend = get_backends()[0]
+            login(request, original_user, backend=f"{backend.__module__}.{backend.__class__.__name__}")
         except User.DoesNotExist:
             pass
     return redirect('/dashboard/')
