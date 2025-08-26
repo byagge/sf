@@ -146,12 +146,10 @@
                                 
                                 <!-- Товар и фото -->
                                 <div class="flex items-center space-x-3 mb-3">
-                                        <template x-if="item.product && item.product.img">
-                                            <div class="mb-1">
-                                                <img :src="item.product.img" 
-                                                    :alt="item.product.name"
-                                                    class="w-8 h-8 object-cover rounded border border-gray-200">
-                                            </div>
+                                    <template x-if="stage.order_item && stage.order_item.product && stage.order_item.product.img">
+                                                <img :src="stage.order_item.product.img" 
+                                                     :alt="stage.order_item.product.name"
+                                             class="w-12 h-12 object-cover rounded border border-gray-200">
                                         </template>
                                                                         <div class="flex-1">
                                         <div class="text-sm font-medium text-gray-900" x-text="stage.order_item && stage.order_item.product ? stage.order_item.product.name : (stage.products || 'Товары не указаны')"></div>
