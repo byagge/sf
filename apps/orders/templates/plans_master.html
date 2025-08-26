@@ -151,6 +151,11 @@
                                                      :alt="stage.order_item.product.name"
                                              class="w-12 h-12 object-cover rounded border border-gray-200">
                                         </template>
+                                        <template x-if="!stage.order_item && stage.aggregated_items && stage.aggregated_items.length && stage.aggregated_items[0].product && stage.aggregated_items[0].product.img">
+                                            <img :src="stage.aggregated_items[0].product.img"
+                                                 :alt="stage.aggregated_items[0].product.name"
+                                                 class="w-12 h-12 object-cover rounded border border-gray-200">
+                                        </template>
                                                                         <div class="flex-1">
                                         <div class="text-sm font-medium text-gray-900" x-text="stage.order_item && stage.order_item.product ? stage.order_item.product.name : (stage.products || 'Товары не указаны')"></div>
                                         <div class="text-xs text-gray-500">
