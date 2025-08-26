@@ -4,6 +4,48 @@ from django.utils import timezone
 
 # Create your models here.
 
+class SafeOrderManager(models.Manager):
+    """
+    Менеджер для безопасной работы с заказами, содержащими некорректные данные
+    """
+    
+    def safe_get_queryset(self):
+        """
+        Возвращает QuerySet с безопасной обработкой некорректных данных
+        """
+        queryset = super().get_queryset()
+        
+        # Добавляем аннотации для безопасного извлечения текстовых полей
+        from django.db.models import Case, When, Value, CharField
+        
+        queryset = queryset.annotate(
+            safe_name=Case(
+                When(name__isnull=True, then=Value('Без названия')),
+                default=models.functions.Cast('name', CharField()),
+                output_field=CharField(),
+            ),
+            safe_comment=Case(
+                When(comment__isnull=True, then=Value('')),
+                default=models.functions.Cast('comment', CharField()),
+                output_field=CharField(),
+            )
+        )
+        
+        return queryset
+    
+    def safe_all(self):
+        """
+        Безопасно возвращает все заказы
+        """
+        return self.safe_get_queryset()
+    
+    def safe_filter(self, **kwargs):
+        """
+        Безопасно фильтрует заказы
+        """
+        return self.safe_get_queryset().filter(**kwargs)
+
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('production', 'В производстве'),
@@ -21,6 +63,9 @@ class Order(models.Model):
     comment = models.CharField('Комментарий', max_length=255, blank=True)
     # Это поле будет вычисляться в будущем (расходы на сырье, услуги, браки)
     expenses = models.FloatField('Расходы', default=0, editable=False)
+
+    # Используем кастомный менеджер
+    objects = SafeOrderManager()
 
     class Meta:
         verbose_name = 'Заявка'
@@ -835,3 +880,37 @@ def create_stages_on_order(sender, instance, created, **kwargs):
         # Создаем этапы только если есть позиции заказа
         if instance.items.exists():
             create_order_stages(instance)
+
+    @property
+    def safe_name(self):
+        """Безопасно возвращает название заказа"""
+        try:
+            if self.name:
+                # Проверяем, что название может быть закодировано в UTF-8
+                self.name.encode('utf-8')
+                return self.name
+            else:
+                return 'Без названия'
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            # Если произошла ошибка кодировки, возвращаем безопасное значение
+            try:
+                return str(self.name).encode('utf-8', errors='replace').decode('utf-8')
+            except:
+                return f'Заказ #{self.id} (ошибка названия)'
+    
+    @property
+    def safe_comment(self):
+        """Безопасно возвращает комментарий заказа"""
+        try:
+            if self.comment:
+                # Проверяем, что комментарий может быть закодирован в UTF-8
+                self.comment.encode('utf-8')
+                return self.comment
+            else:
+                return ''
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            # Если произошла ошибка кодировки, возвращаем безопасное значение
+            try:
+                return str(self.comment).encode('utf-8', errors='replace').decode('utf-8')
+            except:
+                return 'Ошибка загрузки комментария'

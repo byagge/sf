@@ -448,11 +448,15 @@ class OrderSerializer(serializers.ModelSerializer):
     has_glass_items = serializers.BooleanField(read_only=True)
     glass_items = serializers.SerializerMethodField()
     regular_items = serializers.SerializerMethodField()
+    
+    # Добавляем безопасные поля
+    safe_name = serializers.CharField(source='safe_name', read_only=True)
+    safe_comment = serializers.CharField(source='safe_comment', read_only=True)
 
     class Meta:
         model = Order
         fields = [
-            'id', 'name', 'client', 'client_id', 'workshop', 'product', 'product_id', 
+            'id', 'name', 'safe_name', 'safe_comment', 'client', 'client_id', 'workshop', 'product', 'product_id', 
             'quantity', 'status', 'status_display', 'expenses', 'comment', 'created_at', 
             'stages', 'defects', 'items', 'items_data', 'total_done_count', 
             'total_defective_count', 'total_quantity', 'has_glass_items', 'glass_items', 'regular_items'
@@ -468,6 +472,12 @@ class OrderSerializer(serializers.ModelSerializer):
         """Безопасная сериализация с обработкой некорректных данных"""
         try:
             data = super().to_representation(instance)
+            
+            # Используем безопасные поля если они доступны
+            if hasattr(instance, 'safe_name') and instance.safe_name:
+                data['name'] = instance.safe_name
+            if hasattr(instance, 'safe_comment') and instance.safe_comment is not None:
+                data['comment'] = instance.safe_comment
             
             # Безопасно обрабатываем текстовые поля, которые могут содержать некорректные символы
             text_fields = ['name', 'comment']

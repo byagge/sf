@@ -1,6 +1,9 @@
 import json
 from rest_framework.renderers import JSONRenderer
 from django.core.serializers.json import DjangoJSONEncoder
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SafeJSONRenderer(JSONRenderer):
@@ -20,39 +23,85 @@ class SafeJSONRenderer(JSONRenderer):
             return super().render(data, accepted_media_type, renderer_context)
         except (UnicodeDecodeError, UnicodeEncodeError, TypeError) as e:
             # Если произошла ошибка кодировки, очищаем данные и сериализуем заново
-            print(f"JSON serialization error: {e}")
-            cleaned_data = self._clean_data(data)
-            return json.dumps(cleaned_data, cls=DjangoJSONEncoder, ensure_ascii=False).encode('utf-8')
+            logger.error(f"JSON serialization error: {e}")
+            try:
+                cleaned_data = self._clean_data(data)
+                return json.dumps(cleaned_data, cls=DjangoJSONEncoder, ensure_ascii=False).encode('utf-8')
+            except Exception as cleanup_error:
+                logger.error(f"Error during data cleanup: {cleanup_error}")
+                # Возвращаем минимальную информацию об ошибке
+                error_data = {
+                    'error': 'Ошибка загрузки данных',
+                    'detail': 'Произошла ошибка при обработке данных. Обратитесь к администратору.',
+                    'status': 'error'
+                }
+                return json.dumps(error_data, ensure_ascii=False).encode('utf-8')
+        except Exception as e:
+            # Обрабатываем любые другие ошибки
+            logger.error(f"Unexpected error in JSON renderer: {e}")
+            try:
+                # Пытаемся очистить данные и сериализовать
+                cleaned_data = self._clean_data(data)
+                return json.dumps(cleaned_data, cls=DjangoJSONEncoder, ensure_ascii=False).encode('utf-8')
+            except Exception as cleanup_error:
+                logger.error(f"Error during emergency cleanup: {cleanup_error}")
+                # Возвращаем минимальную информацию об ошибке
+                error_data = {
+                    'error': 'Критическая ошибка сервера',
+                    'detail': 'Произошла непредвиденная ошибка. Обратитесь к администратору.',
+                    'status': 'critical_error'
+                }
+                return json.dumps(error_data, ensure_ascii=False).encode('utf-8')
     
     def _clean_data(self, data):
         """
         Рекурсивно очищает данные от некорректных символов
         """
-        if isinstance(data, dict):
-            cleaned = {}
-            for key, value in data.items():
+        try:
+            if isinstance(data, dict):
+                cleaned = {}
+                for key, value in data.items():
+                    try:
+                        cleaned_key = self._clean_value(key)
+                        cleaned_value = self._clean_data(value)
+                        cleaned[cleaned_key] = cleaned_value
+                    except Exception as e:
+                        logger.error(f"Error cleaning dict key/value: {e}")
+                        cleaned[f"error_key_{id(key)}"] = "Ошибка загрузки"
+                return cleaned
+            
+            elif isinstance(data, list):
+                cleaned = []
+                for item in data:
+                    try:
+                        cleaned_item = self._clean_data(item)
+                        cleaned.append(cleaned_item)
+                    except Exception as e:
+                        logger.error(f"Error cleaning list item: {e}")
+                        cleaned.append("Ошибка загрузки")
+                return cleaned
+            
+            elif hasattr(data, '__iter__') and not isinstance(data, (str, bytes)):
+                # Обрабатываем другие итерируемые объекты (например, QuerySet)
                 try:
-                    cleaned_key = self._clean_value(key)
-                    cleaned_value = self._clean_data(value)
-                    cleaned[cleaned_key] = cleaned_value
+                    cleaned = []
+                    for item in data:
+                        try:
+                            cleaned_item = self._clean_data(item)
+                            cleaned.append(cleaned_item)
+                        except Exception as e:
+                            logger.error(f"Error cleaning iterable item: {e}")
+                            cleaned.append("Ошибка загрузки")
+                    return cleaned
                 except Exception as e:
-                    print(f"Error cleaning dict key/value: {e}")
-                    cleaned[f"error_key_{id(key)}"] = "Ошибка загрузки"
-            return cleaned
-        
-        elif isinstance(data, list):
-            cleaned = []
-            for item in data:
-                try:
-                    cleaned_item = self._clean_data(item)
-                    cleaned.append(cleaned_item)
-                except Exception as e:
-                    print(f"Error cleaning list item: {e}")
-                    cleaned.append("Ошибка загрузки")
-            return cleaned
-        
-        else:
-            return self._clean_value(data)
+                    logger.error(f"Error processing iterable: {e}")
+                    return ["Ошибка обработки данных"]
+            
+            else:
+                return self._clean_value(data)
+        except Exception as e:
+            logger.error(f"Critical error in _clean_data: {e}")
+            return "Критическая ошибка очистки данных"
     
     def _clean_value(self, value):
         """
@@ -69,18 +118,34 @@ class SafeJSONRenderer(JSONRenderer):
                 # Если это строка, проверяем корректность
                 value.encode('utf-8')  # Проверяем, что можно закодировать
                 return value
-            else:
-                # Для других типов данных возвращаем как есть
+            elif isinstance(value, (int, float, bool)):
+                # Для примитивных типов возвращаем как есть
                 return value
+            elif hasattr(value, 'isoformat'):
+                # Для дат используем ISO формат
+                try:
+                    return value.isoformat()
+                except:
+                    return str(value)
+            else:
+                # Для других типов данных пытаемся преобразовать в строку
+                return str(value)
         except (UnicodeDecodeError, UnicodeEncodeError):
             # Если произошла ошибка, заменяем некорректные символы
-            if isinstance(value, bytes):
-                return value.decode('utf-8', errors='replace')
-            elif isinstance(value, str):
-                return value.encode('utf-8', errors='replace').decode('utf-8')
-            else:
-                return str(value).encode('utf-8', errors='replace').decode('utf-8')
+            try:
+                if isinstance(value, bytes):
+                    return value.decode('utf-8', errors='replace')
+                elif isinstance(value, str):
+                    return value.encode('utf-8', errors='replace').decode('utf-8')
+                else:
+                    return str(value).encode('utf-8', errors='replace').decode('utf-8')
+            except Exception as e:
+                logger.error(f"Error in fallback cleaning: {e}")
+                return f"Ошибка загрузки ({type(value).__name__})"
         except Exception as e:
             # Для любых других ошибок возвращаем строку с ошибкой
-            print(f"Error cleaning value {type(value)}: {e}")
-            return f"Ошибка загрузки ({type(value).__name__})" 
+            logger.error(f"Error cleaning value {type(value)}: {e}")
+            try:
+                return str(value).encode('utf-8', errors='replace').decode('utf-8')
+            except:
+                return f"Ошибка загрузки ({type(value).__name__})" 

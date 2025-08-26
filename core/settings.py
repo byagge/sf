@@ -70,7 +70,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.SessionMiddleware',
+    # 'django.contrib.messages.middleware.SessionMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.RoleBasedRedirectMiddleware',  # Middleware для редиректа на основе ролей
     'core.middleware.AuthenticationErrorMiddleware',  # Middleware для обработки ошибок аутентификации
