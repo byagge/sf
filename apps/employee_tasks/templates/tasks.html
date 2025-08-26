@@ -88,7 +88,7 @@
                 </template>
                 
                 <template x-for="task in filteredTasks" :key="task.id">
-                    <a :href="`/employee_tasks/tasks/${task.id}/`" class="block">
+                    <a :href="`${'/employee_tasks/tasks/' + task.id + '/'}${is_helper ? '?helper=1' : ''}`" class="block">
                         <div class="card bg-white rounded-lg p-3 mb-3 flex items-start space-x-3 cursor-pointer hover:shadow-md transition-shadow duration-200 mobile-card"
                              :class="isTaskOverdue(task) ? 'bg-red-50 border-l-4 border-l-red-400' : ''">
                             <!-- Checkbox -->
