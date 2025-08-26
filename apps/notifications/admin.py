@@ -11,7 +11,7 @@ from .models import (
 @admin.register(NotificationType)
 class NotificationTypeAdmin(admin.ModelAdmin):
     """Административный интерфейс для типов уведомлений"""
-    list_display = ['name', 'code', 'icon', 'color', 'is_active', 'created_at']
+    list_display = ['name', 'code', 'icon', 'color', 'is_active']
     list_filter = ['is_active', 'color']
     search_fields = ['name', 'code', 'description']
     ordering = ['name']
@@ -198,25 +198,14 @@ class NotificationLogAdmin(admin.ModelAdmin):
                 'admin:notifications_notification_change', 
                 args=[obj.notification.id]
             )
-            return format_html(
-                '<a href="{}">{}</a>', 
-                url, 
-                obj.notification.title[:50]
-            )
-        return "Уведомление удалено"
+            return format_html('<a href="{}">{}</a>', url, obj.notification.title)
+        return '-'
     notification_title.short_description = 'Уведомление'
     
     def error_display(self, obj):
-        """Отображение ошибок"""
-        if obj.error_message:
-            return format_html(
-                '<span style="color: red;" title="{}">Ошибка</span>',
-                obj.error_message
-            )
-        return format_html(
-            '<span style="color: green;">Успешно</span>'
-        )
-    error_display.short_description = 'Статус'
+        """Отображение ошибки доставки с форматированием"""
+        return mark_safe(f'<div style="white-space:pre-wrap;">{obj.error_message or "-"}</div>')
+    error_display.short_description = 'Ошибка'
     
     def get_queryset(self, request):
         """Оптимизация запросов"""
