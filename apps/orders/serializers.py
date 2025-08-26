@@ -450,8 +450,8 @@ class OrderSerializer(serializers.ModelSerializer):
     regular_items = serializers.SerializerMethodField()
     
     # Добавляем безопасные поля
-    safe_name = serializers.CharField(source='safe_name', read_only=True)
-    safe_comment = serializers.CharField(source='safe_comment', read_only=True)
+    safe_name = serializers.CharField(read_only=True)
+    safe_comment = serializers.CharField(read_only=True)
 
     class Meta:
         model = Order
