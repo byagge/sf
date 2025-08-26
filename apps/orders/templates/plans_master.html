@@ -1306,152 +1306,76 @@
         </div>
     </template>
     
-    <!-- Assign Modal -->
+    <!-- Assign Modal (Bulk like mark completion) -->
     <template x-if="showAssignModal">
         <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showAssignModal = false">
             <div class="modal-content bg-white rounded-t-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-bold text-gray-900">Назначить сотрудника</h2>
+                    <h2 class="text-lg font-bold text-gray-900">Распределить работу</h2>
                     <button @click="showAssignModal = false" class="text-gray-400 hover:text-gray-600">
                         <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                 </div>
-                                <form @submit.prevent="submitAssign" class="space-y-4">
-                    <!-- Детальная информация о заказе -->
+                <form @submit.prevent="submitAssign" class="space-y-4">
+                    <!-- Инфо по заказу -->
                     <template x-if="assignForm.stage_id">
                         <div class="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                            <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
-                            <template x-if="stages.find(s => s.id === assignForm.stage_id)">
-                                <div class="space-y-1 text-xs text-blue-700">
-                                    <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order">
-                                        <div><span class="font-medium">Заявка:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.name || 'Не указано'"></span></div>
-                                        <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order.client">
-                                            <div><span class="font-medium">Клиент:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.client.name || 'Не указан'"></span></div>
-                                        </template>
-                                        <div><span class="font-medium">Дата создания:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.created_at ? new Date(stages.find(s => s.id === assignForm.stage_id).order_item.order.created_at).toLocaleDateString('ru-RU') : 'Не указана'"></span></div>
-                                        <div><span class="font-medium">Статус заказа:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.status_display || 'Не указан'"></span></div>
-                                        <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item.order.comment">
-                                            <div><span class="font-medium">Комментарий:</span> <span x-text="stages.find(s => s.id === assignForm.stage_id).order_item.order.comment"></span></div>
-                                        </template>
-                                    </template>
+                            <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе</div>
+                            <div class="text-xs text-blue-700">
+                                <div class="flex justify-between">
+                                    <span class="font-medium">План:</span>
+                                    <span x-text="getPlanQuantity(stages.find(s => s.id === assignForm.stage_id))"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Уже назначено:</span>
+                                    <span x-text="(stages.find(s => s.id === assignForm.stage_id)?.assigned || []).reduce((sum,a)=>sum+a.quantity,0)"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="font-medium">Доступно:</span>
+                                    <span x-text="maxAssignableQuantity"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Список сотрудников с вводом количества -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Сотрудники</label>
+                        <template x-if="filteredEmployees.length === 0">
+                            <div class="text-gray-400 text-sm">Нет доступных сотрудников</div>
+                        </template>
+                        <div class="space-y-2">
+                            <template x-for="emp in filteredEmployees" :key="emp.id">
+                                <div class="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                                    <div class="text-sm font-medium text-gray-900" x-text="emp.name"></div>
+                                    <div class="flex items-center space-x-2">
+                                        <button type="button" @click="bulkAssign[emp.id] = Math.max(0, (parseInt(bulkAssign[emp.id])||0) - 1)" class="w-8 h-8 rounded bg-white border border-gray-300 text-blue-600">-</button>
+                                        <input type="number" class="w-16 text-center px-2 py-1 border border-gray-300 rounded"
+                                            x-model="bulkAssign[emp.id]"
+                                            @blur="bulkAssign[emp.id] = Math.max(0, parseInt(bulkAssign[emp.id]) || 0)"
+                                            min="0" placeholder="0">
+                                        <button type="button" @click="bulkAssign[emp.id] = Math.min(maxAssignableQuantity - totalBulkAssign, (parseInt(bulkAssign[emp.id])||0) + 1)" class="w-8 h-8 rounded bg-white border border-gray-300 text-blue-600">+</button>
+                                    </div>
                                 </div>
                             </template>
                         </div>
-                    </template>
-                    
-                    <!-- Информация о товарах заказа -->
-                    <div>
-                                                        <label class="block text-sm font-medium text-gray-700 mb-1">Товары заказа</label>
-                                <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
-                                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                        <div class="text-xs font-medium text-gray-700 mb-2">Все товары будут назначены разом:</div>
-                                        <div class="space-y-2">
-                                            <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items && Array.isArray(stages.find(s => s.id === assignForm.stage_id).order_item.order.items)">
-                                                <template x-for="item in stages.find(s => s.id === assignForm.stage_id).order_item.order.items" :key="item.id">
-                                                    <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200">
-                                                        <div class="flex items-center space-x-2">
-                                                            <template x-if="item.product && item.product.img">
-                                                                <img :src="item.product.img" :alt="item.product.name" class="w-8 h-8 object-cover rounded border border-gray-200">
-                                                            </template>
-                                                            <div>
-                                                                <div class="text-sm font-medium text-gray-900" x-text="item.product && item.product.name ? item.product.name : 'Не указан'"></div>
-                                                                <div class="text-xs text-gray-600">
-                                                                    <span x-text="item.quantity"></span> шт.
-                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
-                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="text-xs text-gray-500">
-                                                            <span x-text="item.quantity"></span> шт.
-                                                        </div>
-                                                    </div>
-                                                </template>
-                                            </template>
-                                            <template x-if="!(stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items) && stages.find(s => s.id === assignForm.stage_id).aggregated_items && stages.find(s => s.id === assignForm.stage_id).aggregated_items.length">
-                                                <template x-for="item in stages.find(s => s.id === assignForm.stage_id).aggregated_items" :key="item.id">
-                                                    <div class="flex items-center justify-between p-2 bg-white rounded border border-gray-200">
-                                                        <div class="flex items-center space-x-2">
-                                                            <template x-if="item.product && item.product.img">
-                                                                <img :src="item.product.img" :alt="item.product.name" class="w-8 h-8 object-cover rounded border border-gray-200">
-                                                            </template>
-                                                            <div>
-                                                                <div class="text-sm font-medium text-gray-900" x-text="item.product && item.product.name ? item.product.name : 'Не указан'"></div>
-                                                                <div class="text-xs text-gray-600">
-                                                                    <span x-text="item.quantity"></span> шт.
-                                                                    <template x-if="item.size"> • <span x-text="item.size"></span></template>
-                                                                    <template x-if="item.color"> • <span x-text="item.color"></span></template>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="text-xs text-gray-500">
-                                                            <span x-text="item.quantity"></span> шт.
-                                                        </div>
-                                                    </div>
-                                                </template>
-                                            </template>
-                                        </div>
-                                        <div class="mt-2 text-xs text-gray-600">
-                                            <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
-                                            Все товары заказа будут назначены сотруднику одновременно
-                                        </div>
-                                    </div>
-                                </template>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Сотрудник <span class="text-red-500">*</span></label>
-                        <template x-if="filteredEmployees.length > 0">
-                            <select x-model.number="assignForm.employee_id" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                <option value="" disabled>Выберите сотрудника</option>
-                                <template x-for="emp in filteredEmployees" :key="emp.id">
-                                    <option :value="emp.id" x-text="emp.name"></option>
-                                </template>
-                            </select>
-                        </template>
-                        <template x-if="filteredEmployees.length === 0">
-                            <div class="text-gray-400 text-sm py-2">Нет доступных сотрудников</div>
-                        </template>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Количество <span class="text-red-500">*</span></label>
-                        <div class="flex items-center space-x-2">
-                            <button type="button" @click="assignForm.quantity = Math.max(1, assignForm.quantity - 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center hover:bg-gray-200 transition-colors">-</button>
-                            <input type="number" 
-                                   x-model="assignForm.quantity" 
-                                   class="w-20 text-center px-2 py-2 border border-gray-300 rounded-lg text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                                   required 
-                                   placeholder="1"
-                                   @blur="assignForm.quantity = Math.max(1, Math.min(parseInt(assignForm.quantity) || 1, maxAssignableQuantity))">
-                            <button type="button" @click="assignForm.quantity = Math.min(maxAssignableQuantity, assignForm.quantity + 1)" class="w-10 h-10 rounded-full bg-gray-100 text-2xl font-bold text-blue-600 flex items-center justify-center hover:bg-gray-200 transition-colors">+</button>
-                        </div>
-                        <div class="text-xs mt-1" :class="maxAssignableQuantity <= 5 ? 'text-red-500 font-semibold' : 'text-gray-500'">
-                            Доступно для назначения: <span x-text="maxAssignableQuantity"></span>
-                            <template x-if="assignForm.stage_id && stages.find(s => s.id === assignForm.stage_id)">
-                                <template x-if="stages.find(s => s.id === assignForm.stage_id).order_item && stages.find(s => s.id === assignForm.stage_id).order_item.order && stages.find(s => s.id === assignForm.stage_id).order_item.order.items">
-                                    <span class="ml-1 text-blue-600">
-                                        (из <span x-text="(() => {
-                                            const stage = stages.find(s => s.id === assignForm.stage_id);
-                                            let totalOrderItemsQuantity = 0;
-                                            if (stage && stage.order_item && stage.order_item.order && stage.order_item.order.items) {
-                                                totalOrderItemsQuantity = stage.order_item.order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                                            }
-                                            return totalOrderItemsQuantity > 0 ? totalOrderItemsQuantity : stage.plan_quantity;
-                                        })()"></span> товаров заказа)
-                                    </span>
-                                </template>
-                            </template>
-                            <template x-if="maxAssignableQuantity <= 5 && maxAssignableQuantity > 0">
-                                <span class="ml-1">⚠️ Осталось мало!</span>
-                            </template>
-                            <template x-if="maxAssignableQuantity === 0">
-                                <span class="ml-1">❌ Все назначено!</span>
+                        <div class="text-xs mt-2" :class="totalBulkAssign > maxAssignableQuantity ? 'text-red-600' : 'text-gray-500'">
+                            Выбрано к назначению: <span x-text="totalBulkAssign"></span> / <span x-text="maxAssignableQuantity"></span>
+                            <template x-if="totalBulkAssign > maxAssignableQuantity">
+                                <span class="ml-1">— превышает доступное</span>
                             </template>
                         </div>
                     </div>
-                    <div class="flex justify-end space-x-3 pt-4">
+
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 text-xs text-blue-800">
+                        <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
+                        Назначения будут созданы одним действием. Нельзя превышать план.
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-2">
                         <button type="button" @click="showAssignModal = false" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
-                        <button type="submit" data-submit-assign class="px-6 py-3 bg-blue-600 text-white rounded-lg" :disabled="assignForm.quantity > maxAssignableQuantity || assignForm.quantity < 1 || isSubmitting">
+                        <button type="submit" data-submit-assign class="px-6 py-3 bg-blue-600 text-white rounded-lg"
+                                :disabled="isSubmitting || totalBulkAssign < 1 || totalBulkAssign > maxAssignableQuantity">
                             <template x-if="isSubmitting">
                                 <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
                             </template>
@@ -2075,6 +1999,7 @@
             selectedStage: null,
             showAssignModal: false,
             assignForm: { stage_id: null, order_item_id: null, employee_id: '', quantity: 1 },
+            bulkAssign: {},
             showEditAssignModal: false,
             editAssignForm: { id: null, stage_id: null, employee_id: '', employee_name: '', quantity: 1 },
             showTransferModal: false,
@@ -2278,6 +2203,10 @@
                 // Нельзя назначать больше плана
                 return available;
             },
+            get totalBulkAssign() {
+                if (!this.bulkAssign) return 0;
+                return Object.values(this.bulkAssign).reduce((sum, v) => sum + (parseInt(v) || 0), 0);
+            },
             get maxEditableQuantity() {
                 const stage = this.stages.find(s => s.id === this.editAssignForm.stage_id);
                 if (!stage) return 1;
@@ -2344,12 +2273,9 @@
                     return;
                 }
                 
-                // Устанавливаем форму для назначения всех товаров разом
-                this.assignForm = { 
-                    stage_id: stage.id, 
-                    employee_id: '', 
-                    quantity: 1 
-                };
+                // Инициализируем форму и bulkAssign
+                this.assignForm = { stage_id: stage.id, employee_id: '', quantity: 1 };
+                this.bulkAssign = {};
                 
                 // Закрываем модальное окно быстрого управления назначениями, если оно открыто
                 if (this.showQuickAssignmentsModal) {

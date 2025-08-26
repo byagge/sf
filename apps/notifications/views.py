@@ -168,6 +168,51 @@ class NotificationViewSet(viewsets.ModelViewSet):
         return Response({'marked_count': qs.count()})
 
 
+class NotificationTypeViewSet(viewsets.ModelViewSet):
+	"""API для типов уведомлений"""
+	queryset = NotificationType.objects.filter(is_active=True).order_by('name', 'id')
+	serializer_class = NotificationTypeSerializer
+	permission_classes = [IsAuthenticated]
+	filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+	search_fields = ['name', 'code', 'description']
+	ordering_fields = ['name', 'code']
+
+
+class NotificationTemplateViewSet(viewsets.ModelViewSet):
+	"""API для шаблонов уведомлений"""
+	queryset = NotificationTemplate.objects.filter(is_active=True).order_by('name', 'id')
+	serializer_class = NotificationTemplateSerializer
+	permission_classes = [IsAuthenticated]
+	filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+	search_fields = ['name', 'title_template', 'message_template']
+	ordering_fields = ['name', 'created_at']
+
+
+class NotificationGroupViewSet(viewsets.ModelViewSet):
+	"""API для групп уведомлений"""
+	queryset = NotificationGroup.objects.filter(is_active=True).order_by('name', 'id')
+	serializer_class = NotificationGroupSerializer
+	permission_classes = [IsAuthenticated]
+	filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+	search_fields = ['name', 'description']
+	ordering_fields = ['name', 'created_at']
+
+
+class NotificationPreferenceViewSet(viewsets.ModelViewSet):
+	"""API для настроек уведомлений"""
+	serializer_class = NotificationPreferenceSerializer
+	permission_classes = [IsAuthenticated]
+	
+	def get_queryset(self):
+		return NotificationPreference.objects.filter(user=self.request.user).order_by('-created_at', 'id')
+	
+	def get_object(self):
+		obj, created = NotificationPreference.objects.get_or_create(
+			user=self.request.user
+		)
+		return obj
+
+
 # ==================== UTILITY VIEWS ====================
 
 @login_required
