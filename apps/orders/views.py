@@ -16,6 +16,8 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Count, F
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
+from apps.employee_tasks.models import EmployeeTask
+from apps.employees.models import User
 
 # Create your views here.
 
@@ -428,12 +430,10 @@ class DashboardOverviewAPIView(APIView):
 		# Продажи — сумма quantity по всем позициям
 		product_sales = OrderItem.objects.aggregate(total=Sum('quantity'))['total'] or 0
 		# Брак — сумма quantity по всем OrderDefect + сумма defective_quantity по всем EmployeeTask
-		from apps.employee_tasks.models import EmployeeTask
 		order_defects_total = OrderDefect.objects.aggregate(total=Sum('quantity'))['total'] or 0
 		employee_tasks_defects_total = EmployeeTask.objects.aggregate(total=Sum('defective_quantity'))['total'] or 0
 		defective_products = order_defects_total + employee_tasks_defects_total
 		# Сотрудники — всего
-		from apps.employees.models import User
 		total_employees = User.objects.count()
 		return Response({
 			'total_income': total_income,
@@ -465,7 +465,6 @@ class DashboardRevenueChartAPIView(APIView):
 			# Доход за день — по позициям, относящимся к заказам этого дня
 			day_income = OrderItem.objects.filter(order__in=day_orders).aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
 			# Брак: сумма из OrderDefect + сумма defective_quantity из EmployeeTask за этот день
-			from apps.employee_tasks.models import EmployeeTask
 			day_order_defects = OrderDefect.objects.filter(date__date=day.date()).aggregate(total=Sum('quantity'))['total'] or 0
 			day_employee_defects = EmployeeTask.objects.filter(created_at__date=day.date()).aggregate(total=Sum('defective_quantity'))['total'] or 0
 			day_defects = day_order_defects + day_employee_defects
