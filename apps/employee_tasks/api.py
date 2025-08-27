@@ -13,14 +13,12 @@ User = get_user_model()
  
 class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
     queryset = EmployeeTask.objects.all().order_by('-created_at', 'id')
-    serializer_class = EmployeeTaskSerializer
- 
+    serializer_class = EmployeeTaskSerializer 
     
     def create(self, request, *args, **kwargs):
         try:
             from django.db.models import Sum
             from apps.orders.models import OrderStage
-            from decimal import Decimal
             
             stage_id = request.data.get('stage')
             employee_id = request.data.get('employee')
@@ -28,14 +26,6 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 quantity = int(request.data.get('quantity', 0))
             except Exception:
                 quantity = 0
-            # Поддержка обоих названий поля
-            custom_service_price = request.data.get('custom_service_price')
-            if custom_service_price is None:
-                custom_service_price = request.data.get('price')
-            try:
-                custom_service_price = (Decimal(str(custom_service_price)) if custom_service_price not in (None, '',) else None)
-            except Exception:
-                return Response({'error': 'Неверный формат цены'}, status=400)
             
             if not stage_id or not employee_id:
                 return Response({'error': 'Необходимо указать stage и employee'}, status=400)
@@ -74,8 +64,7 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 stage=stage,
                 employee=employee,
                 defaults={
-                    'quantity': quantity,
-                    'custom_service_price': custom_service_price
+                    'quantity': quantity
                 }
             )
             if not created:
@@ -85,61 +74,11 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 already_assigned_excluding_current = (already_assigned - int(task.quantity or 0))
                 max_allowed_for_task = max(0, plan - already_assigned_excluding_current)
                 task.quantity = min(new_qty, max_allowed_for_task)
-                # Обновляем кастомную цену, если передана
-                if custom_service_price is not None:
-                    task.custom_service_price = custom_service_price
-                task.save(update_fields=['quantity', 'custom_service_price'] if custom_service_price is not None else ['quantity'])
+                task.save(update_fields=['quantity'])
             
             serializer = self.get_serializer(task)
             status_code = 201 if created else 200
             return Response(serializer.data, status=status_code)
-        except Exception as e:
-            return Response({'error': str(e)}, status=500)
-
-    def partial_update(self, request, *args, **kwargs):
-        try:
-            from decimal import Decimal
-            task = self.get_object()
-            # Разрешаем обновление количества, выполненного/брака и индивидуальной цены
-            data = request.data or {}
-            fields_to_update = []
-            if 'quantity' in data:
-                try:
-                    task.quantity = int(data.get('quantity') or 0)
-                    fields_to_update.append('quantity')
-                except Exception:
-                    return Response({'error': 'Неверное количество'}, status=400)
-            if 'completed_quantity' in data:
-                try:
-                    task.completed_quantity = int(data.get('completed_quantity') or 0)
-                    fields_to_update.append('completed_quantity')
-                except Exception:
-                    return Response({'error': 'Неверное выполненное количество'}, status=400)
-            if 'defective_quantity' in data:
-                try:
-                    task.defective_quantity = int(data.get('defective_quantity') or 0)
-                    fields_to_update.append('defective_quantity')
-                except Exception:
-                    return Response({'error': 'Неверное количество брака'}, status=400)
-            # Поддержка обоих названий поля
-            custom_service_price = data.get('custom_service_price')
-            if custom_service_price is None and 'price' in data:
-                custom_service_price = data.get('price')
-            if custom_service_price is not None:
-                if custom_service_price == '' or custom_service_price is None:
-                    task.custom_service_price = None
-                else:
-                    try:
-                        task.custom_service_price = Decimal(str(custom_service_price))
-                    except Exception:
-                        return Response({'error': 'Неверный формат цены'}, status=400)
-                fields_to_update.append('custom_service_price')
-            
-            if not fields_to_update:
-                return Response({'error': 'Нет данных для обновления'}, status=400)
-            task.save(update_fields=fields_to_update)
-            serializer = self.get_serializer(task)
-            return Response(serializer.data)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
 

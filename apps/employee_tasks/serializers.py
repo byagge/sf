@@ -18,8 +18,7 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
             'id', 'stage', 'employee', 'employee_name', 'quantity', 'completed_quantity', 
             'defective_quantity', 'done_quantity', 'stage_name', 'order_item', 'workshop_info',
             'created_at', 'completed_at', 'earnings', 'penalties', 'net_earnings',
-            'is_completed', 'title', 'plan_quantity', 'started_at',
-            'custom_service_price'
+            'is_completed', 'title', 'plan_quantity', 'started_at'
         ]
 
     def get_done_quantity(self, obj):
