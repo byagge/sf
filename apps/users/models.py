@@ -89,7 +89,7 @@ class User(AbstractUser):
 
     def get_balance_display(self):
         """Возвращает отформатированный баланс для отображения"""
-        return f"{self.balance:,.2f} ₽"
+        return f"{self.balance:,.2f} сомов"
 
     def generate_username(self):
         """Генерирует username из имени и фамилии"""

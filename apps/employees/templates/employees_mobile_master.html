@@ -148,7 +148,7 @@
                                 <div class="text-xs text-gray-500">Браков</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-sm font-semibold text-blue-600" x-text="(employee.balance === null || employee.balance === undefined ? '0' : formatCurrency(employee.balance)) + ' сомов'">0 сомов</div>
+                                <div class="text-sm font-semibold text-blue-600" x-text="formatCurrency(employee.balance || 0) + ' сомов'">0 сомов</div>
                                 <div class="text-xs text-gray-500">Баланс</div>
                             </div>
                         </div>
