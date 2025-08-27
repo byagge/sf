@@ -632,13 +632,13 @@
                     return;
                 }
                 
-                                    const requestBody = {
-                        is_repairable: this.selectedDefect.is_repairable,
-                        defect_type: this.selectedDefect.defect_type,
-                        target_workshop_id: this.selectedDefect.target_workshop_id,
+                const requestBody = {
+                    is_repairable: this.selectedDefect.is_repairable,
+                    defect_type: this.selectedDefect.defect_type,
+                    target_workshop_id: this.selectedDefect.target_workshop_id,
                         comment: this.selectedDefect.comment || '',
                         penalty_amount: (this.selectedDefect.defect_type === 'manual' && this.selectedDefect.is_repairable === false) ? this.selectedDefect.penalty_amount : null
-                    };
+                };
                 
                 try {
                     const response = await fetch(`/defects/api/defects/${this.selectedDefect.id}/confirm/`, {
