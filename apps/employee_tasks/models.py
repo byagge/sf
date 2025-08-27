@@ -22,6 +22,9 @@ class EmployeeTask(models.Model):
     penalties = models.DecimalField('Штрафы', max_digits=10, decimal_places=2, default=0)
     net_earnings = models.DecimalField('Чистый заработок', max_digits=10, decimal_places=2, default=0)
     
+    # Пользовательская цена за единицу для данного назначения (перекрывает цену услуги)
+    custom_unit_price = models.DecimalField('Индивидуальная цена за единицу', max_digits=10, decimal_places=2, null=True, blank=True)
+    
     # Связь с услугой через цех
     @property
     def service(self):
@@ -61,14 +64,23 @@ class EmployeeTask(models.Model):
         BASE_RATE = Decimal('100.00')  # 100 рублей за единицу
         BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
         
-        if self.service:
-            # Используем цены из услуги
-            service_price = self.service.service_price
-            penalty_rate = self.service.defect_penalty
+        # Если установлена индивидуальная цена от мастера — используем её
+        if self.custom_unit_price is not None:
+            service_price = Decimal(str(self.custom_unit_price))
+            # Штраф берём из услуги, если доступен, иначе базовый
+            if self.service:
+                penalty_rate = self.service.defect_penalty
+            else:
+                penalty_rate = BASE_PENALTY_RATE
         else:
-            # Используем базовые ставки
-            service_price = BASE_RATE
-            penalty_rate = BASE_PENALTY_RATE
+            if self.service:
+                # Используем цены из услуги
+                service_price = self.service.service_price
+                penalty_rate = self.service.defect_penalty
+            else:
+                # Используем базовые ставки
+                service_price = BASE_RATE
+                penalty_rate = BASE_PENALTY_RATE
         
         # Заработок за выполненную работу
         self.earnings = Decimal(str(self.completed_quantity)) * service_price

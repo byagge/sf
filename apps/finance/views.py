@@ -19,6 +19,8 @@ from .forms import (
 )
 from .forms import DebtForm, DebtPaymentForm
 from .models import Debt, DebtPayment
+from .models import AccountingAccount, JournalEntry, JournalEntryLine
+from .forms import AccountingAccountForm, JournalEntryForm, JournalEntryLineForm
 
 # Главная страница финансовой системы
 @login_required
@@ -838,3 +840,94 @@ def debt_delete(request, pk):
         messages.success(request, 'Долг удален')
         return redirect('finance:debts')
     return render(request, 'finance/confirm_delete.html', {'object': debt, 'title': 'Удалить долг'})
+
+@login_required
+def accounts(request):
+	qs = AccountingAccount.objects.select_related('parent').order_by('code')
+	return render(request, 'finance/accounts.html', {'accounts': qs})
+
+@login_required
+def account_create(request):
+	if request.method == 'POST':
+		form = AccountingAccountForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Счет создан')
+			return redirect('finance:accounts')
+	else:
+		form = AccountingAccountForm()
+	return render(request, 'finance/account_form.html', {'form': form, 'title': 'Новый счет'})
+
+@login_required
+def account_edit(request, pk):
+	acc = get_object_or_404(AccountingAccount, pk=pk)
+	if request.method == 'POST':
+		form = AccountingAccountForm(request.POST, instance=acc)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Счет обновлен')
+			return redirect('finance:accounts')
+	else:
+		form = AccountingAccountForm(instance=acc)
+	return render(request, 'finance/account_form.html', {'form': form, 'title': 'Редактирование счета'})
+
+@login_required
+def journal_entries(request):
+	entries = JournalEntry.objects.prefetch_related('lines__account').order_by('-date', '-created_at')
+	return render(request, 'finance/journal_entries.html', {'entries': entries})
+
+@login_required
+def journal_entry_create(request):
+	if request.method == 'POST':
+		form = JournalEntryForm(request.POST)
+		line_form = JournalEntryLineForm(request.POST, prefix='line')
+		if form.is_valid() and line_form.is_valid():
+			entry = form.save(commit=False)
+			entry.created_by = request.user
+			entry.save()
+			line = line_form.save(commit=False)
+			line.entry = entry
+			line.save()
+			messages.success(request, 'Операция создана')
+			return redirect('finance:journal_entries')
+	else:
+		form = JournalEntryForm()
+		line_form = JournalEntryLineForm(prefix='line')
+	return render(request, 'finance/journal_entry_form.html', {'form': form, 'line_form': line_form, 'title': 'Новая операция'})
+
+@login_required
+def journal_entry_add_line(request, pk):
+	entry = get_object_or_404(JournalEntry, pk=pk)
+	if request.method == 'POST':
+		form = JournalEntryLineForm(request.POST)
+		if form.is_valid():
+			line = form.save(commit=False)
+			line.entry = entry
+			line.save()
+			messages.success(request, 'Строка добавлена')
+			return redirect('finance:journal_entries')
+	return redirect('finance:journal_entries')
+
+@login_required
+def trial_balance(request):
+	# Оборотно-сальдовая ведомость
+	date_from = request.GET.get('date_from')
+	date_to = request.GET.get('date_to')
+	from datetime import datetime as _dt
+	df = _dt.strptime(date_from, '%Y-%m-%d').date() if date_from else None
+	dt = _dt.strptime(date_to, '%Y-%m-%d').date() if date_to else None
+	rows = []
+	total_debit = Decimal('0.00')
+	total_credit = Decimal('0.00')
+	for acc in AccountingAccount.objects.order_by('code'):
+		b = acc.get_balance(df, dt)
+		rows.append({'account': acc, **b})
+		total_debit += b['debit_turnover']
+		total_credit += b['credit_turnover']
+	return render(request, 'finance/trial_balance.html', {
+		'rows': rows,
+		'total_debit': total_debit,
+		'total_credit': total_credit,
+		'date_from': date_from,
+		'date_to': date_to,
+	})

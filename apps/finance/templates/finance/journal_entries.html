@@ -1,0 +1,37 @@
+{% extends 'finance/base.html' %}
+{% block content %}
+<h2>Журнал операций</h2>
+<p><a href="{% url 'finance:journal_entry_create' %}">Новая операция</a></p>
+<table class="table">
+	<thead><tr><th>Дата</th><th>Описание</th><th>Дебет</th><th>Кредит</th></tr></thead>
+	<tbody>
+	{% for e in entries %}
+		<tr>
+			<td>{{ e.date }}</td>
+			<td>{{ e.memo }}</td>
+			<td>{{ e.total_debit }}</td>
+			<td>{{ e.total_credit }}</td>
+		</tr>
+		<tr>
+			<td></td><td colspan="3">
+				<table class="table">
+					<thead><tr><th>Счет</th><th>Описание</th><th>Дебет</th><th>Кредит</th></tr></thead>
+					<tbody>
+					{% for l in e.lines.all %}
+					<tr>
+						<td>{{ l.account }}</td>
+						<td>{{ l.description }}</td>
+						<td>{{ l.debit }}</td>
+						<td>{{ l.credit }}</td>
+					</tr>
+					{% endfor %}
+					</tbody>
+				</table>
+			</td>
+		</tr>
+	{% empty %}
+		<tr><td colspan="4">Нет операций</td></tr>
+	{% endfor %}
+	</tbody>
+</table>
+{% endblock %} 

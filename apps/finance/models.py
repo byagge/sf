@@ -341,3 +341,120 @@ class FinancialReport(models.Model):
         self.total_assets = sum(asset.current_value for asset in assets)
         
         self.save()
+
+
+# ====== ДВОЙНАЯ ЗАПИСЬ (ДЕБЕТ/КРЕДИТ), ПЛАН СЧЕТОВ, ЖУРНАЛ ======
+
+class AccountingAccount(models.Model):
+    """Счет бухгалтерского учета (план счетов 1С-подобный)."""
+    ASSET = 'asset'
+    LIABILITY = 'liability'
+    EQUITY = 'equity'
+    INCOME = 'income'
+    EXPENSE = 'expense'
+    ACCOUNT_TYPES = [
+        (ASSET, 'Актив'),
+        (LIABILITY, 'Пассив'),
+        (EQUITY, 'Капитал'),
+        (INCOME, 'Доход'),
+        (EXPENSE, 'Расход'),
+    ]
+
+    DEBIT = 'debit'
+    CREDIT = 'credit'
+    NORMAL_SIDE_CHOICES = [
+        (DEBIT, 'Дебет'),
+        (CREDIT, 'Кредит'),
+    ]
+
+    code = models.CharField(max_length=20, unique=True, verbose_name="Код счета")
+    name = models.CharField(max_length=200, verbose_name="Наименование счета")
+    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, verbose_name="Тип (Актив/Пассив/…)")
+    normal_side = models.CharField(max_length=6, choices=NORMAL_SIDE_CHOICES, verbose_name="Нормальная сторона")
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children', verbose_name="Родительский счет")
+    is_active = models.BooleanField(default=True, verbose_name="Активен")
+    description = models.TextField(blank=True, verbose_name="Описание")
+
+    class Meta:
+        verbose_name = "Счет учета"
+        verbose_name_plural = "План счетов"
+        ordering = ['code']
+
+    def __str__(self):
+        return f"{self.code} {self.name}"
+
+    def get_balance(self, date_from=None, date_to=None):
+        """Возвращает обороты и сальдо по счету за период."""
+        from django.db.models import Sum
+        lines = JournalEntryLine.objects.filter(account=self)
+        if date_from:
+            lines = lines.filter(entry__date__gte=date_from)
+        if date_to:
+            lines = lines.filter(entry__date__lte=date_to)
+        agg = lines.aggregate(d=Sum('debit'), c=Sum('credit'))
+        debit = agg['d'] or Decimal('0.00')
+        credit = agg['c'] or Decimal('0.00')
+        if self.normal_side == self.DEBIT:
+            closing = debit - credit
+        else:
+            closing = credit - debit
+        return {
+            'debit_turnover': debit,
+            'credit_turnover': credit,
+            'closing_balance': closing,
+        }
+
+
+class JournalEntry(models.Model):
+    """Хозяйственная операция (проводка), объединяющая строки Дт/Кт."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    date = models.DateField(verbose_name="Дата")
+    memo = models.CharField(max_length=255, blank=True, verbose_name="Описание")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Создал")
+    created_at = models.DateTimeField(auto_now_add=True)
+    posted = models.BooleanField(default=True, verbose_name="Проведено")
+
+    class Meta:
+        verbose_name = "Журнал операции"
+        verbose_name_plural = "Журнал операций"
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"Операция {self.date} ({self.pk})"
+
+    def total_debit(self):
+        return self.lines.aggregate(s=models.Sum('debit'))['s'] or Decimal('0.00')
+
+    def total_credit(self):
+        return self.lines.aggregate(s=models.Sum('credit'))['s'] or Decimal('0.00')
+
+
+class JournalEntryLine(models.Model):
+    """Строка проводки: дебет/кредит конкретного счета."""
+    entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name='lines', verbose_name="Операция")
+    account = models.ForeignKey(AccountingAccount, on_delete=models.PROTECT, verbose_name="Счет")
+    description = models.CharField(max_length=255, blank=True, verbose_name="Описание")
+    debit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], verbose_name="Дебет")
+    credit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], verbose_name="Кредит")
+
+    class Meta:
+        verbose_name = "Строка проводки"
+        verbose_name_plural = "Строки проводок"
+
+    def __str__(self):
+        return f"{self.account.code}: Дт {self.debit} Кт {self.credit}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if (self.debit and self.debit > 0) and (self.credit and self.credit > 0):
+            raise ValidationError("Нельзя указывать одновременно дебет и кредит в одной строке")
+        if (not self.debit or self.debit == 0) and (not self.credit or self.credit == 0):
+            raise ValidationError("Нужно заполнить дебет или кредит")
+
+
+def create_simple_entry(date, debit_account: AccountingAccount, credit_account: AccountingAccount, amount: Decimal, memo: str = "", user=None) -> JournalEntry:
+    """Утилита для быстрого создания простой проводки Дт/Кт одной суммой."""
+    entry = JournalEntry.objects.create(date=date, memo=memo, created_by=user, posted=True)
+    JournalEntryLine.objects.create(entry=entry, account=debit_account, debit=amount, credit=Decimal('0.00'), description=memo)
+    JournalEntryLine.objects.create(entry=entry, account=credit_account, debit=Decimal('0.00'), credit=amount, description=memo)
+    return entry

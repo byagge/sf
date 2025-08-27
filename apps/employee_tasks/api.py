@@ -26,6 +26,11 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 quantity = int(request.data.get('quantity', 0))
             except Exception:
                 quantity = 0
+            custom_unit_price = request.data.get('custom_unit_price')
+            try:
+                custom_unit_price = None if custom_unit_price in (None, '', 'null') else float(custom_unit_price)
+            except Exception:
+                custom_unit_price = None
             
             if not stage_id or not employee_id:
                 return Response({'error': 'Необходимо указать stage и employee'}, status=400)
@@ -64,7 +69,8 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 stage=stage,
                 employee=employee,
                 defaults={
-                    'quantity': quantity
+                    'quantity': quantity,
+                    'custom_unit_price': custom_unit_price
                 }
             )
             if not created:
@@ -74,7 +80,10 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 already_assigned_excluding_current = (already_assigned - int(task.quantity or 0))
                 max_allowed_for_task = max(0, plan - already_assigned_excluding_current)
                 task.quantity = min(new_qty, max_allowed_for_task)
-                task.save(update_fields=['quantity'])
+                # Если мастер прислал цену — обновим индивидуальную цену
+                if custom_unit_price is not None:
+                    task.custom_unit_price = custom_unit_price
+                task.save(update_fields=['quantity', 'custom_unit_price'] if custom_unit_price is not None else ['quantity'])
             
             serializer = self.get_serializer(task)
             status_code = 201 if created else 200

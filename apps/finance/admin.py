@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.db.models import Sum
 from .models import (
     ExpenseCategory, Supplier, SupplierItem, MainBankAccount, 
-    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport
+    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport, AccountingAccount, JournalEntry, JournalEntryLine
 )
 
 @admin.register(ExpenseCategory)
@@ -96,3 +96,25 @@ class FinancialReportAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         if not change:  # Только при создании
             obj.calculate_totals()
+
+@admin.register(AccountingAccount)
+class AccountingAccountAdmin(admin.ModelAdmin):
+	list_display = ('code', 'name', 'account_type', 'normal_side', 'parent', 'is_active')
+	list_filter = ('account_type', 'normal_side', 'is_active')
+	search_fields = ('code', 'name')
+
+class JournalEntryLineInline(admin.TabularInline):
+	model = JournalEntryLine
+	extra = 0
+
+@admin.register(JournalEntry)
+class JournalEntryAdmin(admin.ModelAdmin):
+	list_display = ('date', 'memo', 'created_by', 'posted')
+	date_hierarchy = 'date'
+	inlines = [JournalEntryLineInline]
+
+@admin.register(JournalEntryLine)
+class JournalEntryLineAdmin(admin.ModelAdmin):
+	list_display = ('entry', 'account', 'debit', 'credit')
+	list_select_related = ('entry', 'account')
+	search_fields = ('entry__memo', 'account__code', 'account__name')

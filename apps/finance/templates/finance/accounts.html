@@ -1,0 +1,22 @@
+{% extends 'finance/base.html' %}
+{% block content %}
+<h2>План счетов</h2>
+<p><a href="{% url 'finance:account_create' %}">Добавить счет</a></p>
+<table class="table">
+	<thead><tr><th>Код</th><th>Наименование</th><th>Тип</th><th>Нормальная сторона</th><th>Родитель</th><th></th></tr></thead>
+	<tbody>
+	{% for a in accounts %}
+		<tr>
+			<td>{{ a.code }}</td>
+			<td>{{ a.name }}</td>
+			<td>{{ a.get_account_type_display }}</td>
+			<td>{{ a.get_normal_side_display }}</td>
+			<td>{{ a.parent }}</td>
+			<td><a href="{% url 'finance:account_edit' a.pk %}">Редактировать</a></td>
+		</tr>
+	{% empty %}
+		<tr><td colspan="6">Нет счетов</td></tr>
+	{% endfor %}
+	</tbody>
+</table>
+{% endblock %} 

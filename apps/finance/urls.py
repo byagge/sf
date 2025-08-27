@@ -70,4 +70,13 @@ urlpatterns = [
     path('debts/<int:pk>/', views.debt_detail, name='debt_detail'),
     path('debts/<int:pk>/add-payment/', views.debt_add_payment, name='debt_add_payment'),
     path('debts/<int:pk>/delete/', views.debt_delete, name='debt_delete'),
+
+    # Бухгалтерия (двойная запись)
+    path('accounts/', views.accounts, name='accounts'),
+    path('accounts/create/', views.account_create, name='account_create'),
+    path('accounts/<int:pk>/edit/', views.account_edit, name='account_edit'),
+    path('journal/', views.journal_entries, name='journal_entries'),
+    path('journal/create/', views.journal_entry_create, name='journal_entry_create'),
+    path('journal/<uuid:pk>/add-line/', views.journal_entry_add_line, name='journal_entry_add_line'),
+    path('trial-balance/', views.trial_balance, name='trial_balance'),
 ]

@@ -1,0 +1,15 @@
+{% extends 'finance/base.html' %}
+{% block content %}
+<h2>{{ title }}</h2>
+<form method="post">{% csrf_token %}
+	<fieldset>
+		<legend>Операция</legend>
+		{{ form.as_p }}
+	</fieldset>
+	<fieldset>
+		<legend>Первая строка</legend>
+		{{ line_form.as_p }}
+	</fieldset>
+	<button type="submit">Сохранить</button>
+</form>
+{% endblock %} 

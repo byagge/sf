@@ -2,7 +2,7 @@ from django import forms
 from django.forms import ModelForm
 from .models import (
     ExpenseCategory, Supplier, SupplierItem, 
-    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport
+    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport, AccountingAccount, JournalEntry, JournalEntryLine
 )
 
 class ExpenseCategoryForm(ModelForm):
@@ -132,3 +132,18 @@ class DebtPaymentForm(ModelForm):
             'date': forms.DateInput(attrs={'type': 'date'}),
             'comment': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Комментарий'}),
         }
+
+class AccountingAccountForm(forms.ModelForm):
+	class Meta:
+		model = AccountingAccount
+		fields = ['code', 'name', 'account_type', 'normal_side', 'parent', 'is_active', 'description']
+
+class JournalEntryForm(forms.ModelForm):
+	class Meta:
+		model = JournalEntry
+		fields = ['date', 'memo', 'posted']
+
+class JournalEntryLineForm(forms.ModelForm):
+	class Meta:
+		model = JournalEntryLine
+		fields = ['account', 'description', 'debit', 'credit']
