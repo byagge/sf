@@ -48,6 +48,9 @@ class EmployeeTask(models.Model):
                 return None
         return None
 
+    # Индивидуальная цена услуги для этого назначения (переопределяет цену услуги)
+    custom_service_price = models.DecimalField('Индивидуальная цена услуги', max_digits=10, decimal_places=2, null=True, blank=True)
+
     class Meta:
         verbose_name = 'Задача сотрудника'
         verbose_name_plural = 'Задачи сотрудников'
@@ -61,7 +64,14 @@ class EmployeeTask(models.Model):
         BASE_RATE = Decimal('100.00')  # 100 рублей за единицу
         BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
         
-        if self.service:
+        if getattr(self, 'custom_service_price', None) is not None:
+            service_price = Decimal(str(self.custom_service_price))
+            # Штраф берём из услуги или базовый, т.к. кастомизируется только цена
+            if getattr(self, 'service', None):
+                penalty_rate = self.service.defect_penalty
+            else:
+                penalty_rate = BASE_PENALTY_RATE
+        elif self.service:
             # Используем цены из услуги
             service_price = self.service.service_price
             penalty_rate = self.service.defect_penalty
