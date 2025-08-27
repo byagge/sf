@@ -218,4 +218,4 @@ admin.site.site_title = 'Smart Factory Admin'
 admin.site.index_title = 'Панель управления'
 
 # Группировка моделей в административном интерфейсе
-admin.site.index_template = 'admin/custom_index.html' 
+# admin.site.index_template = 'admin/custom_index.html' 
