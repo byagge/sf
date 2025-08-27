@@ -110,10 +110,10 @@ class Defect(models.Model):
         if user.role in [User.Role.ADMIN, User.Role.FOUNDER, User.Role.DIRECTOR]:
             return True
         
-        # Для мастеров проверяем привязку к цеху
-        if user.role == User.Role.MASTER:
-            if not user.workshop_id:
-                return False
+        # # Для мастеров проверяем привязку к цеху
+        # if user.role == User.Role.MASTER:
+        #     if not user.workshop_id:
+        #         return False
             
             # Разрешаем, если брак создан сотрудником из цеха мастера
             defect_workshop = self.get_workshop()
