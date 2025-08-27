@@ -31,6 +31,12 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 custom_unit_price = None if custom_unit_price in (None, '', 'null') else float(custom_unit_price)
             except Exception:
                 custom_unit_price = None
+            try:
+                layers_per_unit = int(request.data.get('layers_per_unit', 1))
+            except Exception:
+                layers_per_unit = 1
+            if layers_per_unit <= 0:
+                layers_per_unit = 1
             
             if not stage_id or not employee_id:
                 return Response({'error': 'Необходимо указать stage и employee'}, status=400)
@@ -70,7 +76,8 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 employee=employee,
                 defaults={
                     'quantity': quantity,
-                    'custom_unit_price': custom_unit_price
+                    'custom_unit_price': custom_unit_price,
+                    'layers_per_unit': layers_per_unit
                 }
             )
             if not created:
@@ -81,9 +88,15 @@ class EmployeeTaskAssignViewSet(viewsets.ModelViewSet):
                 max_allowed_for_task = max(0, plan - already_assigned_excluding_current)
                 task.quantity = min(new_qty, max_allowed_for_task)
                 # Если мастер прислал цену — обновим индивидуальную цену
+                update_fields = ['quantity']
                 if custom_unit_price is not None:
                     task.custom_unit_price = custom_unit_price
-                task.save(update_fields=['quantity', 'custom_unit_price'] if custom_unit_price is not None else ['quantity'])
+                    update_fields.append('custom_unit_price')
+                # Обновляем слои (только если указан >0)
+                if layers_per_unit and layers_per_unit > 0:
+                    task.layers_per_unit = layers_per_unit
+                    update_fields.append('layers_per_unit')
+                task.save(update_fields=update_fields)
             
             serializer = self.get_serializer(task)
             status_code = 201 if created else 200

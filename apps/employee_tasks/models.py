@@ -25,6 +25,9 @@ class EmployeeTask(models.Model):
     # Пользовательская цена за единицу для данного назначения (перекрывает цену услуги)
     custom_unit_price = models.DecimalField('Индивидуальная цена за единицу', max_digits=10, decimal_places=2, null=True, blank=True)
     
+    # Количество слоёв на единицу (актуально для цеха ID=7)
+    layers_per_unit = models.PositiveIntegerField('Слоёв на единицу', default=1)
+    
     # Связь с услугой через цех
     @property
     def service(self):
@@ -82,10 +85,17 @@ class EmployeeTask(models.Model):
                 service_price = BASE_RATE
                 penalty_rate = BASE_PENALTY_RATE
         
-        # Заработок за выполненную работу
-        self.earnings = Decimal(str(self.completed_quantity)) * service_price
+        # Множитель слоёв только для цеха ID=7
+        try:
+            workshop_id = getattr(self.stage.workshop, 'id', None)
+        except Exception:
+            workshop_id = None
+        layers_multiplier = self.layers_per_unit if (workshop_id == 7 and int(self.layers_per_unit or 1) > 0) else 1
         
-        # Штрафы за брак
+        # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
+        self.earnings = (Decimal(str(self.completed_quantity)) * service_price) * Decimal(str(layers_multiplier))
+        
+        # Штрафы за брак (за единицу брака, без множителя слоёв)
         self.penalties = Decimal(str(self.defective_quantity)) * penalty_rate
         
         # Чистый заработок

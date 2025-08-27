@@ -19,7 +19,7 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
             'defective_quantity', 'done_quantity', 'stage_name', 'order_item', 'workshop_info',
             'created_at', 'completed_at', 'earnings', 'penalties', 'net_earnings',
             'is_completed', 'title', 'plan_quantity', 'started_at',
-            'custom_unit_price'
+            'custom_unit_price', 'layers_per_unit'
         ]
 
     def get_done_quantity(self, obj):

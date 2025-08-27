@@ -1376,6 +1376,14 @@
                         <div class="text-xs text-gray-500 mt-1">Если указать, оплата пойдёт по этой цене вместо цены услуги.</div>
                     </div>
 
+                    <template x-if="workshops[selectedWorkshopIdx] && workshops[selectedWorkshopIdx].id === 7">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Слоёв на единицу</label>
+                            <input type="number" min="1" x-model="assignForm.layers_per_unit" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="1">
+                            <div class="text-xs text-gray-500 mt-1">Укажите сколько слоёв выполняется на одну единицу товара.</div>
+                        </div>
+                    </template>
+
                     <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 text-xs text-blue-800">
                         <i data-lucide="info" class="w-3 h-3 inline mr-1"></i>
                         Назначения будут созданы одним действием. Нельзя превышать план.
@@ -1526,6 +1534,14 @@
                         <input type="number" step="0.01" min="0" x-model="editAssignForm.custom_unit_price" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Например: 120.00">
                         <div class="text-xs text-gray-500 mt-1">Если указать, оплата пойдёт по этой цене вместо цены услуги.</div>
                     </div>
+
+                    <template x-if="workshops[selectedWorkshopIdx] && workshops[selectedWorkshopIdx].id === 7">
+                        <div class="mt-3">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Слоёв на единицу</label>
+                            <input type="number" min="1" x-model="editAssignForm.layers_per_unit" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="1">
+                            <div class="text-xs text-gray-500 mt-1">Укажите сколько слоёв выполняется на одну единицу товара.</div>
+                        </div>
+                    </template>
 
                     <div class="flex space-x-3 mt-4">
                         <button type="button" @click="showEditAssignModal = false" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
@@ -2016,7 +2032,7 @@
             showStageModal: false,
             selectedStage: null,
             showAssignModal: false,
-            assignForm: { stage_id: null, order_item_id: null, employee_id: '', quantity: 1, custom_unit_price: '' },
+            assignForm: { stage_id: null, order_item_id: null, employee_id: '', quantity: 1, custom_unit_price: '', layers_per_unit: 1 },
             bulkAssign: {},
             showEditAssignModal: false,
             editAssignForm: { id: null, stage_id: null, employee_id: '', employee_name: '', quantity: 1 },
@@ -2299,7 +2315,7 @@
                 }
                 
                 // Инициализируем форму и bulkAssign
-                this.assignForm = { stage_id: stage.id, employee_id: '', quantity: 1, custom_unit_price: '' };
+                this.assignForm = { stage_id: stage.id, employee_id: '', quantity: 1, custom_unit_price: '', layers_per_unit: 1 };
                 this.bulkAssign = {};
                 
                 // Закрываем модальное окно быстрого управления назначениями, если оно открыто
@@ -2340,7 +2356,7 @@
                     const promises = entries.map(e => fetch('/employee_tasks/assign/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
-                        body: JSON.stringify({ stage: this.assignForm.stage_id, employee: e.employee, quantity: e.quantity, custom_unit_price: this.assignForm.custom_unit_price })
+                        body: JSON.stringify({ stage: this.assignForm.stage_id, employee: e.employee, quantity: e.quantity, custom_unit_price: this.assignForm.custom_unit_price, layers_per_unit: (this.workshops[this.selectedWorkshopIdx] && this.workshops[this.selectedWorkshopIdx].id === 7) ? (parseInt(this.assignForm.layers_per_unit) || 1) : 1 })
                     }));
                     const results = await Promise.all(promises);
                     const anyFailed = results.some(r => !r.ok);
@@ -2367,7 +2383,7 @@
                     return;
                 }
                 
-                this.editAssignForm = { id: assign.id, stage_id: stage.id, employee_id: assign.employee_id, employee_name: assign.employee_name, quantity: assign.quantity, custom_unit_price: assign.custom_unit_price || '' };
+                this.editAssignForm = { id: assign.id, stage_id: stage.id, employee_id: assign.employee_id, employee_name: assign.employee_name, quantity: assign.quantity, custom_unit_price: assign.custom_unit_price || '', layers_per_unit: assign.layers_per_unit || 1 };
                 
                 // Закрываем модальное окно быстрого управления назначениями, если оно открыто
                 if (this.showQuickAssignmentsModal) {
@@ -2411,7 +2427,7 @@
                 if (submitBtn) submitBtn.disabled = true;
                 
                 try {
-                const payload = { quantity: this.editAssignForm.quantity, custom_unit_price: this.editAssignForm.custom_unit_price };
+                const payload = { quantity: this.editAssignForm.quantity, custom_unit_price: this.editAssignForm.custom_unit_price, layers_per_unit: (this.workshops[this.selectedWorkshopIdx] && this.workshops[this.selectedWorkshopIdx].id === 7) ? (parseInt(this.editAssignForm.layers_per_unit) || 1) : undefined };
                 const resp = await fetch(`/employee_tasks/assign/${this.editAssignForm.id}/`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrfToken() },
