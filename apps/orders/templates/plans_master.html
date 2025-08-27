@@ -3172,6 +3172,17 @@
                         <div class="space-y-4">
                             <h3 class="text-lg font-semibold text-gray-900">Все товары заказа</h3>
                             
+                            <!-- Debug информация -->
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
+                                <div class="font-medium text-yellow-800 mb-2">Debug информация:</div>
+                                <div x-text="'order_item exists: ' + (selectedProductsStage.order_item ? 'yes' : 'no')"></div>
+                                <div x-text="'order exists: ' + (selectedProductsStage.order_item && selectedProductsStage.order_item.order ? 'yes' : 'no')"></div>
+                                <div x-text="'items exists: ' + (selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items ? 'yes' : 'no')"></div>
+                                <div x-text="'items is array: ' + (selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items && Array.isArray(selectedProductsStage.order_item.order.items) ? 'yes' : 'no')"></div>
+                                <div x-text="'items length: ' + (selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items && Array.isArray(selectedProductsStage.order_item.order.items) ? selectedProductsStage.order_item.order.items.length : 'N/A')"></div>
+                                <div x-text="'Raw items: ' + JSON.stringify(selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items ? selectedProductsStage.order_item.order.items : 'N/A')"></div>
+                            </div>
+                            
                             <!-- Если есть order_item с items -->
                             <template x-if="selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items && Array.isArray(selectedProductsStage.order_item.order.items) && selectedProductsStage.order_item.order.items.length > 0">
                                 <div class="space-y-3">
