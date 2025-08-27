@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 import re
+from decimal import Decimal
 
 class User(AbstractUser):
     class Role(models.TextChoices):
@@ -34,6 +35,15 @@ class User(AbstractUser):
     contract_number = models.CharField('Номер трудового договора', max_length=50, blank=True)
     notes = models.TextField('Примечания', blank=True)
     
+    # Поле для баланса пользователя
+    balance = models.DecimalField(
+        'Баланс',
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        help_text='Текущий баланс пользователя в рублях'
+    )
+    
     # Системные поля
     created_at = models.DateTimeField(
         auto_now_add=True, 
@@ -57,6 +67,29 @@ class User(AbstractUser):
             return self.last_name
         else:
             return self.username
+
+    def add_to_balance(self, amount):
+        """Пополняет баланс пользователя"""
+        if isinstance(amount, (int, float)):
+            amount = Decimal(str(amount))
+        self.balance += amount
+        self.save(update_fields=['balance'])
+        return self.balance
+
+    def subtract_from_balance(self, amount):
+        """Списывает с баланса пользователя"""
+        if isinstance(amount, (int, float)):
+            amount = Decimal(str(amount))
+        if self.balance >= amount:
+            self.balance -= amount
+            self.save(update_fields=['balance'])
+            return self.balance
+        else:
+            raise ValueError("Недостаточно средств на балансе")
+
+    def get_balance_display(self):
+        """Возвращает отформатированный баланс для отображения"""
+        return f"{self.balance:,.2f} ₽"
 
     def generate_username(self):
         """Генерирует username из имени и фамилии"""
@@ -150,3 +183,7 @@ class User(AbstractUser):
         Возвращает медицинскую информацию сотрудника
         """
         return getattr(self, 'medical_info', None)
+
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'

@@ -1,24 +1,33 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from apps.users.models import User
+from .models import User
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    fieldsets = BaseUserAdmin.fieldsets + (
-        (None, {'fields': (
-            'role', 'phone', 'workshop',
-            'passport_number', 'inn', 'employment_date', 'fired_date', 'contract_number', 'notes',
-        )}),
-    )
-    list_display = (
-        'username', 'get_full_name', 'role', 'phone', 'workshop',
-        'employment_date', 'fired_date', 'is_active', 'is_staff'
-    )
-    list_filter = ('role', 'workshop', 'is_active', 'is_staff', 'employment_date', 'fired_date')
-    search_fields = ('username', 'first_name', 'last_name', 'phone', 'passport_number', 'inn', 'contract_number')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'workshop', 'balance', 'is_active')
+    list_filter = ('role', 'workshop', 'is_active', 'employment_date', 'fired_date')
+    search_fields = ('username', 'first_name', 'last_name', 'email', 'phone')
+    ordering = ('username',)
     
-    def get_full_name(self, obj):
-        """Отображает полное имя в списке"""
-        return obj.get_full_name()
-    get_full_name.short_description = 'ФИО'
-    get_full_name.admin_order_field = 'last_name'
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Личная информация', {'fields': ('first_name', 'last_name', 'email', 'phone')}),
+        ('Рабочая информация', {'fields': ('role', 'workshop', 'employment_date', 'fired_date')}),
+        ('Документы', {'fields': ('passport_number', 'inn', 'contract_number')}),
+        ('Финансы', {'fields': ('balance',)}),
+        ('Примечания', {'fields': ('notes',)}),
+        ('Разрешения', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Важные даты', {'fields': ('last_login', 'date_joined')}),
+    )
+    
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2', 'first_name', 'last_name', 'email', 'role', 'workshop'),
+        }),
+    )
+    
+    readonly_fields = ('last_login', 'date_joined', 'created_at', 'updated_at')
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('workshop')
