@@ -854,6 +854,9 @@
                 console.log('userWorkshopIds:', window.userWorkshopIds);
                 console.log('userWorkshopList from window:', window.userWorkshopList);
                 
+                // Сортируем цеха по возрастанию ID для навигации и селектов
+                this.userWorkshopList = (this.userWorkshopList || []).slice().sort((a, b) => ((a && a.id) || 0) - ((b && b.id) || 0));
+                
                 if (this.userWorkshopList.length > 0) {
                     const savedWorkshopId = parseInt(localStorage.getItem('master_selected_workshop_id'));
                     const exists = this.userWorkshopList.some(w => w && w.id === savedWorkshopId);
