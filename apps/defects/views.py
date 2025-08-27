@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from django.db.models import Q, Count
 from django.utils import timezone
 from .models import Defect
-from .serializers import DefectSerializer, DefectConfirmationSerializer
+from .serializers import DefectSerializer, DefectConfirmationSerializer, DefectRepairSerializer, DefectListSerializer
 from apps.operations.workshops.models import Workshop
 from core.utils import is_mobile_device
 
@@ -57,31 +57,8 @@ class DefectViewSet(viewsets.ModelViewSet):
 def defects_list(request):
     """Список браков для API"""
     try:
-        defects = Defect.objects.select_related(
-            'product', 'user', 'confirmed_by', 'target_workshop', 'employee_task'
-        ).prefetch_related('employee_task__stage__workshop').all()
-        
-        # Фильтрация по статусу
-        status_filter = request.GET.get('status')
-        if status_filter:
-            defects = defects.filter(status=status_filter)
-        
-        # Фильтрация по цеху
-        workshop_filter = request.GET.get('workshop')
-        if workshop_filter:
-            defects = defects.filter(user__workshop_id=workshop_filter)
-        
-        # Фильтрация по продукту
-        product_filter = request.GET.get('product')
-        if product_filter:
-            defects = defects.filter(product_id=product_filter)
-        
-        # Фильтрация по сотруднику
-        user_filter = request.GET.get('user')
-        if user_filter:
-            defects = defects.filter(user_id=user_filter)
-        
-        serializer = DefectSerializer(defects, many=True)
+        defects = Defect.objects.all().select_related('user', 'employee_task', 'target_workshop')
+        serializer = DefectListSerializer(defects, many=True)
         return Response(serializer.data)
         
     except Exception as e:
@@ -118,7 +95,8 @@ def confirm_defect(request, defect_id):
                     is_repairable=data['is_repairable'],
                     defect_type=data.get('defect_type'),
                     target_workshop=data.get('target_workshop_id'),
-                    comment=data.get('comment', '')
+                    comment=data.get('comment', ''),
+                    penalty_amount=data.get('penalty_amount')
                 )
                 
                 return Response({

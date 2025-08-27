@@ -126,7 +126,7 @@ class Defect(models.Model):
         
         return False
     
-    def confirm_defect(self, master, is_repairable, defect_type=None, target_workshop=None, comment=''):
+    def confirm_defect(self, master, is_repairable, defect_type=None, target_workshop=None, comment='', penalty_amount=None):
         """Подтверждает брак мастером или администратором"""
         from django.utils import timezone
         
@@ -151,7 +151,7 @@ class Defect(models.Model):
             
             # Применяем штраф только для ручного брака
             if defect_type == self.DefectType.MANUAL:
-                self._apply_penalty()
+                self._apply_penalty(amount=penalty_amount)
             
             # Если указан целевой цех — переводим брак
             if target_workshop:
@@ -159,20 +159,23 @@ class Defect(models.Model):
         
         self.save()
     
-    def _apply_penalty(self):
+    def _apply_penalty(self, amount=None):
         """Применяет штраф за ручной брак к задаче сотрудника после подтверждения"""
         if self.user and self.user.workshop and self.employee_task:
             from apps.services.models import Service
             try:
-                service = Service.objects.filter(workshop=self.user.workshop, is_active=True).first()
-                if service and hasattr(service, 'defect_penalty'):
-                    self.penalty_amount = service.defect_penalty
-                    self.penalty_applied = True
-                    
-                    # Обновляем штраф в задаче сотрудника
-                    self.employee_task.penalties += self.penalty_amount
-                    self.employee_task.net_earnings = self.employee_task.earnings - self.employee_task.penalties
-                    self.employee_task.save()
+                if amount is not None:
+                    self.penalty_amount = amount
+                else:
+                    service = Service.objects.filter(workshop=self.user.workshop, is_active=True).first()
+                    if service and hasattr(service, 'defect_penalty'):
+                        self.penalty_amount = service.defect_penalty
+                self.penalty_applied = True
+                
+                # Обновляем штраф и чистый заработок в задаче сотрудника
+                self.employee_task.penalties += self.penalty_amount
+                self.employee_task.net_earnings = self.employee_task.earnings - self.employee_task.penalties
+                self.employee_task.save()
             except Exception as e:
                 print(f"Ошибка при применении штрафа: {e}")
     

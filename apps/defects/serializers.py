@@ -87,11 +87,13 @@ class DefectConfirmationSerializer(serializers.Serializer):
         allow_null=True
     )
     comment = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    penalty_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True, min_value=0)
 
     def validate(self, data):
         is_repairable = data.get('is_repairable')
         defect_type = data.get('defect_type')
         target_workshop_id = data.get('target_workshop_id')
+        penalty_amount = data.get('penalty_amount')
         
         # Если брак нельзя починить, должен быть указан тип брака
         if not is_repairable and not defect_type:
@@ -100,6 +102,10 @@ class DefectConfirmationSerializer(serializers.Serializer):
         # Если указан целевой цех, брак должен быть неисправимым
         if target_workshop_id and is_repairable:
             raise serializers.ValidationError("Целевой цех может быть указан только для неисправимого брака")
+        
+        # Для ручного неисправимого брака требуем сумму штрафа
+        if not is_repairable and defect_type == Defect.DefectType.MANUAL and (penalty_amount is None):
+            raise serializers.ValidationError("Укажите сумму штрафа для ручного брака")
         
         return data
 
