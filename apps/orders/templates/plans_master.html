@@ -3186,9 +3186,13 @@
                             <!-- Если есть order_item с items -->
                             <template x-if="selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items">
                                 <div class="space-y-3">
+                                    <!-- Тестовый блок для проверки -->
+                                    <div class="bg-red-100 border border-red-300 rounded-lg p-3 text-sm">
+                                        <div>Найдено товаров: <span x-text="selectedProductsStage.order_item.order.items.length"></span></div>
+                                        <div x-text="'Первый товар: ' + (selectedProductsStage.order_item.order.items[0] ? selectedProductsStage.order_item.order.items[0].product.name : 'нет')"></div>
+                                    </div>
+                                    
                                     <template x-for="item in selectedProductsStage.order_item.order.items" :key="item.id">
-                                        <!-- Debug: показываем ID товара -->
-                                        <div class="text-xs text-red-500 mb-1" x-text="'Debug: Item ID = ' + item.id"></div>
                                         <div class="bg-white border rounded-xl p-4 shadow-sm">
                                             <div class="flex items-start space-x-4">
                                                 <!-- Фото товара -->
