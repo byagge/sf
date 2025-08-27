@@ -25,9 +25,10 @@
 		<a href="/notifications/" class="relative inline-flex items-center justify-center">
 			<i data-lucide="bell" class="w-5 h-5 text-gray-700"></i>
 			{% if unread_count and unread_count > 0 %}
-			<span class="absolute -top-2 -right-3 text-[10px] leading-4 px-1.5 min-w-[16px] text-center rounded-full bg-red-600 text-white">{{ unread_count }}</span>
+			<span id="header-unread-badge" class="absolute -top-2 -right-3 text-[10px] leading-4 px-1.5 min-w-[16px] text-center rounded-full bg-red-600 text-white">{{ unread_count }}</span>
 			{% endif %}
 		</a>
+		
 	</header>
 
 	<main class="pt-16 pb-16 px-3 max-w-md mx-auto">
@@ -168,6 +169,9 @@
 					document.querySelectorAll('.bg-red-100').forEach(el => {
 						el.remove();
 					});
+					// Также скрываем счетчик в шапке
+					const headerBadge = document.getElementById('header-unread-badge');
+					if (headerBadge) headerBadge.remove();
 				}
 			}
 		} catch (e) {
@@ -177,6 +181,9 @@
 	
 	document.addEventListener('DOMContentLoaded', function() { 
 		if (window.lucide) lucide.createIcons();
+		// На странице уведомлений счетчик не показываем
+		const headerBadge = document.getElementById('header-unread-badge');
+		if (headerBadge) headerBadge.remove();
 		// Автоматически отмечаем все уведомления как прочитанные
 		markAllAsRead();
 	});

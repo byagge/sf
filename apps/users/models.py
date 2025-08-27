@@ -41,7 +41,7 @@ class User(AbstractUser):
         max_digits=12,
         decimal_places=2,
         default=Decimal('0.00'),
-        help_text='Текущий баланс пользователя в рублях'
+        help_text='Текущий баланс пользователя в сомах'
     )
     
     # Системные поля
