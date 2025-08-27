@@ -93,7 +93,7 @@
             </div>
         </div>
         <div class="flex items-center space-x-3">
-            <a href="/notifications/" class="relative inline-flex items-center justify-center" @click="unreadNotifications = 0">
+            <a href="/notifications/" class="relative inline-flex items-center justify-center" @click="unreadNotifications = 0; try { localStorage.setItem('notifications_last_cleared', String(Date.now())); } catch (e) {}">
                 <i data-lucide="bell" class="w-5 h-5 text-gray-700"></i>
                 <span x-show="unreadNotifications > 0" x-text="unreadNotifications" class="absolute -top-2 -right-3 text-[10px] leading-4 px-1.5 min-w-[16px] text-center rounded-full bg-red-600 text-white"></span>
             </a>
@@ -945,9 +945,24 @@
                         }
                     });
 
+                    // Если на странице уведомлений их очистили — скрываем бейдж сразу
+                    try {
+                        const ts = localStorage.getItem('notifications_last_cleared');
+                        if (ts) {
+                            this.unreadNotifications = 0;
+                        }
+                    } catch (e) {}
+
                     // Обновляем счетчик при возвращении на страницу
                     document.addEventListener('visibilitychange', () => {
                         if (!document.hidden) {
+                            // Если на странице уведомлений недавно очистили — сразу скрыть локально, затем обновить с сервера
+                            try {
+                                const ts = localStorage.getItem('notifications_last_cleared');
+                                if (ts) {
+                                    this.unreadNotifications = 0;
+                                }
+                            } catch (e) {}
                             this.loadUnreadNotifications();
                         }
                     });
@@ -955,10 +970,12 @@
                 
                 async loadUnreadNotifications() {
                     try {
-                        const resp = await fetch('/notifications/unread-count/', { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                        const resp = await fetch('/notifications/unread-count/', { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' });
                         if (resp.ok) {
                             const data = await resp.json();
                             this.unreadNotifications = data.unread_count || 0;
+                        } else {
+                            this.unreadNotifications = 0;
                         }
                     } catch (e) {
                         this.unreadNotifications = 0;

@@ -172,6 +172,8 @@
 					// Также скрываем счетчик в шапке
 					const headerBadge = document.getElementById('header-unread-badge');
 					if (headerBadge) headerBadge.remove();
+					// Сообщаем другим страницам, что уведомления очищены
+					try { localStorage.setItem('notifications_last_cleared', String(Date.now())); } catch (e) {}
 				}
 			}
 		} catch (e) {
@@ -184,6 +186,8 @@
 		// На странице уведомлений счетчик не показываем
 		const headerBadge = document.getElementById('header-unread-badge');
 		if (headerBadge) headerBadge.remove();
+		// Помечаем, что пользователь открыл страницу уведомлений (для мгновенного скрытия бейджа на других страницах)
+		try { localStorage.setItem('notifications_last_cleared', String(Date.now())); } catch (e) {}
 		// Автоматически отмечаем все уведомления как прочитанные
 		markAllAsRead();
 	});
