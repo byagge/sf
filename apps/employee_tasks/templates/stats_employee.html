@@ -77,6 +77,10 @@
                 <div class="text-xs text-gray-500 mb-1">Задачи</div>
                 <div class="text-lg font-bold text-gray-900" x-text="`${overview.completed_tasks}/${overview.total_tasks}`"></div>
             </div>
+            <div class="bg-white rounded-lg p-3 shadow-sm col-span-2">
+                <div class="text-xs text-gray-500 mb-1">Баланс</div>
+                <div class="text-lg font-bold text-gray-900" x-text="formatMoney(balance)"></div>
+            </div>
         </div>
         
         <!-- Debug Info and Actions -->
@@ -202,6 +206,7 @@
             overview: { total_earnings: 0, total_penalties: 0, total_net_earnings: 0, total_tasks: 0, completed_tasks: 0 },
             monthly: [],
             tasks: [],
+            balance: 0,
             async init() {
                 this.userId = JSON.parse(document.getElementById('user-id').textContent) || null;
                 await Promise.all([this.loadStats(), this.loadTasks()]);
@@ -219,6 +224,7 @@
                     total_penalties: x.total_penalties,
                     total_net: x.total_net
                 }));
+                this.balance = Number(data.balance || 0);
                 console.log('Updated overview:', this.overview);
                 console.log('Updated monthly:', this.monthly);
             },

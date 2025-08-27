@@ -158,6 +158,7 @@ def employee_earnings_stats(request, employee_id):
                 'total_tasks': total_tasks,
                 'completed_tasks': completed_tasks
             },
+            'balance': employee.balance,
             'workshop_stats': workshop_stats,
             'monthly_stats': monthly_stats
         })
