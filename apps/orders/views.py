@@ -7,8 +7,8 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import Order, OrderItem, OrderStage
-from .serializers import OrderSerializer, OrderItemSerializer, OrderStageSerializer
+from .models import Order, OrderItem, OrderStage, OrderDefect
+from .serializers import OrderSerializer, OrderItemSerializer, OrderStageConfirmSerializer, OrderStageSerializer
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
