@@ -2577,6 +2577,10 @@
                         const data = await resp.json();
                         this.showToast(data.error || 'Ошибка при переводе этапа!', 'error');
                     } else {
+                        // Успешный перевод — закрываем модальные окна подтверждения/выбора
+                        this.showTransferConfirmModal = false;
+                        this.showTransferDestinationModal = false;
+                        this.showTransferModal = false;
                         this.showToast('Этап успешно переведён!', 'success');
                     }
                 } catch (e) {
