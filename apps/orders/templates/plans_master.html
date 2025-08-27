@@ -3408,6 +3408,13 @@
                                 <div class="text-center py-8 text-gray-500">
                                     <i data-lucide="package" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
                                     <div>Товары не указаны</div>
+                                    <div class="text-xs mt-2 text-gray-400">
+                                        <div>Debug info:</div>
+                                        <div x-text="'order_item: ' + (selectedProductsStage.order_item ? 'yes' : 'no')"></div>
+                                        <div x-text="'order: ' + (selectedProductsStage.order_item && selectedProductsStage.order_item.order ? 'yes' : 'no')"></div>
+                                        <div x-text="'items: ' + (selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items ? selectedProductsStage.order_item.order.items.length : 'no')"></div>
+                                        <div x-text="'aggregated_items: ' + (selectedProductsStage.aggregated_items ? selectedProductsStage.aggregated_items.length : 'no')"></div>
+                                    </div>
                                 </div>
                             </template>
                         </div>
