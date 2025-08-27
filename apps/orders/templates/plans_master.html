@@ -3173,7 +3173,7 @@
                             <h3 class="text-lg font-semibold text-gray-900">Все товары заказа</h3>
                             
                             <!-- Если есть order_item с items -->
-                            <template x-if="selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items && Array.isArray(selectedProductsStage.order_item.order.items)">
+                            <template x-if="selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items && Array.isArray(selectedProductsStage.order_item.order.items) && selectedProductsStage.order_item.order.items.length > 0">
                                 <div class="space-y-3">
                                     <template x-for="item in selectedProductsStage.order_item.order.items" :key="item.id">
                                         <div class="bg-white border rounded-xl p-4 shadow-sm">
@@ -3266,7 +3266,7 @@
                             </template>
                             
                             <!-- Если есть агрегированные товары -->
-                            <template x-if="selectedProductsStage.aggregated_items && Array.isArray(selectedProductsStage.aggregated_items) && selectedProductsStage.aggregated_items.length">
+                            <template x-if="selectedProductsStage.aggregated_items && Array.isArray(selectedProductsStage.aggregated_items) && selectedProductsStage.aggregated_items.length > 0">
                                 <div class="space-y-3">
                                     <template x-for="item in selectedProductsStage.aggregated_items" :key="item.id">
                                         <div class="bg-white border rounded-xl p-4 shadow-sm">
@@ -3331,11 +3331,107 @@
                                 </div>
                             </template>
                             
+                            <!-- Альтернативный способ - если товары в другом месте -->
+                            <template x-if="selectedProductsStage.order_item && selectedProductsStage.order_item.product">
+                                <div class="space-y-3">
+                                    <div class="bg-white border rounded-xl p-4 shadow-sm">
+                                        <div class="flex items-start space-x-4">
+                                            <!-- Фото товара -->
+                                            <template x-if="selectedProductsStage.order_item.product.img">
+                                                <div class="flex-shrink-0">
+                                                    <img :src="selectedProductsStage.order_item.product.img" 
+                                                         :alt="selectedProductsStage.order_item.product.name"
+                                                         class="w-20 h-20 object-cover rounded-lg border border-gray-200">
+                                                </div>
+                                            </template>
+                                            
+                                            <div class="flex-1">
+                                                <!-- Основная информация -->
+                                                <div class="mb-2">
+                                                    <h4 class="font-semibold text-gray-900 text-base" x-text="selectedProductsStage.order_item.product.name || 'Товар'"></h4>
+                                                    <div class="text-sm text-gray-600 mt-1">
+                                                        <span class="font-medium" x-text="selectedProductsStage.order_item.quantity || 1"></span> шт.
+                                                        <template x-if="selectedProductsStage.order_item.size"> • <span x-text="selectedProductsStage.order_item.size"></span></template>
+                                                        <template x-if="selectedProductsStage.order_item.color"> • <span x-text="selectedProductsStage.order_item.color"></span></template>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Спецификации -->
+                                                <div class="space-y-2">
+                                                    <template x-if="selectedProductsStage.order_item.product.is_glass">
+                                                        <div class="flex items-center text-blue-600 text-sm">
+                                                            <i data-lucide="droplets" class="w-4 h-4 mr-2"></i>
+                                                            <span>Стекло</span>
+                                                            <template x-if="selectedProductsStage.order_item.glass_type">
+                                                                <span class="ml-1">— <span x-text="selectedProductsStage.order_item.glass_type"></span></span>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                    
+                                                    <template x-if="selectedProductsStage.order_item.paint_type">
+                                                        <div class="flex items-center text-purple-600 text-sm">
+                                                            <i data-lucide="palette" class="w-4 h-4 mr-2"></i>
+                                                            <span x-text="selectedProductsStage.order_item.paint_type"></span>
+                                                            <template x-if="selectedProductsStage.order_item.paint_color">
+                                                                <span class="ml-1">(<span x-text="selectedProductsStage.order_item.paint_color"></span>)</span>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                    
+                                                    <template x-if="selectedProductsStage.order_item.cnc_specs">
+                                                        <div class="flex items-center text-green-600 text-sm">
+                                                            <i data-lucide="cpu" class="w-4 h-4 mr-2"></i>
+                                                            <span x-text="selectedProductsStage.order_item.cnc_specs"></span>
+                                                        </div>
+                                                    </template>
+                                                    
+                                                    <template x-if="selectedProductsStage.order_item.cutting_specs">
+                                                        <div class="flex items-center text-orange-600 text-sm">
+                                                            <i data-lucide="scissors" class="w-4 h-4 mr-2"></i>
+                                                            <span x-text="selectedProductsStage.order_item.cutting_specs"></span>
+                                                        </div>
+                                                    </template>
+                                                    
+                                                    <template x-if="selectedProductsStage.order_item.packaging_notes">
+                                                        <div class="flex items-center text-indigo-600 text-sm">
+                                                            <i data-lucide="package" class="w-4 h-4 mr-2"></i>
+                                                            <span x-text="selectedProductsStage.order_item.packaging_notes"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                                
+                                                <!-- Дополнительная информация -->
+                                                <template x-if="selectedProductsStage.order_item.product.description">
+                                                    <div class="mt-2 text-xs text-gray-500">
+                                                        <span x-text="selectedProductsStage.order_item.product.description"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                            
+                                            <!-- Статус текущего товара -->
+                                            <div class="flex-shrink-0">
+                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    <i data-lucide="check" class="w-3 h-3 mr-1"></i>
+                                                    Текущий
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                            
                             <!-- Если нет товаров -->
-                            <template x-if="!selectedProductsStage.order_item && !selectedProductsStage.aggregated_items">
+                            <template x-if="(!selectedProductsStage.order_item || !selectedProductsStage.order_item.order || !selectedProductsStage.order_item.order.items || !Array.isArray(selectedProductsStage.order_item.order.items) || selectedProductsStage.order_item.order.items.length === 0) && (!selectedProductsStage.aggregated_items || !Array.isArray(selectedProductsStage.aggregated_items) || selectedProductsStage.aggregated_items.length === 0)">
                                 <div class="text-center py-8 text-gray-500">
                                     <i data-lucide="package" class="w-12 h-12 mx-auto mb-2 text-gray-300"></i>
                                     <div>Товары не указаны</div>
+                                    <div class="text-xs mt-2 text-gray-400">
+                                        <div>Debug info:</div>
+                                        <div x-text="'order_item: ' + (selectedProductsStage.order_item ? 'yes' : 'no')"></div>
+                                        <div x-text="'order: ' + (selectedProductsStage.order_item && selectedProductsStage.order_item.order ? 'yes' : 'no')"></div>
+                                        <div x-text="'items: ' + (selectedProductsStage.order_item && selectedProductsStage.order_item.order && selectedProductsStage.order_item.order.items ? selectedProductsStage.order_item.order.items.length : 'no')"></div>
+                                        <div x-text="'aggregated_items: ' + (selectedProductsStage.aggregated_items ? selectedProductsStage.aggregated_items.length : 'no')"></div>
+                                    </div>
                                 </div>
                             </template>
                         </div>
