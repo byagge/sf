@@ -8,6 +8,8 @@ from apps.inventory.models import RawMaterial
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.db.models import Sum, Count, Avg
+import json
+from .models import ServiceMaterial
 
 
 def service_list(request):
@@ -342,3 +344,85 @@ def api_workshops(request):
         data = [{'id': w.id, 'name': w.name} for w in workshops]
         return JsonResponse({'status': 'success', 'data': data})
     return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+# API для мастера - получение услуг по цеху
+@csrf_exempt
+def api_master_services(request):
+    if request.method == 'GET':
+        workshop_id = request.GET.get('workshop')
+        if not workshop_id:
+            return JsonResponse({'status': 'error', 'message': 'Workshop ID required'}, status=400)
+        
+        services = Service.objects.filter(
+            workshop_id=workshop_id,
+            is_active=True
+        ).select_related('workshop').prefetch_related('service_materials__material').order_by('name')
+        
+        data = []
+        for service in services:
+            service_data = {
+                'id': service.id,
+                'name': service.name,
+                'description': service.description,
+                'unit': service.unit,
+                'workshop': service.workshop.id if service.workshop else None,
+                'workshop_name': service.workshop.name if service.workshop else '',
+                'service_price': float(service.service_price),
+                'defect_penalty': float(service.defect_penalty),
+                'is_active': service.is_active,
+                'created_at': service.created_at.isoformat() if service.created_at else None,
+                'updated_at': service.updated_at.isoformat() if service.updated_at else None,
+                'materials_info': [
+                    {
+                        'id': sm.material.id,
+                        'name': str(sm.material),
+                        'amount': float(sm.amount)
+                    }
+                    for sm in service.service_materials.all()
+                ]
+            }
+            data.append(service_data)
+        
+        return JsonResponse({'status': 'success', 'data': data})
+    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+# API для мастера - обновление цены услуги
+@csrf_exempt
+def api_master_update_price(request, pk):
+    if request.method == 'PATCH':
+        try:
+            data = json.loads(request.body)
+            service = get_object_or_404(Service, pk=pk)
+            
+            # Обновляем только цену услуги
+            if 'service_price' in data:
+                service.service_price = data['service_price']
+                service.save()
+            
+            response_data = {
+                'id': service.id,
+                'name': service.name,
+                'service_price': float(service.service_price),
+                'updated_at': service.updated_at.isoformat() if service.updated_at else None,
+            }
+            
+            return JsonResponse({'status': 'success', 'data': response_data})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+# API для мастера - получение цехов мастера
+@csrf_exempt
+def api_master_workshops(request):
+    if request.method == 'GET':
+        # Получаем все цехи (мастер может видеть услуги всех цехов)
+        workshops = Workshop.objects.all().order_by('name')
+        data = [{'id': w.id, 'name': w.name} for w in workshops]
+        return JsonResponse({'status': 'success', 'data': data})
+    return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+# Представление для страницы мастера
+@login_required
+def master_services(request):
+    return render(request, 'services_master.html')

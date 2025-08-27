@@ -16,4 +16,10 @@ urlpatterns = [
     path('api/services/<int:pk>/duplicate/', views.api_service_duplicate, name='api_service_duplicate'),
     path('api/materials/', views.api_materials, name='api_materials'),
     path('api/workshops/', views.api_workshops, name='api_workshops'),
+    
+    # API для мастера
+    path('master/', views.master_services, name='master_services'),
+    path('api/master/services/', views.api_master_services, name='api_master_services'),
+    path('api/master/services/<int:pk>/update-price/', views.api_master_update_price, name='api_master_update_price'),
+    path('api/master/workshops/', views.api_master_workshops, name='api_master_workshops'),
 ] 

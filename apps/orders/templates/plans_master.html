@@ -1633,7 +1633,10 @@
                 </div>
                 <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
                     <button type="button" @click="cancelTransfer()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base" :disabled="loadingAction === 'transfer'">Нет, отменить</button>
-                    <button type="button" @click="openTransferDestination()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 bg-blue-600 text-white font-semibold text-base flex items-center justify-center" :disabled="loadingAction === 'transfer'">
+                    <button type="button" @click="selectTransferWorkshop()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 text-white font-semibold text-base flex items-center justify-center" :disabled="loadingAction === 'transfer'">
+                        <span>Выбрать цех</span>
+                    </button>
+                    <button type="button" @click="confirmTransferFinal()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 bg-blue-600 text-white font-semibold text-base flex items-center justify-center" :disabled="loadingAction === 'transfer'">
                         <span>Да, я уверен</span>
                     </button>
                 </div>
@@ -1706,8 +1709,8 @@
                 </div>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" @click="showTransferDestinationModal = false" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
-                    <button type="button" @click="confirmTransferFinal()" class="px-6 py-3 bg-green-600 text-white rounded-lg" :disabled="!transferTargetWorkshopId || transferQuantity < 1 || (transferMaxQuantity === 0 && !(workshops[selectedWorkshopIdx] && workshops[selectedWorkshopIdx].id === 1))">Перевести</button>
+                    <button type="button" @click="cancelTransfer()" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700">Отмена</button>
+                    <button type="button" @click="confirmTransferFirst()" class="px-6 py-3 bg-green-600 text-white rounded-lg" :disabled="!transferTargetWorkshopId || transferQuantity < 1 || (transferMaxQuantity === 0 && !(workshops[selectedWorkshopIdx] && workshops[selectedWorkshopIdx].id === 1))">Перевести</button>
             </div>
         </div>
                 </div>
@@ -2491,14 +2494,19 @@
                     this.showQuickAssignmentsModal = false;
                 }
                 
-                this.showTransferModal = true;
+                // Сначала открываем выбор цеха
+                this.openTransferDestination();
             },
             confirmTransferFirst() {
-                this.showTransferModal = false;
+                this.showTransferDestinationModal = false;
                 this.showTransferConfirmModal = true;
             },
-            async openTransferDestination() {
+            
+            async selectTransferWorkshop() {
                 this.showTransferConfirmModal = false;
+                await this.openTransferDestination();
+            },
+            async openTransferDestination() {
                 await this.loadAllWorkshops();
                 const currentWorkshop = this.workshops[this.selectedWorkshopIdx];
                 const stage = this.stages.find(s => s.id === this.transferStageId);
@@ -2573,7 +2581,7 @@
                 this.loadingAction = null;
             },
             cancelTransfer() {
-                this.showTransferModal = false;
+                this.showTransferDestinationModal = false;
                 this.showTransferConfirmModal = false;
             },
 
