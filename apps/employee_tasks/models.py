@@ -150,13 +150,15 @@ class EmployeeTask(models.Model):
 
 @receiver(pre_save, sender=EmployeeTask)
 def create_defect_on_defective_change(sender, instance, **kwargs):
-    """Создает записи браков в новой системе при изменении defective_quantity"""
+    """Создает записи браков в новой системе при изменении defective_quantity и сохраняет предыдущее значение net_earnings"""
     if instance.pk:
         try:
             old_instance = EmployeeTask.objects.get(pk=instance.pk)
             # Дельта выполненного для последующего списания материалов
             delta_completed = int(instance.completed_quantity) - int(old_instance.completed_quantity)
             instance._delta_completed_quantity = max(delta_completed, 0)
+            # Сохраняем старое значение чистого заработка для корректного обновления баланса
+            instance._old_net_earnings = Decimal(str(old_instance.net_earnings or 0))
 
             # Создание браков в новой системе
             if instance.defective_quantity > old_instance.defective_quantity:
@@ -177,12 +179,14 @@ def create_defect_on_defective_change(sender, instance, **kwargs):
                     )
         except EmployeeTask.DoesNotExist:
             instance._delta_completed_quantity = 0
+            instance._old_net_earnings = Decimal('0')
     else:
         instance._delta_completed_quantity = 0
+        instance._old_net_earnings = Decimal('0')
 
 @receiver(post_save, sender=EmployeeTask)
 def update_earnings_and_materials(sender, instance, created, **kwargs):
-    """Обновляет заработок и учитывает расход сырья при изменении задачи"""
+    """Обновляет заработок, учитывает расход сырья и пополняет баланс пользователя"""
     try:
         with transaction.atomic():
             # Рассчитываем заработок по текущим значениям
@@ -199,6 +203,13 @@ def update_earnings_and_materials(sender, instance, created, **kwargs):
                 penalties=instance.penalties,
                 net_earnings=instance.net_earnings
             )
+            # Пополняем баланс сотрудника разницей чистого заработка
+            old_net = getattr(instance, '_old_net_earnings', Decimal('0'))
+            new_net = Decimal(str(instance.net_earnings or 0))
+            delta_net = new_net - old_net
+            if delta_net != 0:
+                from django.db.models import F
+                User.objects.filter(pk=instance.employee_id).update(balance=F('balance') + delta_net)
     except Exception as e:
         # Логируем ошибку, но не прерываем выполнение
         print(f"Ошибка в update_earnings_and_materials: {e}")

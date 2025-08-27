@@ -35,6 +35,9 @@ class EmployeeSerializer(serializers.ModelSerializer):
     contractNumber = serializers.CharField(source='contract_number', required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
     
+    # Баланс
+    balance = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    
     # Статистика (из связанной модели)
     salary = serializers.SerializerMethodField()
     completed_works = serializers.SerializerMethodField()
@@ -56,7 +59,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'first_name', 'last_name', 'name', 'full_name', 'position', 'phone', 'email', 'status',
             'workshop', 'workshop_name', 'passportNumber', 'taxId', 'startDate', 'firedDate',
-            'contractNumber', 'notes', 'role_display', 'is_active', 'role',
+            'contractNumber', 'notes', 'role_display', 'is_active', 'role', 'balance',
             'passport_number', 'inn', 'employment_date', 'fired_date', 'contract_number',
             # Статистика
             'salary', 'completed_works', 'defects', 'efficiency', 'monthly_salary',

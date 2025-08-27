@@ -93,7 +93,7 @@
             </div>
         </div>
         <div class="flex items-center space-x-3">
-            <a href="/notifications/" class="relative inline-flex items-center justify-center">
+            <a href="/notifications/" class="relative inline-flex items-center justify-center" @click="unreadNotifications = 0">
                 <i data-lucide="bell" class="w-5 h-5 text-gray-700"></i>
                 <span x-show="unreadNotifications > 0" x-text="unreadNotifications" class="absolute -top-2 -right-3 text-[10px] leading-4 px-1.5 min-w-[16px] text-center rounded-full bg-red-600 text-white"></span>
             </a>
@@ -942,6 +942,13 @@
                     this.$nextTick(() => {
                         if (typeof lucide !== 'undefined') {
                             lucide.createIcons();
+                        }
+                    });
+
+                    // Обновляем счетчик при возвращении на страницу
+                    document.addEventListener('visibilitychange', () => {
+                        if (!document.hidden) {
+                            this.loadUnreadNotifications();
                         }
                     });
                 },
