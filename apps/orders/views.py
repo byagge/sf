@@ -24,6 +24,50 @@ class OrderViewSet(viewsets.ModelViewSet):
 	serializer_class = OrderSerializer
 	permission_classes = [permissions.IsAuthenticated]
 	
+	@action(detail=False, methods=['get'])
+	def by_workshop(self, request):
+		"""Получает заказы с разделением по цехам"""
+		workshop_id = request.query_params.get('workshop_id')
+		
+		if workshop_id:
+			# Фильтруем заказы по конкретному цеху
+			queryset = Order.objects.filter(
+				stages__workshop_id=workshop_id,
+				stages__status__in=['in_progress', 'partial']
+			).distinct().order_by('-created_at')
+		else:
+			# Получаем все заказы с группировкой по цехам
+			queryset = Order.objects.filter(
+				stages__status__in=['in_progress', 'partial']
+			).distinct().order_by('-created_at')
+		
+		# Добавляем информацию о разделении по цехам
+		orders_data = []
+		for order in queryset:
+			order_data = OrderSerializer(order).data
+			
+			# Добавляем информацию о цехах
+			workshops_info = {}
+			for stage in order.stages.filter(status__in=['in_progress', 'partial']):
+				workshop_name = stage.workshop.name if stage.workshop else 'Не указан'
+				workshop_type = 'Стеклянные товары' if stage.parallel_group == 1 else 'Обычные товары'
+				
+				if workshop_name not in workshops_info:
+					workshops_info[workshop_name] = {
+						'type': workshop_type,
+						'quantity': 0,
+						'operation': stage.operation
+					}
+				workshops_info[workshop_name]['quantity'] += stage.plan_quantity
+			
+			order_data['workshops_info'] = workshops_info
+			order_data['has_glass_items'] = order.has_glass_items
+			order_data['has_regular_items'] = order.regular_items
+			
+			orders_data.append(order_data)
+		
+		return Response(orders_data)
+	
 	def update(self, request, *args, **kwargs):
 		instance = self.get_object()
 		data = request.data.copy()
@@ -166,7 +210,49 @@ class OrderPageView(View):
 		is_mobile = any(m in user_agent for m in ['android', 'iphone', 'ipad', 'mobile'])
 		template = 'orders_mobile.html' if is_mobile else 'orders.html'
 		show_create = request.GET.get('create') == 'True' or request.GET.get('create') == 'true' or request.GET.get('create') == '1'
-		return render(request, template, {'show_create': show_create})
+		
+		# Получаем статистику по заказам с разделением на стеклянные и обычные
+		from apps.orders.models import Order
+		from apps.operations.workshops.models import Workshop
+		
+		# Статистика по цехам
+		workshops_stats = {}
+		try:
+			workshop_1 = Workshop.objects.get(pk=1)  # Обычные товары
+			workshop_2 = Workshop.objects.get(pk=2)  # Стеклянные товары
+			
+			# Заказы в цехе 1 (обычные товары)
+			regular_orders = Order.objects.filter(
+				stages__workshop=workshop_1,
+				stages__status__in=['in_progress', 'partial']
+		 ).distinct().count()
+			
+			# Заказы в цехе 2 (стеклянные товары)
+			glass_orders = Order.objects.filter(
+				stages__workshop=workshop_2,
+				stages__status__in=['in_progress', 'partial']
+		 ).distinct().count()
+			
+			workshops_stats = {
+				'workshop_1': {
+					'name': workshop_1.name,
+					'orders_count': regular_orders,
+					'type': 'Обычные товары'
+				},
+				'workshop_2': {
+					'name': workshop_2.name,
+					'orders_count': glass_orders,
+					'type': 'Стеклянные товары'
+				}
+			}
+		except Workshop.DoesNotExist:
+			workshops_stats = {}
+		
+		context = {
+			'show_create': show_create,
+			'workshops_stats': workshops_stats
+		}
+		return render(request, template, context)
 
 class OrderStageConfirmAPIView(APIView):
 	permission_classes = [permissions.IsAuthenticated]

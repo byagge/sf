@@ -364,35 +364,72 @@ class OrderStage(models.Model):
         
         if next_stage:
             # Активируем существующий этап
-                next_stage.plan_quantity += qty
-                next_stage.status = 'in_progress'
-                next_stage.save()
+            next_stage.plan_quantity += qty
+            next_stage.status = 'in_progress'
+            next_stage.save()
         else:
             # Создаем новый этап по workflow
             if current_parallel_group is not None:
-                # Для параллельных потоков
+                # Для параллельных потоков (стекло)
                 workflow_steps = [step for step in ORDER_WORKFLOW if step.get("parallel_group") == current_parallel_group]
             else:
-                # Для основного потока
+                # Для основного потока (обычные товары)
                 workflow_steps = [step for step in ORDER_WORKFLOW if step.get("parallel_group") is None]
             
             if next_seq - 1 < len(workflow_steps):
                 step = workflow_steps[next_seq - 1]
                 from apps.operations.workshops.models import Workshop
-                workshop = Workshop.objects.get(pk=step["workshop"])
-                
-                OrderStage.objects.create(
-                    order=self.order,
-                    order_item=current_order_item,
-                    sequence=next_seq,
-                    stage_type='workshop',
-                    workshop=workshop,
-                    operation=step["operation"],
-                    plan_quantity=qty,
-                    deadline=timezone.now().replace(hour=18, minute=0, second=0, microsecond=0).date(),
-                    status='in_progress',
-                    parallel_group=current_parallel_group,
-                )
+                try:
+                    workshop = Workshop.objects.get(pk=step["workshop"])
+                    
+                    OrderStage.objects.create(
+                        order=self.order,
+                        order_item=current_order_item,
+                        sequence=next_seq,
+                        stage_type='workshop',
+                        workshop=workshop,
+                        operation=step["operation"],
+                        plan_quantity=qty,
+                        deadline=timezone.now().replace(hour=18, minute=0, second=0, microsecond=0).date(),
+                        status='in_progress',
+                        parallel_group=current_parallel_group,
+                    )
+                except Workshop.DoesNotExist:
+                    print(f"Workshop with ID {step['workshop']} not found, cannot create next stage")
+            else:
+                # Если это последний этап в workflow, создаем этап упаковки
+                self._create_packaging_stage(qty)
+    
+    def _create_packaging_stage(self, qty):
+        """
+        Создает этап упаковки после завершения всех производственных этапов
+        """
+        from apps.orders.models import OrderStage
+        from apps.operations.workshops.models import Workshop
+        
+        # Ищем цех упаковки (обычно это последний цех в списке)
+        try:
+            packaging_workshop = Workshop.objects.filter(name__icontains='упаковк').first()
+            if not packaging_workshop:
+                # Если не нашли цех упаковки, используем цех ID 12 (Упаковка готовой продукции)
+                packaging_workshop = Workshop.objects.get(pk=12)
+        except Workshop.DoesNotExist:
+            print("Packaging workshop not found, skipping packaging stage creation")
+            return
+        
+        # Создаем этап упаковки
+        OrderStage.objects.create(
+            order=self.order,
+            order_item=self.order_item,
+            sequence=self.sequence + 1,
+            stage_type='workshop',
+            workshop=packaging_workshop,
+            operation='Упаковка готовой продукции',
+            plan_quantity=qty,
+            deadline=timezone.now().replace(hour=18, minute=0, second=0, microsecond=0).date(),
+            status='in_progress',
+            parallel_group=self.parallel_group,  # Сохраняем группу для отслеживания потока
+        )
 
 class OrderDefect(models.Model):
     DEFECT_STATUS_CHOICES = [
@@ -704,8 +741,10 @@ class OrderItem(models.Model):
             }
 
 ORDER_WORKFLOW = [
-    # Только один этап на цех ID 1 для всех заказов
+    # Основной поток для обычных товаров (цех ID 1)
     {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": None},
+    # Параллельный поток для стеклянных товаров (цех ID 2)
+    {"workshop": 2, "operation": "Распил стекла", "sequence": 1, "parallel_group": 1},
 ]
 
 
@@ -720,50 +759,102 @@ def create_order_stages(order):
         print(f"Warning: No items found for order {order.id}, skipping stage creation")
         return
     
-    # Суммируем количество по всем позициям и создаем ОДИН общий этап без привязки к позиции
-    try:
-        workshop = Workshop.objects.get(pk=1)  # Цех ID 1
-    except Workshop.DoesNotExist:
-        print("Workshop with ID 1 not found, skipping stage creation")
-        return
+    # Разделяем позиции на стеклянные и обычные
+    glass_items = [item for item in order_items if item.product and item.product.is_glass]
+    regular_items = [item for item in order_items if item.product and not item.product.is_glass]
     
-    total_qty = sum(item.quantity for item in order_items)
     now = timezone.now()
     deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
     if now.hour >= 18:
         deadline_dt += timedelta(days=1)
     
-    # Если похожий этап уже существует — обновляем его, иначе создаём новый
-    stage, created_stage = OrderStage.objects.get_or_create(
-        order=order,
-        order_item=None,
-        stage_type='workshop',
-        workshop=workshop,
-        sequence=1,
-        defaults={
-            'operation': 'Резка',
-            'plan_quantity': total_qty,
-            'deadline': deadline_dt.date(),
-            'status': 'in_progress',
-        }
-    )
-    if not created_stage:
-        # Обновляем плановое количество и статус
-        stage.plan_quantity = total_qty
-        stage.status = 'in_progress'
-        # Обновляем срок
-        stage.deadline = deadline_dt.date()
-        stage.save(update_fields=['plan_quantity', 'status', 'deadline'])
+    # Создаем этап для обычных товаров в цехе ID 1
+    if regular_items:
+        try:
+            workshop_1 = Workshop.objects.get(pk=1)  # Цех ID 1
+            total_regular_qty = sum(item.quantity for item in regular_items)
+            
+            # Создаем этап для обычных товаров
+            stage_regular, created_regular = OrderStage.objects.get_or_create(
+                order=order,
+                order_item=None,  # Агрегированный этап для всех обычных товаров
+                stage_type='workshop',
+                workshop=workshop_1,
+                sequence=1,
+                parallel_group=None,  # Основной поток
+                defaults={
+                    'operation': 'Резка',
+                    'plan_quantity': total_regular_qty,
+                    'deadline': deadline_dt.date(),
+                    'status': 'in_progress',
+                }
+            )
+            
+            if not created_regular:
+                # Обновляем плановое количество и статус
+                stage_regular.plan_quantity = total_regular_qty
+                stage_regular.status = 'in_progress'
+                stage_regular.deadline = deadline_dt.date()
+                stage_regular.save(update_fields=['plan_quantity', 'status', 'deadline'])
+                
+            print(f"Created/updated regular stage for order {order.id}: {total_regular_qty} items in workshop 1")
+            
+        except Workshop.DoesNotExist:
+            print("Workshop with ID 1 not found, skipping regular stage creation")
+    
+    # Создаем этап для стеклянных товаров в цехе ID 2
+    if glass_items:
+        try:
+            workshop_2 = Workshop.objects.get(pk=2)  # Цех ID 2
+            total_glass_qty = sum(item.quantity for item in glass_items)
+            
+            # Создаем этап для стеклянных товаров
+            stage_glass, created_glass = OrderStage.objects.get_or_create(
+                order=order,
+                order_item=None,  # Агрегированный этап для всех стеклянных товаров
+                stage_type='workshop',
+                workshop=workshop_2,
+                sequence=1,
+                parallel_group=1,  # Параллельный поток для стекла
+                defaults={
+                    'operation': 'Распил стекла',
+                    'plan_quantity': total_glass_qty,
+                    'deadline': deadline_dt.date(),
+                    'status': 'in_progress',
+                }
+            )
+            
+            if not created_glass:
+                # Обновляем плановое количество и статус
+                stage_glass.plan_quantity = total_glass_qty
+                stage_glass.status = 'in_progress'
+                stage_glass.deadline = deadline_dt.date()
+                stage_glass.save(update_fields=['plan_quantity', 'status', 'deadline'])
+                
+            print(f"Created/updated glass stage for order {order.id}: {total_glass_qty} items in workshop 2")
+            
+        except Workshop.DoesNotExist:
+            print("Workshop with ID 2 not found, skipping glass stage creation")
 
 
 def _create_stage_for_order_item(order, order_item):
-    """Создает этап для конкретной позиции заказа"""
+    """Создает этап для конкретной позиции заказа с учетом типа товара"""
     from apps.operations.workshops.models import Workshop
     
+    # Определяем цех в зависимости от типа товара
+    if order_item.product and order_item.product.is_glass:
+        workshop_id = 2  # Цех для стеклянных товаров
+        operation = "Распил стекла"
+        parallel_group = 1
+    else:
+        workshop_id = 1  # Цех для обычных товаров
+        operation = "Резка"
+        parallel_group = None
+    
     try:
-        workshop = Workshop.objects.get(pk=1)  # Цех ID 1
+        workshop = Workshop.objects.get(pk=workshop_id)
     except Workshop.DoesNotExist:
-        print("Workshop with ID 1 not found, skipping stage creation")
+        print(f"Workshop with ID {workshop_id} not found, skipping stage creation")
         return
     
     now = timezone.now()
@@ -776,12 +867,13 @@ def _create_stage_for_order_item(order, order_item):
         order=order,
         order_item=order_item,  # Привязываем к конкретной позиции
         workshop=workshop,
-        operation="Резка",
+        operation=operation,
         sequence=1,
         stage_type='workshop',
         plan_quantity=order_item.quantity,  # Количество из позиции заказа
         deadline=deadline_dt.date(),
         status='in_progress',
+        parallel_group=parallel_group,
     )
 
 
