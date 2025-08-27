@@ -27,6 +27,9 @@ class EmployeeTask(models.Model):
     
     # Количество слоёв на единицу (актуально для цеха ID=7)
     layers_per_unit = models.PositiveIntegerField('Слоёв на единицу', default=1)
+
+    # Дополнительные штрафы (вручную начисленные, например при подтверждении брака)
+    additional_penalties = models.DecimalField('Дополнительные штрафы', max_digits=10, decimal_places=2, default=0)
     
     # Связь с услугой через цех
     @property
@@ -95,8 +98,10 @@ class EmployeeTask(models.Model):
         # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
         self.earnings = (Decimal(str(self.completed_quantity)) * service_price) * Decimal(str(layers_multiplier))
         
-        # Штрафы за брак (за единицу брака, без множителя слоёв)
-        self.penalties = Decimal(str(self.defective_quantity)) * penalty_rate
+        # Штрафы: за брак + дополнительные вручную начисленные
+        base_defect_penalties = Decimal(str(self.defective_quantity)) * Decimal(str(penalty_rate))
+        manual_penalties = Decimal(str(self.additional_penalties or 0))
+        self.penalties = base_defect_penalties + manual_penalties
         
         # Чистый заработок
         self.net_earnings = self.earnings - self.penalties

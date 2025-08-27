@@ -172,10 +172,11 @@ class Defect(models.Model):
                         self.penalty_amount = service.defect_penalty
                 self.penalty_applied = True
                 
-                # Обновляем штраф и чистый заработок в задаче сотрудника
-                self.employee_task.penalties += self.penalty_amount
-                self.employee_task.net_earnings = self.employee_task.earnings - self.employee_task.penalties
-                self.employee_task.save()
+                # Накопительно увеличиваем дополнительные штрафы, затем пересчитываем чистый заработок
+                task = self.employee_task
+                task.additional_penalties = (task.additional_penalties or 0) + self.penalty_amount
+                task.calculate_earnings()
+                task.save(update_fields=['earnings', 'penalties', 'net_earnings', 'additional_penalties'])
             except Exception as e:
                 print(f"Ошибка при применении штрафа: {e}")
     
