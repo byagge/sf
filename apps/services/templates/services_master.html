@@ -105,6 +105,17 @@
             </template>
         </div>
 
+        <!-- Debug information -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-xs">
+            <div class="font-medium text-yellow-800 mb-2">Debug информация:</div>
+            <div>Пользователь: <span x-text="'{{ request.user.username }}'"></span></div>
+            <div>Роль: <span x-text="'{{ request.user.role }}'"></span></div>
+            <div>Цех пользователя: <span x-text="'{{ request.user.workshop.name|default:"Не назначен" }}'"></span></div>
+            <div>Количество цехов: <span x-text="workshops.length"></span></div>
+            <div>Выбранный цех: <span x-text="selectedWorkshopIdx >= 0 ? workshops[selectedWorkshopIdx]?.name : 'Нет'"></span></div>
+            <div>Цехи: <span x-text="workshops.map(w => w.name).join(', ')"></span></div>
+        </div>
+
         <!-- Services for selected workshop -->
         <template x-if="loading">
             <div class="space-y-4 animate-pulse">
@@ -428,9 +439,14 @@
             async loadWorkshops() {
                 this.loading = true;
                 try {
+                    console.log('Loading workshops...');
                     const resp = await fetch('/services/api/master/workshops/');
                     const data = await resp.json();
+                    console.log('Workshops response:', data);
+                    
                     this.workshops = data.data || [];
+                    console.log('Workshops loaded:', this.workshops);
+                    
                     if (this.workshops.length > 0) {
                         const savedWorkshopId = parseInt(localStorage.getItem('master_services_selected_workshop_id'));
                         const savedIdx = this.workshops.findIndex(w => w && w.id === savedWorkshopId);
@@ -440,6 +456,8 @@
                             localStorage.setItem('master_services_selected_workshop_id', currentWorkshop.id);
                         }
                         await this.loadServices();
+                    } else {
+                        console.log('No workshops found');
                     }
                 } catch (error) {
                     console.error('Error loading workshops:', error);

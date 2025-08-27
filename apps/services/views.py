@@ -346,12 +346,45 @@ def api_workshops(request):
     return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 
 # API для мастера - получение услуг по цеху
+@login_required
 @csrf_exempt
 def api_master_services(request):
     if request.method == 'GET':
+        # Проверяем, что пользователь является мастером
+        if not hasattr(request.user, 'role') or request.user.role not in ['master', 'founder', 'director', 'admin']:
+            print(f"DEBUG: User role '{getattr(request.user, 'role', 'No role')}' is not allowed")
+            return JsonResponse({'status': 'error', 'message': 'Access denied. Only masters can access this API.'}, status=403)
+        
         workshop_id = request.GET.get('workshop')
         if not workshop_id:
             return JsonResponse({'status': 'error', 'message': 'Workshop ID required'}, status=400)
+        
+        # Проверяем, имеет ли мастер доступ к этому цеху
+        user_workshops = []
+        if request.user.is_authenticated:
+            # 1. Цех, в котором работает пользователь
+            if hasattr(request.user, 'workshop') and request.user.workshop:
+                user_workshops.append(request.user.workshop.id)
+            
+            # 2. Цехи, которыми управляет пользователь как главный мастер
+            managed_workshops = Workshop.objects.filter(manager=request.user, is_active=True)
+            user_workshops.extend([w.id for w in managed_workshops])
+            
+            # 3. Дополнительные цехи, где пользователь является мастером
+            try:
+                from apps.operations.workshops.models import WorkshopMaster
+                additional_workshops = WorkshopMaster.objects.filter(
+                    master=request.user, 
+                    is_active=True,
+                    workshop__is_active=True
+                ).select_related('workshop')
+                user_workshops.extend([wm.workshop.id for wm in additional_workshops])
+            except ImportError:
+                pass
+        
+        # Проверяем доступ к запрашиваемому цеху
+        if int(workshop_id) not in user_workshops:
+            return JsonResponse({'status': 'error', 'message': 'Access denied to this workshop'}, status=403)
         
         services = Service.objects.filter(
             workshop_id=workshop_id,
@@ -387,12 +420,45 @@ def api_master_services(request):
     return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 
 # API для мастера - обновление цены услуги
+@login_required
 @csrf_exempt
 def api_master_update_price(request, pk):
     if request.method == 'PATCH':
+        # Проверяем, что пользователь является мастером
+        if not hasattr(request.user, 'role') or request.user.role not in ['master', 'founder', 'director', 'admin']:
+            print(f"DEBUG: User role '{getattr(request.user, 'role', 'No role')}' is not allowed")
+            return JsonResponse({'status': 'error', 'message': 'Access denied. Only masters can access this API.'}, status=403)
+        
         try:
             data = json.loads(request.body)
             service = get_object_or_404(Service, pk=pk)
+            
+            # Проверяем, имеет ли мастер доступ к цеху этой услуги
+            user_workshops = []
+            if request.user.is_authenticated:
+                # 1. Цех, в котором работает пользователь
+                if hasattr(request.user, 'workshop') and request.user.workshop:
+                    user_workshops.append(request.user.workshop.id)
+                
+                # 2. Цехи, которыми управляет пользователь как главный мастер
+                managed_workshops = Workshop.objects.filter(manager=request.user, is_active=True)
+                user_workshops.extend([w.id for w in managed_workshops])
+                
+                # 3. Дополнительные цехи, где пользователь является мастером
+                try:
+                    from apps.operations.workshops.models import WorkshopMaster
+                    additional_workshops = WorkshopMaster.objects.filter(
+                        master=request.user, 
+                        is_active=True,
+                        workshop__is_active=True
+                    ).select_related('workshop')
+                    user_workshops.extend([wm.workshop.id for wm in additional_workshops])
+                except ImportError:
+                    pass
+            
+            # Проверяем доступ к цеху услуги
+            if service.workshop and service.workshop.id not in user_workshops:
+                return JsonResponse({'status': 'error', 'message': 'Access denied to modify this service'}, status=403)
             
             # Обновляем только цену услуги
             if 'service_price' in data:
@@ -413,12 +479,78 @@ def api_master_update_price(request, pk):
     return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 
 # API для мастера - получение цехов мастера
+@login_required
 @csrf_exempt
 def api_master_workshops(request):
     if request.method == 'GET':
-        # Получаем все цехи (мастер может видеть услуги всех цехов)
-        workshops = Workshop.objects.all().order_by('name')
-        data = [{'id': w.id, 'name': w.name} for w in workshops]
+        # Проверяем, что пользователь является мастером
+        if not hasattr(request.user, 'role') or request.user.role not in ['master', 'founder', 'director', 'admin']:
+            print(f"DEBUG: User role '{getattr(request.user, 'role', 'No role')}' is not allowed")
+            return JsonResponse({'status': 'error', 'message': 'Access denied. Only masters can access this API.'}, status=403)
+        
+        # Получаем только цехи текущего мастера
+        user_workshops = []
+        
+        print(f"DEBUG: User authenticated: {request.user.is_authenticated}")
+        print(f"DEBUG: User: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+        print(f"DEBUG: User role: {getattr(request.user, 'role', 'No role') if request.user.is_authenticated else 'No role'}")
+        
+        if request.user.is_authenticated:
+            # 1. Цех, в котором работает пользователь
+            if hasattr(request.user, 'workshop') and request.user.workshop:
+                user_workshops.append(request.user.workshop)
+                print(f"DEBUG: User workshop: {request.user.workshop.name} (ID: {request.user.workshop.id})")
+            else:
+                print("DEBUG: User has no workshop assigned")
+            
+            # 2. Цехи, которыми управляет пользователь как главный мастер
+            managed_workshops = Workshop.objects.filter(manager=request.user, is_active=True)
+            print(f"DEBUG: Managed workshops count: {managed_workshops.count()}")
+            for workshop in managed_workshops:
+                if workshop not in user_workshops:
+                    user_workshops.append(workshop)
+                    print(f"DEBUG: Managed workshop: {workshop.name} (ID: {workshop.id})")
+            
+            # 3. Дополнительные цехи, где пользователь является мастером
+            # (если есть модель WorkshopMaster)
+            try:
+                from apps.operations.workshops.models import WorkshopMaster
+                additional_workshops = WorkshopMaster.objects.filter(
+                    master=request.user, 
+                    is_active=True,
+                    workshop__is_active=True
+                ).select_related('workshop')
+                
+                print(f"DEBUG: Additional workshops count: {additional_workshops.count()}")
+                for workshop_master in additional_workshops:
+                    if workshop_master.workshop not in user_workshops:
+                        user_workshops.append(workshop_master.workshop)
+                        print(f"DEBUG: Additional workshop: {workshop_master.workshop.name} (ID: {workshop_master.workshop.id})")
+            except ImportError:
+                print("DEBUG: WorkshopMaster model not found")
+                pass
+        else:
+            print("DEBUG: User not authenticated")
+        
+        print(f"DEBUG: Total workshops found: {len(user_workshops)}")
+        
+        # Если у пользователя нет цехов, возвращаем пустой список
+        if not user_workshops:
+            data = []
+            print("DEBUG: No workshops found for user")
+        else:
+            # Убираем дубликаты по ID и сортируем по имени
+            seen_ids = set()
+            unique_workshops = []
+            for workshop in user_workshops:
+                if workshop.id not in seen_ids:
+                    seen_ids.add(workshop.id)
+                    unique_workshops.append(workshop)
+            
+            unique_workshops.sort(key=lambda x: x.name)
+            data = [{'id': w.id, 'name': w.name} for w in unique_workshops]
+            print(f"DEBUG: Final unique workshops: {[w.name for w in unique_workshops]}")
+        
         return JsonResponse({'status': 'success', 'data': data})
     return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
 
