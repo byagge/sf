@@ -1,8 +1,340 @@
 {% extends 'finance/base.html' %}
+{% block title %}{{ title }} - Финансовая система{% endblock %}
+
 {% block content %}
-<h2>{{ title }}</h2>
-<form method="post">{% csrf_token %}
-	{{ form.as_p }}
-	<button type="submit">Сохранить</button>
-</form>
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    <!-- Заголовок страницы -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                    <i data-lucide="{% if 'Редактирование' in title %}edit-3{% else %}plus-circle{% endif %}" 
+                       class="inline-block w-8 h-8 mr-3 text-blue-600"></i>
+                    {{ title }}
+                </h1>
+                <p class="text-gray-600 text-lg">
+                    {% if 'Редактирование' in title %}
+                        Изменение параметров бухгалтерского счета
+                    {% else %}
+                        Создание нового бухгалтерского счета в плане счетов
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{% url 'finance:accounts' %}" 
+               class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center">
+                <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>
+                Назад к списку
+            </a>
+        </div>
+    </div>
+
+    <!-- Форма -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <form method="post" id="accountForm" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Основная информация -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.code.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i data-lucide="hash" class="w-4 h-4 inline mr-2 text-blue-600"></i>
+                        Код счета *
+                    </label>
+                    {{ form.code }}
+                    {% if form.code.errors %}
+                        <div class="mt-1 text-sm text-red-600">
+                            {% for error in form.code.errors %}
+                                <div class="flex items-center">
+                                    <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500">Уникальный код счета (например: 01, 10, 20, 50)</p>
+                </div>
+
+                <div>
+                    <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i data-lucide="file-text" class="w-4 h-4 inline mr-2 text-blue-600"></i>
+                        Наименование счета *
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <div class="mt-1 text-sm text-red-600">
+                            {% for error in form.name.errors %}
+                                <div class="flex items-center">
+                                    <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500">Полное название счета</p>
+                </div>
+            </div>
+
+            <!-- Тип и сторона -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.account_type.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i data-lucide="tag" class="w-4 h-4 inline mr-2 text-blue-600"></i>
+                        Тип счета *
+                    </label>
+                    {{ form.account_type }}
+                    {% if form.account_type.errors %}
+                        <div class="mt-1 text-sm text-red-600">
+                            {% for error in form.account_type.errors %}
+                                <div class="flex items-center">
+                                    <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <div class="mt-2 space-y-2">
+                        <div class="flex items-center text-sm">
+                            <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                            <span class="text-gray-600">Актив - имущество и права</span>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <div class="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                            <span class="text-gray-600">Пассив - обязательства</span>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                            <span class="text-gray-600">Капитал - собственные средства</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="{{ form.normal_side.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i data-lucide="arrow-left-right" class="w-4 h-4 inline mr-2 text-blue-600"></i>
+                        Нормальная сторона *
+                    </label>
+                    {{ form.normal_side }}
+                    {% if form.normal_side.errors %}
+                        <div class="mt-1 text-sm text-red-600">
+                            {% for error in form.normal_side.errors %}
+                                <div class="flex items-center">
+                                    <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                    {{ error }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500">Сторона, по которой увеличивается сальдо счета</p>
+                </div>
+            </div>
+
+            <!-- Родительский счет -->
+            <div>
+                <label for="{{ form.parent.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i data-lucide="folder-tree" class="w-4 h-4 inline mr-2 text-blue-600"></i>
+                    Родительский счет
+                </label>
+                {{ form.parent }}
+                {% if form.parent.errors %}
+                    <div class="mt-1 text-sm text-red-600">
+                        {% for error in form.parent.errors %}
+                            <div class="flex items-center">
+                                <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                {{ error }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500">Выберите родительский счет для создания субсчета (необязательно)</p>
+            </div>
+
+            <!-- Описание -->
+            <div>
+                <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i data-lucide="align-left" class="w-4 h-4 inline mr-2 text-blue-600"></i>
+                    Описание
+                </label>
+                    {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="mt-1 text-sm text-red-600">
+                        {% for error in form.description.errors %}
+                            <div class="flex items-center">
+                                <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                {{ error }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500">Дополнительное описание назначения счета</p>
+            </div>
+
+            <!-- Статус -->
+            <div class="flex items-center">
+                {{ form.is_active }}
+                <label for="{{ form.is_active.id_for_label }}" class="ml-3 text-sm font-medium text-gray-700">
+                    <i data-lucide="check-circle" class="w-4 h-4 inline mr-2 text-green-600"></i>
+                    Счет активен
+                </label>
+                {% if form.is_active.errors %}
+                    <div class="ml-4 text-sm text-red-600">
+                        {% for error in form.is_active.errors %}
+                            <div class="flex items-center">
+                                <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                {{ error }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Кнопки -->
+            <div class="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+                <a href="{% url 'finance:accounts' %}" 
+                   class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200">
+                    Отмена
+                </a>
+                <button type="submit" 
+                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center">
+                    <i data-lucide="{% if 'Редактирование' in title %}save{% else %}plus{% endif %}" class="w-5 h-5 mr-2"></i>
+                    {% if 'Редактирование' in title %}Сохранить изменения{% else %}Создать счет{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Справка по типам счетов -->
+    <div class="mt-8 bg-blue-50 rounded-lg p-6 border border-blue-200">
+        <h3 class="text-lg font-semibold text-blue-900 mb-4 flex items-center">
+            <i data-lucide="info" class="w-5 h-5 mr-2"></i>
+            Справка по типам счетов
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-blue-800">
+            <div>
+                <h4 class="font-medium mb-2">Активы (01-99)</h4>
+                <ul class="space-y-1 text-blue-700">
+                    <li>• Основные средства (01)</li>
+                    <li>• Материалы (10)</li>
+                    <li>• Денежные средства (50, 51)</li>
+                    <li>• Дебиторская задолженность (62)</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Пассивы (60-99)</h4>
+                <ul class="space-y-1 text-blue-700">
+                    <li>• Кредиторская задолженность (60)</li>
+                    <li>• Займы и кредиты (66, 67)</li>
+                    <li>• Налоги (68, 69)</li>
+                    <li>• Уставный капитал (80)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('accountForm');
+    const codeInput = document.getElementById('{{ form.code.id_for_label }}');
+    const nameInput = document.getElementById('{{ form.name.id_for_label }}');
+    const typeSelect = document.getElementById('{{ form.account_type.id_for_label }}');
+    const sideSelect = document.getElementById('{{ form.normal_side.id_for_label }}');
+
+    // Автоматическое определение нормальной стороны по типу счета
+    function updateNormalSide() {
+        const selectedType = typeSelect.value;
+        if (selectedType === 'asset' || selectedType === 'expense') {
+            sideSelect.value = 'debit';
+        } else if (selectedType === 'liability' || selectedType === 'equity' || selectedType === 'income') {
+            sideSelect.value = 'credit';
+        }
+    }
+
+    typeSelect.addEventListener('change', updateNormalSide);
+
+    // Валидация формы
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Проверка кода счета
+        if (!codeInput.value.trim()) {
+            showError(codeInput, 'Код счета обязателен');
+            isValid = false;
+        } else if (!/^[0-9]{1,2}$/.test(codeInput.value.trim())) {
+            showError(codeInput, 'Код должен быть числом от 01 до 99');
+            isValid = false;
+        } else {
+            clearError(codeInput);
+        }
+
+        // Проверка названия
+        if (!nameInput.value.trim()) {
+            showError(nameInput, 'Название счета обязательно');
+            isValid = false;
+        } else {
+            clearError(nameInput);
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+        }
+    });
+
+    function showError(input, message) {
+        clearError(input);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'mt-1 text-sm text-red-600 flex items-center';
+        errorDiv.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>${message}`;
+        input.parentNode.appendChild(errorDiv);
+        input.classList.add('border-red-500');
+    }
+
+    function clearError(input) {
+        const errorDiv = input.parentNode.querySelector('.text-red-600');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+        input.classList.remove('border-red-500');
+    }
+
+    // Инициализация нормальной стороны при загрузке
+    updateNormalSide();
+});
+</script>
+
+<style>
+/* Кастомные стили для формы */
+.form-control, input[type="text"], input[type="email"], input[type="password"], input[type="number"], 
+input[type="date"], input[type="datetime-local"], input[type="time"], input[type="url"], 
+input[type="tel"], input[type="search"], textarea, select {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+}
+
+.form-control:focus, input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, 
+input[type="number"]:focus, input[type="date"]:focus, input[type="datetime-local"]:focus, 
+input[type="time"]:focus, input[type="url"]:focus, input[type="tel"]:focus, 
+input[type="search"]:focus, textarea:focus, select:focus {
+    @apply outline-none border-blue-500 ring-2 ring-blue-500 ring-opacity-20;
+}
+
+/* Стили для чекбокса */
+input[type="checkbox"] {
+    @apply w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2;
+}
+
+/* Анимация появления */
+.container {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
 {% endblock %} 

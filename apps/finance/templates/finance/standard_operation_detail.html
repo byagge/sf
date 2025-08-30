@@ -1,0 +1,26 @@
+{% extends 'finance/base.html' %}
+{% block title %}Типовая операция: {{ operation.name }}{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+	<div class="flex items-center justify-between mb-6">
+		<h1 class="text-2xl font-bold text-gray-900">Типовая операция: {{ operation.name }}</h1>
+		<a href="{% url 'finance:standard_operation_edit' operation.pk %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Редактировать</a>
+	</div>
+	<div class="bg-white border border-gray-200 rounded-lg p-6">
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div>
+				<div class="text-sm text-gray-500">Категория</div>
+				<div class="text-gray-900">{{ operation.category|default:'-' }}</div>
+			</div>
+			<div>
+				<div class="text-sm text-gray-500">Активна</div>
+				<div class="text-gray-900">{% if operation.is_active %}Да{% else %}Нет{% endif %}</div>
+			</div>
+			<div class="md:col-span-2">
+				<div class="text-sm text-gray-500">Описание</div>
+				<div class="text-gray-900">{{ operation.description|default:'-' }}</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %} 

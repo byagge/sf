@@ -19,8 +19,8 @@ from .forms import (
 )
 from .forms import DebtForm, DebtPaymentForm
 from .models import Debt, DebtPayment
-from .models import AccountingAccount, JournalEntry, JournalEntryLine
-from .forms import AccountingAccountForm, JournalEntryForm, JournalEntryLineForm
+from .models import AccountingAccount, JournalEntry, JournalEntryLine, AnalyticalAccount, StandardOperation, StandardOperationLine, AccountCorrespondence, FinancialPeriod
+from .forms import AccountingAccountForm, JournalEntryForm, JournalEntryLineForm, AnalyticalAccountForm, StandardOperationForm, StandardOperationLineForm, AccountCorrespondenceForm, FinancialPeriodForm
 
 # Главная страница финансовой системы
 @login_required
@@ -844,7 +844,20 @@ def debt_delete(request, pk):
 @login_required
 def accounts(request):
 	qs = AccountingAccount.objects.select_related('parent').order_by('code')
-	return render(request, 'finance/accounts.html', {'accounts': qs})
+	
+	# Подсчитываем статистику
+	total_accounts = qs.count()
+	active_accounts = qs.filter(is_active=True).count()
+	group_accounts = qs.filter(parent__isnull=True).count()
+	sub_accounts = qs.filter(parent__isnull=False).count()
+	
+	return render(request, 'finance/accounts.html', {
+		'accounts': qs,
+		'total_accounts': total_accounts,
+		'active_accounts': active_accounts,
+		'group_accounts': group_accounts,
+		'sub_accounts': sub_accounts,
+	})
 
 @login_required
 def account_create(request):
@@ -874,7 +887,27 @@ def account_edit(request, pk):
 @login_required
 def journal_entries(request):
 	entries = JournalEntry.objects.prefetch_related('lines__account').order_by('-date', '-created_at')
-	return render(request, 'finance/journal_entries.html', {'entries': entries})
+	
+	# Получаем текущую дату для статистики
+	from django.utils import timezone
+	today = timezone.now().date()
+	current_month = timezone.now().month
+	
+	# Подсчитываем статистику
+	total_entries = entries.count()
+	posted_entries = entries.filter(posted=True).count()
+	today_entries = entries.filter(date=today).count()
+	month_entries = entries.filter(date__month=current_month).count()
+	
+	return render(request, 'finance/journal_entries.html', {
+		'entries': entries,
+		'total_entries': total_entries,
+		'posted_entries': posted_entries,
+		'today_entries': today_entries,
+		'month_entries': month_entries,
+		'today': today,
+		'current_month': current_month,
+	})
 
 @login_required
 def journal_entry_create(request):
@@ -882,18 +915,102 @@ def journal_entry_create(request):
 		form = JournalEntryForm(request.POST)
 		line_form = JournalEntryLineForm(request.POST, prefix='line')
 		if form.is_valid() and line_form.is_valid():
-			entry = form.save(commit=False)
-			entry.created_by = request.user
-			entry.save()
-			line = line_form.save(commit=False)
-			line.entry = entry
-			line.save()
+			from decimal import Decimal as _D
+			# Pre-validate totals from POST without saving anything
+			first_debit = line_form.cleaned_data.get('debit') or _D('0')
+			first_credit = line_form.cleaned_data.get('credit') or _D('0')
+			total_debit = first_debit
+			total_credit = first_credit
+			print("DEBUG: First line - Debit:", first_debit, "Credit:", first_credit)
+			indices = set()
+			for key in request.POST.keys():
+				if key.startswith('line_') and key.endswith('_account'):
+					try:
+						idx = int(key.split('_')[1])
+						indices.add(idx)
+					except Exception:
+						pass
+			# Debug: print all POST keys for debugging
+			print("DEBUG: All POST keys:", list(request.POST.keys()))
+			print("DEBUG: Found indices:", sorted(indices))
+			print("DEBUG: First line debit from form:", line_form.cleaned_data.get('debit'))
+			print("DEBUG: First line credit from form:", line_form.cleaned_data.get('credit'))
+			for idx in sorted(indices):
+				debit_val = request.POST.get(f'line_{idx}_debit')
+				credit_val = request.POST.get(f'line_{idx}_credit')
+				account_val = request.POST.get(f'line_{idx}_account')
+				print(f"DEBUG: Line {idx} - account: {account_val}, debit: {debit_val}, credit: {credit_val}")
+				try:
+					debit_amt = _D(debit_val or '0')
+					credit_amt = _D(credit_val or '0')
+				except Exception:
+					debit_amt = _D('0')
+					credit_amt = _D('0')
+				total_debit += debit_amt
+				total_credit += credit_amt
+			print("DEBUG: Final totals - Debit:", total_debit, "Credit:", total_credit)
+			if total_debit.quantize(_D('0.01')) != total_credit.quantize(_D('0.01')):
+				messages.error(request, f"Баланс не сходится: Дт={total_debit} Кт={total_credit}")
+				return render(request, 'finance/journal_entry_form.html', {
+					'form': form,
+					'line_form': line_form,
+					'title': 'Новая операция',
+					'accounts': AccountingAccount.objects.filter(is_active=True).order_by('code'),
+					'lineCounter': 1
+				})
+			# Save after validation
+			from django.db import transaction
+			with transaction.atomic():
+				entry = form.save(commit=False)
+				entry.created_by = request.user
+				entry.save()
+				first_line = line_form.save(commit=False)
+				first_line.entry = entry
+				first_line.save()
+				for idx in sorted(indices):
+					account_id = request.POST.get(f'line_{idx}_account')
+					debit_val = request.POST.get(f'line_{idx}_debit')
+					credit_val = request.POST.get(f'line_{idx}_credit')
+					desc_val = request.POST.get(f'line_{idx}_description', '')
+					if not account_id:
+						continue
+					JournalEntryLine.objects.create(
+						entry=entry,
+						account_id=account_id,
+						description=desc_val,
+						debit=_D(debit_val or '0'),
+						credit=_D(credit_val or '0'),
+					)
 			messages.success(request, 'Операция создана')
 			return redirect('finance:journal_entries')
 	else:
 		form = JournalEntryForm()
 		line_form = JournalEntryLineForm(prefix='line')
-	return render(request, 'finance/journal_entry_form.html', {'form': form, 'line_form': line_form, 'title': 'Новая операция'})
+	
+	# Получаем список активных счетов для формы
+	accounts = AccountingAccount.objects.filter(is_active=True).order_by('code')
+	
+	return render(request, 'finance/journal_entry_form.html', {
+		'form': form, 
+		'line_form': line_form, 
+		'title': 'Новая операция',
+		'accounts': accounts,
+		'lineCounter': 1
+	})
+
+@login_required
+def journal_entry_detail(request, pk):
+	entry = get_object_or_404(JournalEntry.objects.prefetch_related('lines__account'), pk=pk)
+	line_form = JournalEntryLineForm()
+	if request.method == 'POST':
+		form = JournalEntryLineForm(request.POST)
+		if form.is_valid():
+			line = form.save(commit=False)
+			line.entry = entry
+			line.save()
+			messages.success(request, 'Строка добавлена')
+			return redirect('finance:journal_entry_detail', pk=entry.pk)
+	return render(request, 'finance/journal_entry_detail.html', {'entry': entry, 'line_form': line_form})
 
 @login_required
 def journal_entry_add_line(request, pk):
@@ -909,25 +1026,267 @@ def journal_entry_add_line(request, pk):
 	return redirect('finance:journal_entries')
 
 @login_required
+def journal_entry_export(request, format):
+	"""Экспорт журнальной операции в различных форматах"""
+	from django.http import JsonResponse, HttpResponse
+	import json
+	from datetime import datetime
+	
+	# Получаем данные из запроса
+	date = request.GET.get('date', '')
+	memo = request.GET.get('memo', '')
+	posted = request.GET.get('posted', 'false') == 'true'
+	
+	# Собираем строки проводки
+	lines = []
+	line_index = 1
+	while True:
+		account = request.GET.get(f'line_{line_index}_account', '')
+		debit = request.GET.get(f'line_{line_index}_debit', '0')
+		credit = request.GET.get(f'line_{line_index}_credit', '0')
+		description = request.GET.get(f'line_{line_index}_description', '')
+		
+		if not account and not debit and not credit:
+			break
+			
+		lines.append({
+			'account': account,
+			'debit': float(debit) if debit else 0,
+			'credit': float(credit) if credit else 0,
+			'description': description
+		})
+		line_index += 1
+	
+	# Формируем данные операции
+	operation_data = {
+		'date': date,
+		'memo': memo,
+		'posted': posted,
+		'lines': lines,
+		'exported_at': datetime.now().isoformat(),
+		'export_format': format
+	}
+	
+	if format == 'json':
+		return JsonResponse(operation_data, json_dumps_params={'indent': 2})
+	elif format == 'xml':
+		xml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<journal_entry>
+	<date>{date}</date>
+	<memo>{memo}</memo>
+	<posted>{posted}</posted>
+	<lines>"""
+		
+		for line in lines:
+			xml_content += f"""
+		<line>
+			<account>{line['account']}</account>
+			<debit>{line['debit']}</debit>
+			<credit>{line['credit']}</credit>
+			<description>{line['description']}</description>
+		</line>"""
+		
+		xml_content += """
+	</lines>
+	<exported_at>{}</exported_at>
+	<export_format>{}</export_format>
+</journal_entry>""".format(datetime.now().isoformat(), format)
+		
+		response = HttpResponse(xml_content, content_type='application/xml')
+		response['Content-Disposition'] = f'attachment; filename="journal_entry_{date}.xml"'
+		return response
+	else:
+		return JsonResponse({'error': 'Неподдерживаемый формат экспорта'}, status=400)
+
+@login_required
 def trial_balance(request):
 	# Оборотно-сальдовая ведомость
 	date_from = request.GET.get('date_from')
 	date_to = request.GET.get('date_to')
 	from datetime import datetime as _dt
+	from django.utils import timezone
+	
+	# Если даты не указаны, устанавливаем текущий месяц по умолчанию
+	if not date_from or not date_to:
+		now = timezone.now()
+		date_from = now.replace(day=1).strftime('%Y-%m-%d')
+		date_to = now.strftime('%Y-%m-%d')
+	
 	df = _dt.strptime(date_from, '%Y-%m-%d').date() if date_from else None
 	dt = _dt.strptime(date_to, '%Y-%m-%d').date() if date_to else None
+	
 	rows = []
 	total_debit = Decimal('0.00')
 	total_credit = Decimal('0.00')
+	
 	for acc in AccountingAccount.objects.order_by('code'):
 		b = acc.get_balance(df, dt)
 		rows.append({'account': acc, **b})
 		total_debit += b['debit_turnover']
 		total_credit += b['credit_turnover']
+	
+	# Получаем текущую дату для статистики
+	today = timezone.now().date()
+	current_month = timezone.now().month
+	
 	return render(request, 'finance/trial_balance.html', {
 		'rows': rows,
 		'total_debit': total_debit,
 		'total_credit': total_credit,
 		'date_from': date_from,
 		'date_to': date_to,
+		'today': today,
+		'current_month': current_month,
 	})
+
+# ====== РАСШИРЕННАЯ БУХГАЛТЕРИЯ ======
+
+@login_required
+def analytical_accounts(request):
+	"""Список аналитических счетов"""
+	accounts = AnalyticalAccount.objects.select_related('parent_account').order_by('parent_account__code', 'code')
+	return render(request, 'finance/analytical_accounts.html', {'accounts': accounts})
+
+@login_required
+def analytical_account_create(request):
+	"""Создание аналитического счета"""
+	if request.method == 'POST':
+		form = AnalyticalAccountForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Аналитический счет создан')
+			return redirect('finance:analytical_accounts')
+	else:
+		form = AnalyticalAccountForm()
+	return render(request, 'finance/analytical_account_form.html', {'form': form, 'title': 'Новый аналитический счет'})
+
+@login_required
+def analytical_account_edit(request, pk):
+	"""Редактирование аналитического счета"""
+	account = get_object_or_404(AnalyticalAccount, pk=pk)
+	if request.method == 'POST':
+		form = AnalyticalAccountForm(request.POST, instance=account)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Аналитический счет обновлен')
+			return redirect('finance:analytical_accounts')
+	else:
+		form = AnalyticalAccountForm(instance=account)
+	return render(request, 'finance/analytical_account_form.html', {'form': form, 'title': 'Редактирование аналитического счета'})
+
+@login_required
+def standard_operations(request):
+	"""Список типовых операций"""
+	operations = StandardOperation.objects.select_related('created_by').order_by('category', 'name')
+	return render(request, 'finance/standard_operations.html', {'operations': operations})
+
+@login_required
+def standard_operation_create(request):
+	"""Создание типовой операции"""
+	if request.method == 'POST':
+		form = StandardOperationForm(request.POST)
+		if form.is_valid():
+			operation = form.save(commit=False)
+			operation.created_by = request.user
+			operation.save()
+			messages.success(request, 'Типовая операция создана')
+			return redirect('finance:standard_operations')
+	else:
+		form = StandardOperationForm()
+	return render(request, 'finance/standard_operation_form.html', {'form': form, 'title': 'Новая типовая операция'})
+
+@login_required
+def standard_operation_detail(request, pk):
+	"""Детали типовой операции"""
+	operation = get_object_or_404(StandardOperation, pk=pk)
+	return render(request, 'finance/standard_operation_detail.html', {'operation': operation})
+
+@login_required
+def standard_operation_edit(request, pk):
+	"""Редактирование типовой операции"""
+	operation = get_object_or_404(StandardOperation, pk=pk)
+	if request.method == 'POST':
+		form = StandardOperationForm(request.POST, instance=operation)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Типовая операция обновлена')
+			return redirect('finance:standard_operations')
+	else:
+		form = StandardOperationForm(instance=operation)
+	return render(request, 'finance/standard_operation_form.html', {'form': form, 'title': 'Редактирование типовой операции'})
+
+@login_required
+def account_correspondences(request):
+	"""Список корреспонденций счетов"""
+	correspondences = AccountCorrespondence.objects.select_related('debit_account', 'credit_account').order_by('debit_account__code', 'credit_account__code')
+	return render(request, 'finance/account_correspondences.html', {'correspondences': correspondences})
+
+@login_required
+def account_correspondence_create(request):
+	"""Создание корреспонденции счетов"""
+	if request.method == 'POST':
+		form = AccountCorrespondenceForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Корреспонденция создана')
+			return redirect('finance:account_correspondences')
+	else:
+		form = AccountCorrespondenceForm()
+	return render(request, 'finance/account_correspondence_form.html', {'form': form, 'title': 'Новая корреспонденция'})
+
+@login_required
+def account_correspondence_edit(request, pk):
+	"""Редактирование корреспонденции счетов"""
+	correspondence = get_object_or_404(AccountCorrespondence, pk=pk)
+	if request.method == 'POST':
+		form = AccountCorrespondenceForm(request.POST, instance=correspondence)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Корреспонденция обновлена')
+			return redirect('finance:account_correspondences')
+	else:
+		form = AccountCorrespondenceForm(instance=correspondence)
+	return render(request, 'finance/account_correspondence_form.html', {'form': form, 'title': 'Редактирование корреспонденции'})
+
+@login_required
+def financial_periods(request):
+	"""Список финансовых периодов"""
+	periods = FinancialPeriod.objects.select_related('closed_by').order_by('-start_date')
+	return render(request, 'finance/financial_periods.html', {'periods': periods})
+
+@login_required
+def financial_period_create(request):
+	"""Создание финансового периода"""
+	if request.method == 'POST':
+		form = FinancialPeriodForm(request.POST)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Финансовый период создан')
+			return redirect('finance:financial_periods')
+	else:
+		form = FinancialPeriodForm()
+	return render(request, 'finance/financial_period_form.html', {'form': form, 'title': 'Новый финансовый период'})
+
+@login_required
+def financial_period_close(request, pk):
+	"""Закрытие финансового периода"""
+	period = get_object_or_404(FinancialPeriod, pk=pk)
+	if request.method == 'POST':
+		period.close_period(request.user)
+		messages.success(request, f'Период "{period.name}" закрыт')
+		return redirect('finance:financial_periods')
+	return render(request, 'finance/financial_period_close_confirm.html', {'period': period})
+
+@login_required
+def financial_period_edit(request, pk):
+	"""Редактирование финансового периода"""
+	period = get_object_or_404(FinancialPeriod, pk=pk)
+	if request.method == 'POST':
+		form = FinancialPeriodForm(request.POST, instance=period)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Финансовый период обновлен')
+			return redirect('finance:financial_periods')
+	else:
+		form = FinancialPeriodForm(instance=period)
+	return render(request, 'finance/financial_period_form.html', {'form': form, 'title': 'Редактирование финансового периода'})

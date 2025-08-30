@@ -1,37 +1,365 @@
 {% extends 'finance/base.html' %}
+{% block title %}Журнал операций - Финансовая система{% endblock %}
+
 {% block content %}
-<h2>Журнал операций</h2>
-<p><a href="{% url 'finance:journal_entry_create' %}">Новая операция</a></p>
-<table class="table">
-	<thead><tr><th>Дата</th><th>Описание</th><th>Дебет</th><th>Кредит</th></tr></thead>
-	<tbody>
-	{% for e in entries %}
-		<tr>
-			<td>{{ e.date }}</td>
-			<td>{{ e.memo }}</td>
-			<td>{{ e.total_debit }}</td>
-			<td>{{ e.total_credit }}</td>
-		</tr>
-		<tr>
-			<td></td><td colspan="3">
-				<table class="table">
-					<thead><tr><th>Счет</th><th>Описание</th><th>Дебет</th><th>Кредит</th></tr></thead>
-					<tbody>
-					{% for l in e.lines.all %}
-					<tr>
-						<td>{{ l.account }}</td>
-						<td>{{ l.description }}</td>
-						<td>{{ l.debit }}</td>
-						<td>{{ l.credit }}</td>
-					</tr>
-					{% endfor %}
-					</tbody>
-				</table>
-			</td>
-		</tr>
-	{% empty %}
-		<tr><td colspan="4">Нет операций</td></tr>
-	{% endfor %}
-	</tbody>
-</table>
+<div class="container mx-auto px-4 py-6">
+    <!-- Заголовок страницы -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                    <i data-lucide="book-open" class="inline-block w-8 h-8 mr-3 text-blue-600"></i>
+                    Журнал операций
+                </h1>
+                <p class="text-gray-600 text-lg">Учет хозяйственных операций по принципу двойной записи</p>
+            </div>
+            <a href="{% url 'finance:journal_entry_create' %}" 
+               class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center">
+                <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                Новая операция
+            </a>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-lg">
+                    <i data-lucide="file-text" class="w-6 h-6 text-blue-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Всего операций</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_entries }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-lg">
+                    <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Проведено</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ posted_entries }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-purple-100 rounded-lg">
+                    <i data-lucide="calendar" class="w-6 h-6 text-purple-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">За сегодня</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ today_entries }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-orange-100 rounded-lg">
+                    <i data-lucide="calculator" class="w-6 h-6 text-orange-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">За месяц</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ month_entries }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры и поиск -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex flex-wrap gap-4 items-center">
+            <div class="flex-1 min-w-64">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"></i>
+                    <input type="text" id="searchEntries" placeholder="Поиск по описанию..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+            </div>
+            <input type="date" id="dateFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="">Все статусы</option>
+                <option value="posted">Проведено</option>
+                <option value="draft">Черновик</option>
+            </select>
+            <button onclick="exportJournal()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center">
+                <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                Экспорт
+            </button>
+        </div>
+    </div>
+
+    <!-- Журнал операций -->
+    <div class="space-y-6">
+        {% for entry in entries %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden journal-entry" 
+             data-memo="{{ entry.memo|lower }}" 
+             data-date="{{ entry.date|date:'Y-m-d' }}"
+             data-status="{{ entry.posted|yesno:'posted,draft' }}">
+            
+            <!-- Заголовок операции -->
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-medium text-gray-900">{{ entry.date|date:"d.m.Y" }}</span>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full
+                                {% if entry.posted %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {% if entry.posted %}
+                                    <i data-lucide="check-circle" class="w-3 h-3 inline mr-1"></i>
+                                    Проведено
+                                {% else %}
+                                    <i data-lucide="clock" class="w-3 h-3 inline mr-1"></i>
+                                    Черновик
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            <i data-lucide="hash" class="w-4 h-4 inline mr-1"></i>
+                            {{ entry.pk|truncatechars:8 }}
+                        </div>
+                        {% if entry.created_by %}
+                        <div class="text-sm text-gray-600">
+                            <i data-lucide="user" class="w-4 h-4 inline mr-1"></i>
+                            {{ entry.created_by.get_full_name|default:entry.created_by.username }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-900">
+                            <i data-lucide="calculator" class="w-4 h-4 inline mr-1"></i>
+                            Дт: {{ entry.total_debit }} | Кт: {{ entry.total_credit }}
+                        </span>
+                        <div class="flex items-center space-x-1">
+                            <a href="{% url 'finance:journal_entry_detail' entry.pk %}"
+                                    class="text-blue-600 hover:text-blue-900 transition-colors duration-150 p-1 rounded">
+                                <i data-lucide="edit" class="w-4 h-4"></i>
+                            </a>
+                            <a href="{% url 'finance:journal_entry_detail' entry.pk %}#add-line"
+                                    class="text-green-600 hover:text-green-900 transition-colors duration-150 p-1 rounded">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                            </a>
+                            <a href="{% url 'finance:journal_entry_detail' entry.pk %}"
+                                    class="text-gray-600 hover:text-gray-900 transition-colors duration-150 p-1 rounded">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% if entry.memo %}
+                <div class="mt-2">
+                    <p class="text-sm text-gray-700 font-medium">{{ entry.memo }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Строки проводки -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center">
+                                    <i data-lucide="hash" class="w-4 h-4 mr-2"></i>
+                                    Счет
+                                </div>
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center">
+                                    <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
+                                    Описание
+                                </div>
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center justify-end">
+                                    <i data-lucide="arrow-right" class="w-4 h-4 mr-2"></i>
+                                    Дебет
+                                </div>
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center justify-end">
+                                    <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i>
+                                    Кредит
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        {% for line in entry.lines.all %}
+                        <tr class="hover:bg-gray-50 transition-colors duration-150">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="text-sm font-mono font-medium text-gray-900">{{ line.account.code }}</span>
+                                    <span class="ml-2 text-sm text-gray-600">{{ line.account.name }}</span>
+                                    <span class="ml-2 px-2 py-1 text-xs rounded-full
+                                        {% if line.account.account_type == 'asset' %}bg-blue-100 text-blue-800
+                                        {% elif line.account.account_type == 'liability' %}bg-red-100 text-red-800
+                                        {% elif line.account.account_type == 'equity' %}bg-green-100 text-green-800
+                                        {% elif line.account.account_type == 'income' %}bg-emerald-100 text-emerald-800
+                                        {% else %}bg-orange-100 text-orange-800{% endif %}">
+                                        {{ line.account.get_account_type_display }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900">
+                                    {% if line.description %}
+                                        {{ line.description }}
+                                    {% else %}
+                                        <span class="text-gray-400">Без описания</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                {% if line.debit > 0 %}
+                                    <span class="text-sm font-medium text-green-600">{{ line.debit }}</span>
+                                {% else %}
+                                    <span class="text-sm text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                {% if line.credit > 0 %}
+                                    <span class="text-sm font-medium text-red-600">{{ line.credit }}</span>
+                                {% else %}
+                                    <span class="text-sm text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-50">
+                        <tr>
+                            <td colspan="2" class="px-6 py-3 text-right font-medium text-gray-700">
+                                Итого:
+                            </td>
+                            <td class="px-6 py-3 text-right font-medium text-green-600">
+                                {{ entry.total_debit }}
+                            </td>
+                            <td class="px-6 py-3 text-right font-medium text-red-600">
+                                {{ entry.total_credit }}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <div class="text-gray-500">
+                <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
+                <p class="text-lg font-medium">Операции не найдены</p>
+                <p class="text-sm">Создайте первую операцию для начала работы</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchEntries');
+    const dateFilter = document.getElementById('dateFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const entries = document.querySelectorAll('.journal-entry');
+
+    // Устанавливаем сегодняшнюю дату по умолчанию
+    const today = new Date().toISOString().split('T')[0];
+    dateFilter.value = today;
+
+    function filterEntries() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedDate = dateFilter.value;
+        const selectedStatus = statusFilter.value;
+
+        entries.forEach(entry => {
+            const memo = entry.dataset.memo;
+            const date = entry.dataset.date;
+            const status = entry.dataset.status;
+
+            const matchesSearch = !searchTerm || memo.includes(searchTerm);
+            const matchesDate = !selectedDate || date === selectedDate;
+            const matchesStatus = !selectedStatus || status === selectedStatus;
+
+            if (matchesSearch && matchesDate && matchesStatus) {
+                entry.style.display = '';
+            } else {
+                entry.style.display = 'none';
+            }
+        });
+    }
+
+    searchInput.addEventListener('input', filterEntries);
+    dateFilter.addEventListener('change', filterEntries);
+    statusFilter.addEventListener('change', filterEntries);
+});
+
+function editEntry(entryId) {
+    // Здесь можно добавить редактирование операции
+    console.log('Редактирование операции:', entryId);
+}
+
+function addLine(entryId) {
+    // Здесь можно добавить добавление строки
+    console.log('Добавление строки в операцию:', entryId);
+}
+
+function viewEntry(entryId) {
+    // Здесь можно добавить просмотр деталей операции
+    console.log('Просмотр операции:', entryId);
+}
+
+function exportJournal() {
+    // Здесь можно добавить экспорт журнала
+    console.log('Экспорт журнала');
+}
+</script>
+
+<style>
+.journal-entry {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Стили для скроллбара */
+.overflow-x-auto::-webkit-scrollbar {
+    height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Анимация при наведении */
+.journal-entry:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+</style>
 {% endblock %} 

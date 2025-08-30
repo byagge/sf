@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 import uuid
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -433,6 +434,7 @@ class JournalEntryLine(models.Model):
     """Строка проводки: дебет/кредит конкретного счета."""
     entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name='lines', verbose_name="Операция")
     account = models.ForeignKey(AccountingAccount, on_delete=models.PROTECT, verbose_name="Счет")
+    analytical_account = models.ForeignKey('AnalyticalAccount', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Аналитический счет")
     description = models.CharField(max_length=255, blank=True, verbose_name="Описание")
     debit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], verbose_name="Дебет")
     credit = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), validators=[MinValueValidator(Decimal('0.00'))], verbose_name="Кредит")
@@ -458,3 +460,146 @@ def create_simple_entry(date, debit_account: AccountingAccount, credit_account: 
     JournalEntryLine.objects.create(entry=entry, account=debit_account, debit=amount, credit=Decimal('0.00'), description=memo)
     JournalEntryLine.objects.create(entry=entry, account=credit_account, debit=Decimal('0.00'), credit=amount, description=memo)
     return entry
+
+
+# ====== РАСШИРЕННАЯ БУХГАЛТЕРИЯ ======
+
+class AnalyticalAccount(models.Model):
+    """Аналитические счета для детализации синтетических счетов."""
+    parent_account = models.ForeignKey(AccountingAccount, on_delete=models.CASCADE, related_name='analytical_accounts', verbose_name="Синтетический счет")
+    code = models.CharField(max_length=50, verbose_name="Код аналитического счета")
+    name = models.CharField(max_length=200, verbose_name="Наименование")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    is_active = models.BooleanField(default=True, verbose_name="Активен")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Аналитический счет"
+        verbose_name_plural = "Аналитические счета"
+        unique_together = ['parent_account', 'code']
+        ordering = ['parent_account', 'code']
+    
+    def __str__(self):
+        return f"{self.parent_account.code}.{self.code} {self.name}"
+    
+    def get_balance(self, date_from=None, date_to=None):
+        """Возвращает обороты и сальдо по аналитическому счету."""
+        from django.db.models import Sum
+        lines = JournalEntryLine.objects.filter(
+            account=self.parent_account,
+            analytical_account=self
+        )
+        if date_from:
+            lines = lines.filter(entry__date__gte=date_from)
+        if date_to:
+            lines = lines.filter(entry__date__lte=date_to)
+        
+        agg = lines.aggregate(d=Sum('debit'), c=Sum('credit'))
+        debit = agg['d'] or Decimal('0.00')
+        credit = agg['c'] or Decimal('0.00')
+        
+        if self.parent_account.normal_side == self.parent_account.DEBIT:
+            closing = debit - credit
+        else:
+            closing = credit - debit
+            
+        return {
+            'debit_turnover': debit,
+            'credit_turnover': credit,
+            'closing_balance': closing,
+        }
+
+
+class StandardOperation(models.Model):
+    """Типовые хозяйственные операции для быстрого создания проводок."""
+    name = models.CharField(max_length=200, verbose_name="Название операции")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    category = models.CharField(max_length=100, blank=True, verbose_name="Категория")
+    is_active = models.BooleanField(default=True, verbose_name="Активна")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Создал")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Типовая операция"
+        verbose_name_plural = "Типовые операции"
+        ordering = ['category', 'name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.category})"
+
+
+class StandardOperationLine(models.Model):
+    """Строка типовой операции."""
+    operation = models.ForeignKey(StandardOperation, on_delete=models.CASCADE, related_name='lines', verbose_name="Операция")
+    account = models.ForeignKey(AccountingAccount, on_delete=models.CASCADE, verbose_name="Счет")
+    analytical_account = models.ForeignKey('AnalyticalAccount', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Аналитический счет")
+    description = models.CharField(max_length=255, blank=True, verbose_name="Описание")
+    debit_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Процент по дебету")
+    credit_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Процент по кредиту")
+    is_variable = models.BooleanField(default=False, verbose_name="Переменная сумма")
+    
+    class Meta:
+        verbose_name = "Строка типовой операции"
+        verbose_name_plural = "Строки типовых операций"
+    
+    def __str__(self):
+        return f"{self.operation.name}: {self.account.code}"
+
+
+class AccountCorrespondence(models.Model):
+    """Корреспонденции счетов для проверки правильности проводок."""
+    debit_account = models.ForeignKey(AccountingAccount, on_delete=models.CASCADE, related_name='debit_correspondences', verbose_name="Счет по дебету")
+    credit_account = models.ForeignKey(AccountingAccount, on_delete=models.CASCADE, related_name='credit_correspondences', verbose_name="Счет по кредиту")
+    description = models.CharField(max_length=255, verbose_name="Описание корреспонденции")
+    is_valid = models.BooleanField(default=True, verbose_name="Корректна")
+    warning_message = models.TextField(blank=True, verbose_name="Предупреждение")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Корреспонденция счетов"
+        verbose_name_plural = "Корреспонденции счетов"
+        unique_together = ['debit_account', 'credit_account']
+        ordering = ['debit_account', 'credit_account']
+    
+    def __str__(self):
+        return f"{self.debit_account.code} ↔ {self.credit_account.code}"
+
+
+class FinancialPeriod(models.Model):
+    """Финансовые периоды для закрытия счетов."""
+    PERIOD_TYPES = [
+        ('month', 'Месяц'),
+        ('quarter', 'Квартал'),
+        ('year', 'Год'),
+    ]
+    
+    name = models.CharField(max_length=100, verbose_name="Название периода")
+    period_type = models.CharField(max_length=20, choices=PERIOD_TYPES, verbose_name="Тип периода")
+    start_date = models.DateField(verbose_name="Дата начала")
+    end_date = models.DateField(verbose_name="Дата окончания")
+    is_closed = models.BooleanField(default=False, verbose_name="Закрыт")
+    closed_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата закрытия")
+    closed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Закрыл")
+    
+    class Meta:
+        verbose_name = "Финансовый период"
+        verbose_name_plural = "Финансовые периоды"
+        ordering = ['-start_date']
+    
+    def __str__(self):
+        return f"{self.name} ({self.start_date} - {self.end_date})"
+    
+    def close_period(self, user):
+        """Закрытие финансового периода."""
+        if not self.is_closed:
+            self.is_closed = True
+            self.closed_at = timezone.now()
+            self.closed_by = user
+            self.save()
+    
+    def get_period_entries(self):
+        """Получение всех операций за период."""
+        return JournalEntry.objects.filter(
+            date__range=[self.start_date, self.end_date],
+            posted=True
+        )

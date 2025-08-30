@@ -7,7 +7,7 @@ from .models import AttendanceRecord
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db.models import Q, Count
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import json
 from django.views.decorators.csrf import ensure_csrf_cookie
 from core.utils import is_mobile_device
@@ -285,3 +285,133 @@ def attendance_page(request):
     if is_mobile_device(request):
         return render(request, 'attendance/attendance_mobile.html')
     return render(request, 'attendance/attendance.html')
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def employee_attendance_status(request):
+    """Получение статуса посещаемости сотрудников"""
+    try:
+        today = timezone.localdate()
+        current_time = timezone.now()
+        
+        # Получаем всех сотрудников с их статусом посещаемости
+        employees = User.objects.filter(is_active=True)
+        employees_data = []
+        
+        for employee in employees:
+            try:
+                record = AttendanceRecord.objects.get(employee=employee, date=today)
+                status = 'checked_out' if record.check_out else 'present'
+                check_in_time = timezone.localtime(record.check_in) if record.check_in else None
+                check_out_time = timezone.localtime(record.check_out) if record.check_out else None
+            except AttendanceRecord.DoesNotExist:
+                status = 'absent'
+                check_in_time = None
+                check_out_time = None
+            
+            employees_data.append({
+                'id': employee.id,
+                'name': employee.get_full_name() or employee.username,
+                'status': status,
+                'check_in_time': check_in_time.isoformat() if check_in_time else None,
+                'check_out_time': check_out_time.isoformat() if check_out_time else None,
+                'is_late': record.is_late if 'record' in locals() else False,
+                'penalty_amount': float(record.penalty_amount) if 'record' in locals() else 0.0
+            })
+        
+        return Response({
+            'date': today.isoformat(),
+            'current_time': current_time.isoformat(),
+            'employees': employees_data
+        })
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def auto_checkout_after_6pm(request):
+    """Автоматическая отметка ухода всех сотрудников после 18:00"""
+    try:
+        today = timezone.localdate()
+        current_time = timezone.now()
+        local_time = timezone.localtime(current_time)
+        
+        # Проверяем, что время после 18:00
+        if local_time.time() < time(18, 0):
+            return Response({
+                'message': 'Автоматическая отметка ухода доступна только после 18:00',
+                'current_time': local_time.strftime('%H:%M'),
+                'required_time': '18:00'
+            }, status=400)
+        
+        # Находим всех сотрудников, которые пришли, но не ушли
+        active_records = AttendanceRecord.objects.filter(
+            date=today,
+            check_in__isnull=False,
+            check_out__isnull=True
+        )
+        
+        checked_out_count = 0
+        for record in active_records:
+            record.check_out = current_time
+            record.save()
+            checked_out_count += 1
+        
+        return Response({
+            'success': True,
+            'message': f'Автоматически отмечен уход для {checked_out_count} сотрудников',
+            'checked_out_count': checked_out_count,
+            'checkout_time': current_time.isoformat()
+        })
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def employee_status_by_workshop(request):
+    """Получение статуса сотрудников по цеху"""
+    try:
+        workshop_id = request.GET.get('workshop_id')
+        today = timezone.localdate()
+        
+        if not workshop_id:
+            return Response({'error': 'Не указан workshop_id'}, status=400)
+        
+        # Получаем сотрудников указанного цеха
+        employees = User.objects.filter(
+            is_active=True,
+            workshop=workshop_id
+        )
+        
+        employees_data = []
+        for employee in employees:
+            try:
+                record = AttendanceRecord.objects.get(employee=employee, date=today)
+                status = 'checked_out' if record.check_out else 'present'
+                check_in_time = timezone.localtime(record.check_in) if record.check_in else None
+                check_out_time = timezone.localtime(record.check_out) if record.check_out else None
+            except AttendanceRecord.DoesNotExist:
+                status = 'absent'
+                check_in_time = None
+                check_out_time = None
+            
+            employees_data.append({
+                'id': employee.id,
+                'name': employee.get_full_name() or employee.username,
+                'status': status,
+                'check_in_time': check_in_time.isoformat() if check_in_time else None,
+                'check_out_time': check_out_time.isoformat() if check_out_time else None,
+                'is_late': record.is_late if 'record' in locals() else False,
+                'penalty_amount': float(record.penalty_amount) if 'record' in locals() else 0.0
+            })
+        
+        return Response({
+            'workshop_id': workshop_id,
+            'date': today.isoformat(),
+            'employees': employees_data
+        })
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)

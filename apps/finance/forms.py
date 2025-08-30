@@ -2,7 +2,7 @@ from django import forms
 from django.forms import ModelForm
 from .models import (
     ExpenseCategory, Supplier, SupplierItem, 
-    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport, AccountingAccount, JournalEntry, JournalEntryLine
+    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport, AccountingAccount, JournalEntry, JournalEntryLine, AnalyticalAccount, StandardOperation, StandardOperationLine, AccountCorrespondence, FinancialPeriod
 )
 
 class ExpenseCategoryForm(ModelForm):
@@ -147,3 +147,37 @@ class JournalEntryLineForm(forms.ModelForm):
 	class Meta:
 		model = JournalEntryLine
 		fields = ['account', 'description', 'debit', 'credit']
+
+class AnalyticalAccountForm(forms.ModelForm):
+	class Meta:
+		model = AnalyticalAccount
+		fields = ['parent_account', 'code', 'name', 'description', 'is_active']
+		widgets = {
+			'description': forms.Textarea(attrs={'rows': 3}),
+		}
+
+class StandardOperationForm(forms.ModelForm):
+	class Meta:
+		model = StandardOperation
+		fields = ['name', 'description', 'category', 'is_active']
+		widgets = {
+			'description': forms.Textarea(attrs={'rows': 3}),
+		}
+
+class StandardOperationLineForm(forms.ModelForm):
+	class Meta:
+		model = StandardOperationLine
+		fields = ['account', 'analytical_account', 'description', 'debit_percent', 'credit_percent', 'is_variable']
+
+class AccountCorrespondenceForm(forms.ModelForm):
+	class Meta:
+		model = AccountCorrespondence
+		fields = ['debit_account', 'credit_account', 'description', 'is_valid', 'warning_message']
+		widgets = {
+			'warning_message': forms.Textarea(attrs={'rows': 3}),
+		}
+
+class FinancialPeriodForm(forms.ModelForm):
+	class Meta:
+		model = FinancialPeriod
+		fields = ['name', 'period_type', 'start_date', 'end_date']

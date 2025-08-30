@@ -1,15 +1,751 @@
 {% extends 'finance/base.html' %}
+{% block title %}{{ title }} - Финансовая система{% endblock %}
+
 {% block content %}
-<h2>{{ title }}</h2>
-<form method="post">{% csrf_token %}
-	<fieldset>
-		<legend>Операция</legend>
-		{{ form.as_p }}
-	</fieldset>
-	<fieldset>
-		<legend>Первая строка</legend>
-		{{ line_form.as_p }}
-	</fieldset>
-	<button type="submit">Сохранить</button>
-</form>
+<div class="container mx-auto px-4 py-6 max-w-6xl">
+    <!-- Заголовок страницы -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                    <i data-lucide="plus-circle" class="inline-block w-8 h-8 mr-3 text-blue-600"></i>
+                    {{ title }}
+                </h1>
+                <p class="text-gray-600 text-lg">Создание новой хозяйственной операции с двойной записью</p>
+            </div>
+            <a href="{% url 'finance:journal_entries' %}" 
+               class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center">
+                <i data-lucide="arrow-left" class="w-5 h-5 mr-2"></i>
+                Назад к журналу
+            </a>
+        </div>
+    </div>
+
+    <!-- Форма -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <form method="post" id="journalForm" class="space-y-8">
+            {% csrf_token %}
+            
+            <!-- Основная информация об операции -->
+            <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <i data-lucide="file-text" class="w-5 h-5 mr-2 text-blue-600"></i>
+                    Информация об операции
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="{{ form.date.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i data-lucide="calendar" class="w-4 h-4 inline mr-2 text-blue-600"></i>
+                            Дата операции *
+                        </label>
+                        {{ form.date }}
+                        {% if form.date.errors %}
+                            <div class="mt-1 text-sm text-red-600">
+                                {% for error in form.date.errors %}
+                                    <div class="flex items-center">
+                                        <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                        {{ error }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label for="{{ form.memo.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            <i data-lucide="align-left" class="w-4 h-4 inline mr-2 text-blue-600"></i>
+                            Описание операции *
+                        </label>
+                        {{ form.memo }}
+                        {% if form.memo.errors %}
+                            <div class="mt-1 text-sm text-red-600">
+                                {% for error in form.memo.errors %}
+                                    <div class="flex items-center">
+                                        <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                        {{ error }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <p class="mt-1 text-sm text-gray-500">Краткое описание хозяйственной операции</p>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="flex items-center">
+                        {{ form.posted }}
+                        <span class="ml-3 text-sm font-medium text-gray-700">
+                            <i data-lucide="check-circle" class="w-4 h-4 inline mr-2 text-green-600"></i>
+                            Операция проведена
+                        </span>
+                    </label>
+                    <p class="mt-1 text-sm text-gray-500">Проведенные операции сразу учитываются в балансе</p>
+                </div>
+            </div>
+
+            <!-- Строки проводки -->
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <i data-lucide="list" class="w-5 h-5 mr-2 text-blue-600"></i>
+                    Строки проводки
+                </h3>
+                
+                <!-- Первая строка -->
+                <div class="bg-gray-50 rounded-lg p-6 mb-4">
+                    <h4 class="text-md font-medium text-gray-900 mb-4 flex items-center">
+                        <i data-lucide="hash" class="w-4 h-4 mr-2 text-blue-600"></i>
+                        Строка 1
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="md:col-span-2">
+                            <label for="{{ line_form.account.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                Счет *
+                            </label>
+                            {{ line_form.account }}
+                            {% if line_form.account.errors %}
+                                <div class="mt-1 text-sm text-red-600">
+                                    {% for error in line_form.account.errors %}
+                                        <div class="flex items-center">
+                                            <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                            {{ error }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ line_form.debit.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                <span class="text-green-600">Дебет</span>
+                            </label>
+                            {{ line_form.debit }}
+                            {% if line_form.debit.errors %}
+                                <div class="mt-1 text-sm text-red-600">
+                                    {% for error in line_form.debit.errors %}
+                                        <div class="flex items-center">
+                                            <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                            {{ error }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label for="{{ line_form.credit.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                                <span class="text-red-600">Кредит</span>
+                            </label>
+                            {{ line_form.credit }}
+                            {% if line_form.credit.errors %}
+                                <div class="mt-1 text-sm text-red-600">
+                                    {% for error in line_form.credit.errors %}
+                                        <div class="flex items-center">
+                                            <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                            {{ error }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <label for="{{ line_form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
+                            Описание строки
+                        </label>
+                        {{ line_form.description }}
+                        {% if line_form.description.errors %}
+                            <div class="mt-1 text-sm text-red-600">
+                                {% for error in line_form.description.errors %}
+                                    <div class="flex items-center">
+                                        <i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>
+                                        {{ error }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Кнопка добавления строки -->
+                <div class="text-center">
+                    <button type="button" onclick="addNewLine()" 
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                        Добавить строку
+                    </button>
+                </div>
+
+                <!-- Контейнер для дополнительных строк -->
+                <div id="additionalLines" class="space-y-4 mt-4"></div>
+            </div>
+
+            <!-- Проверка баланса -->
+            <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <i data-lucide="calculator" class="w-5 h-5 text-blue-600"></i>
+                        <span class="text-sm font-medium text-blue-900">Баланс операции:</span>
+                        <span id="balanceStatus" class="text-sm font-medium">Проверяется...</span>
+                    </div>
+                    <div class="text-sm text-blue-700">
+                        <span>Дт: <span id="totalDebit" class="font-medium">0.00</span></span>
+                        <span class="mx-2">|</span>
+                        <span>Кт: <span id="totalCredit" class="font-medium">0.00</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Проверка корреспонденции -->
+            <div id="correspondenceCheck" class="bg-yellow-50 rounded-lg p-4 border border-yellow-200 hidden">
+                <div class="flex items-center space-x-4">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-600"></i>
+                    <span class="text-sm font-medium text-yellow-900">Проверка корреспонденции:</span>
+                    <span id="correspondenceStatus" class="text-sm font-medium text-yellow-700">Проверяется...</span>
+                </div>
+            </div>
+
+            <!-- Быстрые операции -->
+            <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+                <h4 class="text-sm font-medium text-green-900 mb-3 flex items-center">
+                    <i data-lucide="zap" class="w-4 h-4 mr-2"></i>
+                    Быстрые операции
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button type="button" onclick="createTypicalOperation('cash_receipt')" 
+                            class="px-3 py-2 text-sm bg-green-100 hover:bg-green-200 text-green-800 rounded-md transition-colors duration-200">
+                        <i data-lucide="dollar-sign" class="w-4 h-4 inline mr-1"></i>
+                        Получение наличных
+                    </button>
+                    <button type="button" onclick="createTypicalOperation('material_receipt')" 
+                            class="px-3 py-2 text-sm bg-green-100 hover:bg-green-200 text-green-800 rounded-md transition-colors duration-200">
+                        <i data-lucide="package" class="w-4 h-4 inline mr-1"></i>
+                        Поступление материалов
+                    </button>
+                    <button type="button" onclick="createTypicalOperation('salary_payment')" 
+                            class="px-3 py-2 text-sm bg-green-100 hover:bg-green-200 text-green-800 rounded-md transition-colors duration-200">
+                        <i data-lucide="users" class="w-4 h-4 inline mr-1"></i>
+                        Выплата зарплаты
+                    </button>
+                </div>
+            </div>
+
+            <!-- Кнопки -->
+            <div class="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+                <div class="flex items-center space-x-2">
+                    <button type="button" onclick="exportOperation('json')" 
+                            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center">
+                        <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                        JSON
+                    </button>
+                    <button type="button" onclick="exportOperation('xml')" 
+                            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center">
+                        <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                        XML
+                    </button>
+                </div>
+                <a href="{% url 'finance:journal_entries' %}" 
+                   class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200">
+                    Отмена
+                </a>
+                <button type="submit" 
+                        class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 flex items-center">
+                    <i data-lucide="save" class="w-5 h-5 mr-2"></i>
+                    Создать операцию
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Справка по проводкам -->
+    <div class="mt-8 bg-green-50 rounded-lg p-6 border border-green-200">
+        <h3 class="text-lg font-semibold text-green-900 mb-4 flex items-center">
+            <i data-lucide="info" class="w-5 h-5 mr-2"></i>
+            Справка по проводкам
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-green-800">
+            <div>
+                <h4 class="font-medium mb-2 text-green-900">Основные правила:</h4>
+                <ul class="space-y-1">
+                    <li>• Сумма по дебету должна равняться сумме по кредиту</li>
+                    <li>• В одной строке нельзя указывать и дебет, и кредит</li>
+                    <li>• Минимум две строки для каждой операции</li>
+                    <li>• Используйте активные счета</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2 text-green-900">Примеры проводок:</h4>
+                <ul class="space-y-1">
+                    <li>• <strong>Дт 50 Кт 51</strong> - Получение наличных с расчетного счета</li>
+                    <li>• <strong>Дт 10 Кт 60</strong> - Поступление материалов от поставщика</li>
+                    <li>• <strong>Дт 20 Кт 10</strong> - Списание материалов в производство</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let lineCounter = 1;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('journalForm');
+    const debitInput = document.getElementById('{{ line_form.debit.id_for_label }}');
+    const creditInput = document.getElementById('{{ line_form.credit.id_for_label }}');
+    const accountSelect = document.getElementById('{{ line_form.account.id_for_label }}');
+
+    // Устанавливаем сегодняшнюю дату по умолчанию
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('{{ form.date.id_for_label }}').value = today;
+
+    // Валидация дебета/кредита
+    function validateDebitCredit() {
+        const debit = parseFloat(debitInput.value) || 0;
+        const credit = parseFloat(creditInput.value) || 0;
+        
+        if (debit > 0 && credit > 0) {
+            showError(debitInput, 'Нельзя указывать одновременно дебет и кредит');
+            showError(creditInput, 'Нельзя указывать одновременно дебет и кредит');
+            return false;
+        }
+        
+        if (debit === 0 && credit === 0) {
+            showError(debitInput, 'Нужно заполнить дебет или кредит');
+            showError(creditInput, 'Нужно заполнить дебет или кредит');
+            return false;
+        }
+        
+        clearError(debitInput);
+        clearError(creditInput);
+        return true;
+    }
+
+    // Обновление баланса (устойчиво к пустым/NaN)
+    function updateBalance() {
+        const toNumber = (v) => {
+            const n = parseFloat((v || '').toString().replace(',', '.'));
+            return isNaN(n) ? 0 : n;
+        };
+        let totalDebit = 0;
+        let totalCredit = 0;
+        // Первая строка
+        totalDebit += toNumber(debitInput.value);
+        totalCredit += toNumber(creditInput.value);
+            // Дополнительные строки
+    const additionalLines = document.querySelectorAll('.additional-line');
+    console.log('DEBUG: Found additional lines:', additionalLines.length);
+    additionalLines.forEach((line, index) => {
+        const debitVal = line.querySelector('.debit-input').value;
+        const creditVal = line.querySelector('.credit-input').value;
+        const debitNum = toNumber(debitVal);
+        const creditNum = toNumber(creditVal);
+        console.log(`DEBUG: Line ${index + 1} - debit: ${debitVal} (${debitNum}), credit: ${creditVal} (${creditNum})`);
+        totalDebit += debitNum;
+        totalCredit += creditNum;
+    });
+        totalDebit = Math.round(totalDebit * 100) / 100;
+        totalCredit = Math.round(totalCredit * 100) / 100;
+        document.getElementById('totalDebit').textContent = totalDebit.toFixed(2);
+        document.getElementById('totalCredit').textContent = totalCredit.toFixed(2);
+        const balanceStatus = document.getElementById('balanceStatus');
+        if (Math.abs(totalDebit - totalCredit) <= 0.005) {
+            balanceStatus.textContent = 'Баланс сходится ✓';
+            balanceStatus.className = 'text-sm font-medium text-green-600';
+        } else {
+            balanceStatus.textContent = 'Баланс не сходится ✗';
+            balanceStatus.className = 'text-sm font-medium text-red-600';
+        }
+    }
+
+    // Слушатели событий
+    debitInput.addEventListener('input', function() {
+        updateBalance();
+        // Автоматически создаем вторую строку при заполнении первой
+        if (this.value > 0 && document.querySelectorAll('.additional-line').length === 0) {
+            addNewLine();
+            // Копируем сумму во вторую строку
+            setTimeout(() => {
+                const newLine = document.querySelector('.additional-line');
+                if (newLine) {
+                    newLine.querySelector('.credit-input').value = this.value;
+                    updateBalance();
+                }
+            }, 100);
+        }
+        // Проверяем корреспонденцию
+        checkCorrespondence();
+    });
+
+    creditInput.addEventListener('input', function() {
+        updateBalance();
+        // Автоматически создаем вторую строку при заполнении первой
+        if (this.value > 0 && document.querySelectorAll('.additional-line').length === 0) {
+            addNewLine();
+            // Копируем сумму во вторую строку
+            setTimeout(() => {
+                const newLine = document.querySelector('.additional-line');
+                if (newLine) {
+                    newLine.querySelector('.debit-input').value = this.value;
+                    updateBalance();
+                }
+            }, 100);
+        }
+        // Проверяем корреспонденцию
+        checkCorrespondence();
+    });
+
+    // Валидация формы
+    form.addEventListener('submit', function(e) {
+        if (!validateDebitCredit()) {
+            e.preventDefault();
+            return;
+        }
+        
+        // Проверка баланса
+        const totalDebit = parseFloat(document.getElementById('totalDebit').textContent);
+        const totalCredit = parseFloat(document.getElementById('totalCredit').textContent);
+        
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            e.preventDefault();
+            alert('Баланс операции не сходится! Сумма по дебету должна равняться сумме по кредиту.');
+            return;
+        }
+        
+        // Проверка минимального количества строк
+        const additionalLines = document.querySelectorAll('.additional-line');
+        if (additionalLines.length === 0) {
+            // Проверяем первую строку
+            const firstDebit = parseFloat(debitInput.value) || 0;
+            const firstCredit = parseFloat(creditInput.value) || 0;
+            if (firstDebit === 0 && firstCredit === 0) {
+                e.preventDefault();
+                alert('Необходимо заполнить хотя бы одну строку проводки.');
+                return;
+            }
+        }
+        
+        // Проверка всех строк
+        let hasValidLines = false;
+        additionalLines.forEach(line => {
+            const debit = parseFloat(line.querySelector('.debit-input').value) || 0;
+            const credit = parseFloat(line.querySelector('.credit-input').value) || 0;
+            if (debit > 0 || credit > 0) {
+                hasValidLines = true;
+            }
+        });
+        
+        if (!hasValidLines && additionalLines.length > 0) {
+            e.preventDefault();
+            alert('Необходимо заполнить хотя бы одну строку проводки.');
+            return;
+        }
+    });
+
+    // Инициализация баланса
+    updateBalance();
+    
+    // Проверка корреспонденции при изменении счетов
+    accountSelect.addEventListener('change', checkCorrespondence);
+});
+
+function checkCorrespondence() {
+    const correspondenceCheck = document.getElementById('correspondenceCheck');
+    const correspondenceStatus = document.getElementById('correspondenceStatus');
+    
+    // Показываем блок проверки
+    correspondenceCheck.classList.remove('hidden');
+    
+    // Получаем выбранный счет
+    const selectedAccount = document.getElementById('{{ line_form.account.id_for_label }}').value;
+    if (!selectedAccount) {
+        correspondenceStatus.textContent = 'Выберите счет для проверки';
+        correspondenceStatus.className = 'text-sm font-medium text-yellow-700';
+        return;
+    }
+    
+    // Получаем все строки проводки
+    const lines = document.querySelectorAll('.additional-line');
+    let hasCorrespondence = false;
+    let warnings = [];
+    
+    // Проверяем первую строку
+    const firstDebit = parseFloat(document.getElementById('{{ line_form.debit.id_for_label }}').value) || 0;
+    const firstCredit = parseFloat(document.getElementById('{{ line_form.credit.id_for_label }}').value) || 0;
+    
+    if (firstDebit > 0 || firstCredit > 0) {
+        hasCorrespondence = true;
+    }
+    
+    // Проверяем дополнительные строки
+    lines.forEach((line, index) => {
+        const debit = parseFloat(line.querySelector('.debit-input').value) || 0;
+        const credit = parseFloat(line.querySelector('.credit-input').value) || 0;
+        
+        if (debit > 0 || credit > 0) {
+            hasCorrespondence = true;
+        }
+        
+        // Проверяем, что в строке заполнен только дебет или только кредит
+        if (debit > 0 && credit > 0) {
+            warnings.push(`Строка ${index + 2}: одновременно заполнены дебет и кредит`);
+        }
+    });
+    
+    if (!hasCorrespondence) {
+        correspondenceStatus.textContent = 'Необходимо заполнить хотя бы одну строку проводки';
+        correspondenceStatus.className = 'text-sm font-medium text-red-600';
+    } else if (warnings.length > 0) {
+        correspondenceStatus.textContent = `Предупреждения: ${warnings.join(', ')}`;
+        correspondenceStatus.className = 'text-sm font-medium text-yellow-600';
+    } else {
+        correspondenceStatus.textContent = 'Корреспонденция корректна ✓';
+        correspondenceStatus.className = 'text-sm font-medium text-green-600';
+    }
+}
+
+function addNewLine() {
+    lineCounter++;
+    const container = document.getElementById('additionalLines');
+    
+    const lineDiv = document.createElement('div');
+    lineDiv.className = 'bg-gray-50 rounded-lg p-6 additional-line';
+    lineDiv.innerHTML = `
+        <div class="flex items-center justify-between mb-4">
+            <h4 class="text-md font-medium text-gray-900 flex items-center">
+                <i data-lucide="hash" class="w-4 h-4 mr-2 text-blue-600"></i>
+                Строка ${lineCounter}
+            </h4>
+            <button type="button" onclick="removeLine(this)" 
+                    class="text-red-600 hover:text-red-800 transition-colors duration-150">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Счет *</label>
+                <select name="line_${lineCounter}_account" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent account-input" required>
+                    <option value="">Выберите счет</option>
+                    {% for account in accounts %}
+                        <option value="{{ account.pk }}">{{ account.code }} - {{ account.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <span class="text-green-600">Дебет</span>
+                </label>
+                <input name="line_${lineCounter}_debit" type="number" step="0.01" min="0" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent debit-input"
+                       oninput="updateBalance(); checkCorrespondence();">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <span class="text-red-600">Кредит</span>
+                </label>
+                <input name="line_${lineCounter}_credit" type="number" step="0.01" min="0" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent credit-input"
+                       oninput="updateBalance(); checkCorrespondence();">
+            </div>
+        </div>
+        <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Описание строки</label>
+            <input name="line_${lineCounter}_description" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        </div>
+    `;
+    
+    container.appendChild(lineDiv);
+    
+    console.log('DEBUG: Added line with counter:', lineCounter);
+    console.log('DEBUG: Form elements after adding line:', document.querySelectorAll('input[name^="line_"], select[name^="line_"]'));
+    
+    // Убираем скрытые поля - они не нужны и могут мешать
+}
+
+function removeLine(button) {
+    const lineDiv = button.closest('.additional-line');
+    lineDiv.remove();
+    updateBalance();
+}
+
+function showError(input, message) {
+    clearError(input);
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'mt-1 text-sm text-red-600 flex items-center';
+    errorDiv.innerHTML = `<i data-lucide="alert-circle" class="w-4 h-4 mr-1"></i>${message}`;
+    input.parentNode.appendChild(errorDiv);
+    input.classList.add('border-red-500');
+}
+
+function clearError(input) {
+    const errorDiv = input.parentNode.querySelector('.text-red-600');
+    if (errorDiv) {
+        errorDiv.remove();
+    }
+    input.classList.remove('border-red-500');
+}
+
+function createTypicalOperation(operationType) {
+    const form = document.getElementById('journalForm');
+    const dateInput = document.getElementById('{{ form.date.id_for_label }}');
+    const memoInput = document.getElementById('{{ form.memo.id_for_label }}');
+    const postedCheckbox = document.getElementById('{{ form.posted.id_for_label }}');
+
+    // Получаем текущую дату и время
+    const date = dateInput.value;
+    const memo = memoInput.value;
+    const posted = postedCheckbox.checked;
+
+    // Определяем тип операции
+    let account1, account2, debit, credit;
+    let description = '';
+
+    switch (operationType) {
+        case 'cash_receipt':
+            account1 = '50'; // Касса
+            account2 = '51'; // Расчетный счет
+            debit = '1000'; // Дебет
+            credit = '1000'; // Кредит
+            description = 'Получение наличных с расчетного счета';
+            break;
+        case 'material_receipt':
+            account1 = '10'; // Материалы
+            account2 = '60'; // Поставщики
+            debit = '5000'; // Дебет
+            credit = '5000'; // Кредит
+            description = 'Поступление материалов от поставщика';
+            break;
+        case 'salary_payment':
+            account1 = '70'; // Расходы на оплату труда
+            account2 = '50'; // Касса
+            debit = '30000'; // Дебет
+            credit = '30000'; // Кредит
+            description = 'Выплата зарплаты';
+            break;
+        default:
+            alert('Неизвестный тип операции.');
+            return;
+    }
+
+    // Очищаем существующие строки и сбрасываем счетчик
+    document.getElementById('additionalLines').innerHTML = '';
+    lineCounter = 1;
+
+    // Заполняем первую строку
+    debitInput.value = debit;
+    creditInput.value = '0';
+
+    // Добавляем вторую строку
+    addNewLine();
+    const newLine = document.querySelector('.additional-line');
+    if (newLine) {
+        newLine.querySelector('.debit-input').value = '0';
+        newLine.querySelector('.credit-input').value = credit;
+        newLine.querySelector('input[type="text"]').value = description;
+        
+        console.log('DEBUG: Filled new line with:', {
+            debit: '0',
+            credit: credit,
+            description: description
+        });
+    }
+
+    // Обновляем баланс
+    updateBalance();
+    
+    // Показываем сообщение
+    alert(`Создана типовая операция: ${description}\nСумма: ${debit} руб.`);
+}
+
+function exportOperation(format) {
+    const formData = new FormData();
+    const lines = document.querySelectorAll('.additional-line');
+    lines.forEach((line, index) => {
+        const accountInput = line.querySelector('.account-input');
+        const debitInput = line.querySelector('.debit-input');
+        const creditInput = line.querySelector('.credit-input');
+        const descriptionInput = line.querySelector('input[type="text"]');
+
+        formData.append(`line_${index + 1}_account`, accountInput.value);
+        formData.append(`line_${index + 1}_debit`, debitInput.value);
+        formData.append(`line_${index + 1}_credit`, creditInput.value);
+        formData.append(`line_${index + 1}_description`, descriptionInput.value);
+    });
+
+    const dateInput = document.getElementById('{{ form.date.id_for_label }}');
+    const memoInput = document.getElementById('{{ form.memo.id_for_label }}');
+    const postedCheckbox = document.getElementById('{{ form.posted.id_for_label }}');
+
+    formData.append('date', dateInput.value);
+    formData.append('memo', memoInput.value);
+    formData.append('posted', postedCheckbox.checked);
+
+    let url = '';
+    if (format === 'json') {
+        url = '{% url "finance:journal_entry_export" "json" %}';
+        url = url.replace('http://', 'https://'); // Преобразуем http в https для корректной работы в браузере
+    } else if (format === 'xml') {
+        url = '{% url "finance:journal_entry_export" "xml" %}';
+        url = url.replace('http://', 'https://'); // Преобразуем http в https для корректной работы в браузере
+    }
+
+    if (url) {
+        window.location.href = url + '?' + new URLSearchParams(formData).toString();
+    } else {
+        alert('Формат экспорта не поддерживается.');
+    }
+}
+</script>
+
+<style>
+/* Кастомные стили для формы */
+.form-control, input[type="text"], input[type="email"], input[type="password"], input[type="number"], 
+input[type="date"], input[type="datetime-local"], input[type="time"], input[type="url"], 
+input[type="tel"], input[type="search"], textarea, select {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+}
+
+.form-control:focus, input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, 
+input[type="number"]:focus, input[type="date"]:focus, input[type="datetime-local"]:focus, 
+input[type="time"]:focus, input[type="url"]:focus, input[type="tel"]:focus, 
+input[type="search"]:focus, textarea:focus, select:focus {
+    @apply outline-none border-blue-500 ring-2 ring-blue-500 ring-opacity-20;
+}
+
+/* Стили для чекбокса */
+input[type="checkbox"] {
+    @apply w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2;
+}
+
+/* Анимация появления */
+.container {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Стили для дополнительных строк */
+.additional-line {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+</style>
 {% endblock %} 

@@ -1,0 +1,45 @@
+{% extends 'finance/base.html' %}
+{% block title %}Типовые операции{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+	<div class="flex items-center justify-between mb-6">
+		<h1 class="text-2xl font-bold text-gray-900">Типовые операции</h1>
+		<a href="{% url 'finance:standard_operation_create' %}" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Новая операция</a>
+	</div>
+	<div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+		<div class="overflow-x-auto">
+			<table class="min-w-full divide-y divide-gray-200">
+				<thead class="bg-gray-50">
+					<tr>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Категория</th>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Название</th>
+						<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Активна</th>
+						<th class="px-6 py-3"></th>
+					</tr>
+				</thead>
+				<tbody class="bg-white divide-y divide-gray-100">
+					{% for o in operations %}
+					<tr>
+						<td class="px-6 py-3 text-sm text-gray-900">{{ o.category|default:'-' }}</td>
+						<td class="px-6 py-3 text-sm text-gray-900">{{ o.name }}</td>
+						<td class="px-6 py-3 text-sm">
+							<span class="px-2 py-1 rounded text-xs {% if o.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+								{% if o.is_active %}Да{% else %}Нет{% endif %}
+							</span>
+						</td>
+						<td class="px-6 py-3 text-right text-sm">
+							<a href="{% url 'finance:standard_operation_detail' o.pk %}" class="text-blue-600 hover:text-blue-800 mr-3">Открыть</a>
+							<a href="{% url 'finance:standard_operation_edit' o.pk %}" class="text-blue-600 hover:text-blue-800">Редактировать</a>
+						</td>
+					</tr>
+					{% empty %}
+					<tr>
+						<td colspan="4" class="px-6 py-8 text-center text-gray-500">Нет типовых операций</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+{% endblock %} 

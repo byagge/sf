@@ -104,6 +104,14 @@ app.conf.update(
             'task': 'core.tasks.database_maintenance',
             'schedule': 604800.0,  # Weekly
         },
+        'auto-checkout-after-6pm': {
+            'task': 'apps.attendance.tasks.auto_checkout_after_6pm',
+            'schedule': 3600.0,  # Every hour (will check if it's after 6pm)
+        },
+        'cleanup-old-attendance': {
+            'task': 'apps.attendance.tasks.cleanup_old_attendance_records',
+            'schedule': 604800.0,  # Weekly
+        },
     },
     
     # Monitoring

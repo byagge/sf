@@ -1,27 +1,503 @@
 {% extends 'finance/base.html' %}
+{% block title %}Оборотно-сальдовая ведомость - Финансовая система{% endblock %}
+
 {% block content %}
-<h2>Оборотно‑сальдовая ведомость</h2>
-<form method="get" class="form-inline">
-	<label>С даты: <input type="date" name="date_from" value="{{ date_from }}"></label>
-	<label>По дату: <input type="date" name="date_to" value="{{ date_to }}"></label>
-	<button type="submit">Показать</button>
-</form>
-<table class="table">
-	<thead><tr><th>Счет</th><th>Дебет оборот</th><th>Кредит оборот</th><th>Сальдо</th></tr></thead>
-	<tbody>
-	{% for r in rows %}
-		<tr>
-			<td>{{ r.account.code }} {{ r.account.name }}</td>
-			<td>{{ r.debit_turnover }}</td>
-			<td>{{ r.credit_turnover }}</td>
-			<td>{{ r.closing_balance }}</td>
-		</tr>
-	{% empty %}
-		<tr><td colspan="4">Нет данных</td></tr>
-	{% endfor %}
-	</tbody>
-	<tfoot>
-		<tr><th>Итого</th><th>{{ total_debit }}</th><th>{{ total_credit }}</th><th></th></tr>
-	</tfoot>
-</table>
+<div class="container mx-auto px-4 py-6">
+    <!-- Заголовок страницы -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                    <i data-lucide="calculator" class="inline-block w-8 h-8 mr-3 text-blue-600"></i>
+                    Оборотно-сальдовая ведомость
+                </h1>
+                <p class="text-gray-600 text-lg">Сводка оборотов и сальдо по всем счетам за выбранный период</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="exportTrialBalance()" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center">
+                    <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                    Экспорт
+                </button>
+                <button onclick="printTrialBalance()" 
+                        class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center">
+                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i>
+                    Печать
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры периода -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <form method="get" class="space-y-4">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <i data-lucide="calendar" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Период отчета
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label for="date_from" class="block text-sm font-medium text-gray-700 mb-2">
+                        С даты
+                    </label>
+                    <input type="date" name="date_from" id="date_from" value="{{ date_from }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label for="date_to" class="block text-sm font-medium text-gray-700 mb-2">
+                        По дату
+                    </label>
+                    <input type="date" name="date_to" id="date_to" value="{{ date_to }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" 
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center">
+                        <i data-lucide="search" class="w-4 h-4 mr-2"></i>
+                        Показать
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Быстрые периоды -->
+            <div class="flex flex-wrap gap-2 pt-4 border-t border-gray-200">
+                <span class="text-sm font-medium text-gray-700 mr-2">Быстрые периоды:</span>
+                <button type="button" onclick="setPeriod('today')" 
+                        class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors duration-200">
+                    Сегодня
+                </button>
+                <button type="button" onclick="setPeriod('yesterday')" 
+                        class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors duration-200">
+                    Вчера
+                </button>
+                <button type="button" onclick="setPeriod('week')" 
+                        class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors duration-200">
+                    Неделя
+                </button>
+                <button type="button" onclick="setPeriod('month')" 
+                        class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors duration-200">
+                    Месяц
+                </button>
+                <button type="button" onclick="setPeriod('quarter')" 
+                        class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors duration-200">
+                    Квартал
+                </button>
+                <button type="button" onclick="setPeriod('year')" 
+                        class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors duration-200">
+                    Год
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Сводные показатели -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-lg">
+                    <i data-lucide="hash" class="w-6 h-6 text-blue-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Всего счетов</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ rows|length }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-lg">
+                    <i data-lucide="trending-up" class="w-6 h-6 text-green-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Общий дебет</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_debit }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-red-100 rounded-lg">
+                    <i data-lucide="trending-down" class="w-6 h-6 text-red-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Общий кредит</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ total_credit }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-purple-100 rounded-lg">
+                    <i data-lucide="check-circle" class="w-6 h-6 text-purple-600"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Баланс</p>
+                    <p class="text-2xl font-bold text-gray-900">
+                        {% if total_debit == total_credit %}
+                            <span class="text-green-600">✓</span>
+                        {% else %}
+                            <span class="text-red-600">✗</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтры и поиск -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex flex-wrap gap-4 items-center">
+            <div class="flex-1 min-w-64">
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"></i>
+                    <input type="text" id="searchAccounts" placeholder="Поиск по коду или названию счета..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+            </div>
+            <select id="typeFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="">Все типы</option>
+                <option value="asset">Актив</option>
+                <option value="liability">Пассив</option>
+                <option value="equity">Капитал</option>
+                <option value="income">Доход</option>
+                <option value="expense">Расход</option>
+            </select>
+            <select id="balanceFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="">Все сальдо</option>
+                <option value="debit">Только дебетовые</option>
+                <option value="credit">Только кредитовые</option>
+                <option value="zero">Нулевые</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Оборотно-сальдовая ведомость -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200" id="trialBalanceTable">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <div class="flex items-center">
+                                <i data-lucide="hash" class="w-4 h-4 mr-2"></i>
+                                Счет
+                            </div>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <div class="flex items-center">
+                                <i data-lucide="tag" class="w-4 h-4 mr-2"></i>
+                                Тип
+                            </div>
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <div class="flex items-center justify-end">
+                                <i data-lucide="arrow-right" class="w-4 h-4 mr-2"></i>
+                                Дебет оборот
+                            </div>
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <div class="flex items-center justify-end">
+                                <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i>
+                                Кредит оборот
+                            </div>
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <div class="flex items-center justify-end">
+                                <i data-lucide="calculator" class="w-4 h-4 mr-2"></i>
+                                Сальдо
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="trialBalanceBody">
+                    {% for row in rows %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-150 trial-balance-row" 
+                        data-code="{{ row.account.code|lower }}" 
+                        data-name="{{ row.account.name|lower }}"
+                        data-type="{{ row.account.account_type }}"
+                        data-balance="{{ row.closing_balance }}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <span class="text-sm font-mono font-medium text-gray-900">{{ row.account.code }}</span>
+                                <span class="ml-3 text-sm text-gray-900">{{ row.account.name }}</span>
+                                {% if row.account.parent %}
+                                    <span class="ml-2 px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                                        {{ row.account.parent.code }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if row.account.account_type == 'asset' %}bg-blue-100 text-blue-800
+                                {% elif row.account.account_type == 'liability' %}bg-red-100 text-red-800
+                                {% elif row.account.account_type == 'equity' %}bg-green-100 text-green-800
+                                {% elif row.account.account_type == 'income' %}bg-emerald-100 text-emerald-800
+                                {% else %}bg-orange-100 text-orange-800{% endif %}">
+                                {{ row.account.get_account_type_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-sm font-medium text-green-600">{{ row.debit_turnover }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-sm font-medium text-red-600">{{ row.credit_turnover }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <span class="text-sm font-medium 
+                                {% if row.closing_balance > 0 %}text-green-600
+                                {% elif row.closing_balance < 0 %}text-red-600
+                                {% else %}text-gray-500{% endif %}">
+                                {{ row.closing_balance }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center">
+                            <div class="text-gray-500">
+                                <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
+                                <p class="text-lg font-medium">Данные не найдены</p>
+                                <p class="text-sm">Выберите период для отображения оборотно-сальдовой ведомости</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-50">
+                    <tr class="font-semibold">
+                        <td colspan="2" class="px-6 py-4 text-right text-gray-700">
+                            ИТОГО:
+                        </td>
+                        <td class="px-6 py-4 text-right text-green-600 font-bold">
+                            {{ total_debit }}
+                        </td>
+                        <td class="px-6 py-4 text-right text-red-600 font-bold">
+                            {{ total_credit }}
+                        </td>
+                        <td class="px-6 py-4 text-right text-gray-700 font-bold">
+                            {% if total_debit == total_credit %}
+                                <span class="text-green-600">0.00</span>
+                            {% else %}
+                                <span class="text-red-600">{{ total_debit|add:total_credit|floatformat:2 }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Аналитика -->
+    {% if rows %}
+    <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Распределение по типам счетов -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <i data-lucide="pie-chart" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Распределение по типам счетов
+            </h3>
+            <div class="space-y-3">
+                {% regroup rows by account.account_type as type_list %}
+                {% for type in type_list %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 rounded-full mr-3
+                            {% if type.grouper == 'asset' %}bg-blue-500
+                            {% elif type.grouper == 'liability' %}bg-red-500
+                            {% elif type.grouper == 'equity' %}bg-green-500
+                            {% elif type.grouper == 'income' %}bg-emerald-500
+                            {% else %}bg-orange-500{% endif %}"></div>
+                        <span class="text-sm text-gray-700">{{ type.list.0.account.get_account_type_display }}</span>
+                    </div>
+                    <span class="text-sm font-medium text-gray-900">{{ type.list|length }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Топ счетов по оборотам -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <i data-lucide="trending-up" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Топ счетов по оборотам
+            </h3>
+            <div class="space-y-3">
+                {% for row in rows|slice:":5" %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="text-sm font-mono text-gray-600 mr-2">{{ row.account.code }}</span>
+                        <span class="text-sm text-gray-700">{{ row.account.name|truncatechars:30 }}</span>
+                    </div>
+                    <span class="text-sm font-medium text-gray-900">
+                        {{ row.debit_turnover|add:row.credit_turnover }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchAccounts');
+    const typeFilter = document.getElementById('typeFilter');
+    const balanceFilter = document.getElementById('balanceFilter');
+    const rows = document.querySelectorAll('.trial-balance-row');
+
+    // Устанавливаем текущий месяц по умолчанию, если не выбран период
+    if (!document.getElementById('date_from').value) {
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        document.getElementById('date_from').value = firstDay.toISOString().split('T')[0];
+        document.getElementById('date_to').value = lastDay.toISOString().split('T')[0];
+    }
+
+    function filterRows() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedType = typeFilter.value;
+        const selectedBalance = balanceFilter.value;
+
+        rows.forEach(row => {
+            const code = row.dataset.code;
+            const name = row.dataset.name;
+            const type = row.dataset.type;
+            const balance = parseFloat(row.dataset.balance);
+
+            const matchesSearch = !searchTerm || code.includes(searchTerm) || name.includes(searchTerm);
+            const matchesType = !selectedType || type === selectedType;
+            
+            let matchesBalance = true;
+            if (selectedBalance === 'debit') {
+                matchesBalance = balance > 0;
+            } else if (selectedBalance === 'credit') {
+                matchesBalance = balance < 0;
+            } else if (selectedBalance === 'zero') {
+                matchesBalance = Math.abs(balance) < 0.01;
+            }
+
+            if (matchesSearch && matchesType && matchesBalance) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    searchInput.addEventListener('input', filterRows);
+    typeFilter.addEventListener('change', filterRows);
+    balanceFilter.addEventListener('change', filterRows);
+});
+
+function setPeriod(period) {
+    const now = new Date();
+    let fromDate, toDate;
+    
+    switch(period) {
+        case 'today':
+            fromDate = toDate = now;
+            break;
+        case 'yesterday':
+            fromDate = toDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            break;
+        case 'week':
+            fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            toDate = now;
+            break;
+        case 'month':
+            fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            break;
+        case 'quarter':
+            const quarter = Math.floor(now.getMonth() / 3);
+            fromDate = new Date(now.getFullYear(), quarter * 3, 1);
+            toDate = new Date(now.getFullYear(), (quarter + 1) * 3, 0);
+            break;
+        case 'year':
+            fromDate = new Date(now.getFullYear(), 0, 1);
+            toDate = new Date(now.getFullYear(), 11, 31);
+            break;
+    }
+    
+    document.getElementById('date_from').value = fromDate.toISOString().split('T')[0];
+    document.getElementById('date_to').value = toDate.toISOString().split('T')[0];
+    
+    // Автоматически отправляем форму
+    document.querySelector('form').submit();
+}
+
+function exportTrialBalance() {
+    // Здесь можно добавить экспорт в Excel/CSV
+    console.log('Экспорт оборотно-сальдовой ведомости');
+}
+
+function printTrialBalance() {
+    window.print();
+}
+</script>
+
+<style>
+.trial-balance-row:hover {
+    background-color: #f9fafb;
+}
+
+/* Анимация появления строк */
+.trial-balance-row {
+    animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Стили для скроллбара */
+.overflow-x-auto::-webkit-scrollbar {
+    height: 8px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Стили для печати */
+@media print {
+    .container {
+        max-width: none;
+        padding: 0;
+    }
+    
+    .bg-white, .bg-gray-50 {
+        background: white !important;
+        border: 1px solid #000 !important;
+    }
+    
+    button, .bg-blue-600, .bg-green-600, .bg-gray-600 {
+        display: none !important;
+    }
+}
+</style>
 {% endblock %} 

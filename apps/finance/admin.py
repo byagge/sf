@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.db.models import Sum
 from .models import (
     ExpenseCategory, Supplier, SupplierItem, MainBankAccount, 
-    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport, AccountingAccount, JournalEntry, JournalEntryLine
+    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport, AccountingAccount, JournalEntry, JournalEntryLine, AnalyticalAccount, StandardOperation, StandardOperationLine, AccountCorrespondence, FinancialPeriod
 )
 
 @admin.register(ExpenseCategory)
@@ -97,11 +97,16 @@ class FinancialReportAdmin(admin.ModelAdmin):
         if not change:  # Только при создании
             obj.calculate_totals()
 
+class AnalyticalAccountInline(admin.TabularInline):
+	model = AnalyticalAccount
+	extra = 0
+
 @admin.register(AccountingAccount)
 class AccountingAccountAdmin(admin.ModelAdmin):
 	list_display = ('code', 'name', 'account_type', 'normal_side', 'parent', 'is_active')
 	list_filter = ('account_type', 'normal_side', 'is_active')
 	search_fields = ('code', 'name')
+	inlines = [AnalyticalAccountInline]
 
 class JournalEntryLineInline(admin.TabularInline):
 	model = JournalEntryLine
@@ -115,6 +120,38 @@ class JournalEntryAdmin(admin.ModelAdmin):
 
 @admin.register(JournalEntryLine)
 class JournalEntryLineAdmin(admin.ModelAdmin):
-	list_display = ('entry', 'account', 'debit', 'credit')
-	list_select_related = ('entry', 'account')
+	list_display = ('entry', 'account', 'analytical_account', 'debit', 'credit')
+	list_select_related = ('entry', 'account', 'analytical_account')
 	search_fields = ('entry__memo', 'account__code', 'account__name')
+
+@admin.register(AnalyticalAccount)
+class AnalyticalAccountAdmin(admin.ModelAdmin):
+	list_display = ('code', 'name', 'parent_account', 'is_active')
+	list_filter = ('is_active', 'parent_account__account_type')
+	search_fields = ('code', 'name', 'parent_account__code')
+	list_select_related = ('parent_account',)
+
+class StandardOperationLineInline(admin.TabularInline):
+	model = StandardOperationLine
+	extra = 0
+
+@admin.register(StandardOperation)
+class StandardOperationAdmin(admin.ModelAdmin):
+	list_display = ('name', 'category', 'is_active', 'created_by')
+	list_filter = ('category', 'is_active')
+	search_fields = ('name', 'description')
+	inlines = [StandardOperationLineInline]
+
+@admin.register(AccountCorrespondence)
+class AccountCorrespondenceAdmin(admin.ModelAdmin):
+	list_display = ('debit_account', 'credit_account', 'description', 'is_valid')
+	list_filter = ('is_valid', 'debit_account__account_type', 'credit_account__account_type')
+	search_fields = ('debit_account__code', 'credit_account__code', 'description')
+	list_select_related = ('debit_account', 'credit_account')
+
+@admin.register(FinancialPeriod)
+class FinancialPeriodAdmin(admin.ModelAdmin):
+	list_display = ('name', 'period_type', 'start_date', 'end_date', 'is_closed', 'closed_by')
+	list_filter = ('period_type', 'is_closed')
+	search_fields = ('name',)
+	date_hierarchy = 'start_date'

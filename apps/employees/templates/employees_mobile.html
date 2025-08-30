@@ -106,8 +106,13 @@
                 <template x-for="employee in filteredEmployees" :key="employee.id">
                     <div class="card bg-white rounded-xl p-4 mb-4 cursor-pointer" @click="openEmployeeProfile(employee)">
                         <div class="flex items-center space-x-4">
-                            <div class="w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold">
-                                <span x-text="getInitials(employee.name || employee.full_name)"></span>
+                            <div class="relative">
+                                <div class="w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold">
+                                    <span x-text="getInitials(employee.name || employee.full_name)"></span>
+                                </div>
+                                <!-- Статус присутствия -->
+                                <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white" 
+                                     :class="getAttendanceStatusClass(employee.id)"></div>
                             </div>
                             <div class="flex-1">
                                 <div class="font-semibold text-gray-900 mb-1" x-text="employee.name || employee.full_name"></div>
@@ -118,6 +123,10 @@
                             {% endif %}
                                 <div class="text-sm text-gray-600 mb-1" x-text="getWorkshopName(employee.workshop)"></div>
                                 <div class="text-xs text-gray-500" x-text="employee.phone"></div>
+                                <!-- Статус присутствия -->
+                                <div class="text-xs mt-1">
+                                    <span :class="getAttendanceStatusTextClass(employee.id)" x-text="getAttendanceStatusText(employee.id)"></span>
+                                </div>
                             </div>
                             <div class="flex flex-col items-end space-y-2">
                                 <span :class="getRoleClass(employee.role)" class="px-2 py-1 text-xs rounded-full font-medium" x-text="getRoleLabel(employee.role)"></span>
@@ -724,6 +733,7 @@
             profileTab: 'info',
             newTaskText: '',
             successModalText: '',
+            employeeAttendanceStatus: {}, // Статус присутствия сотрудников
             roles: {
                 employee: { label: 'Сотрудник', color: 'bg-green-100 text-green-800' },
                 worker: { label: 'Сотрудник', color: 'bg-green-100 text-green-800' },
@@ -737,6 +747,7 @@
                 await this.loadWorkshops();
                 this.selectedWorkshopId = '';
                 await this.loadEmployees();
+                await this.loadEmployeeAttendanceStatus();
                 lucide.createIcons();
             },
             async loadWorkshops() {
@@ -1056,6 +1067,49 @@
                 setTimeout(() => {
                     lucide.createIcons();
                 }, 50);
+            },
+            // --- Attendance Status Functions ---
+            async loadEmployeeAttendanceStatus() {
+                try {
+                    const response = await fetch('/attendance/api/employee-status/');
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Преобразуем в объект для быстрого доступа
+                        this.employeeAttendanceStatus = {};
+                        data.employees.forEach(emp => {
+                            this.employeeAttendanceStatus[emp.id] = emp;
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error loading attendance status:', e);
+                }
+            },
+            getAttendanceStatusClass(employeeId) {
+                const status = this.employeeAttendanceStatus[employeeId]?.status || 'absent';
+                switch (status) {
+                    case 'present': return 'bg-green-500';
+                    case 'checked_out': return 'bg-gray-400';
+                    case 'absent': return 'bg-red-500';
+                    default: return 'bg-gray-400';
+                }
+            },
+            getAttendanceStatusTextClass(employeeId) {
+                const status = this.employeeAttendanceStatus[employeeId]?.status || 'absent';
+                switch (status) {
+                    case 'present': return 'text-green-600 font-medium';
+                    case 'checked_out': return 'text-gray-500';
+                    case 'absent': return 'text-red-600 font-medium';
+                    default: return 'text-gray-500';
+                }
+            },
+            getAttendanceStatusText(employeeId) {
+                const status = this.employeeAttendanceStatus[employeeId]?.status || 'absent';
+                switch (status) {
+                    case 'present': return 'На работе';
+                    case 'checked_out': return 'Ушел';
+                    case 'absent': return 'Не пришел';
+                    default: return 'Неизвестно';
+                }
             }
         }
     }
