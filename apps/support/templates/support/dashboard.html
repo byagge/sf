@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Поддержка{% endblock %}
+
+{% block extra_css %}
+<style>
+    .support-dashboard {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .ai-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    
+    .ai-status.enabled {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .ai-status.disabled {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .ai-status.unavailable {
+        background-color: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
+    .create-chat-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .create-chat-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .chats-section {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .chats-header {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .chats-list {
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+    
+    .chat-item {
+        padding: 20px;
+        border-bottom: 1px solid #f8f9fa;
+        transition: background-color 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .chat-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .chat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .chat-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+    
+    .chat-date {
+        font-size: 14px;
+        color: #6c757d;
+    }
+    
+    .chat-preview {
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .chat-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: #6c757d;
+    }
+    
+    .message-count {
+        background: #e9ecef;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+    
+    .no-chats {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .no-chats-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .chat-item.new-chat {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        padding: 40px 20px;
+    }
+    
+    .chat-item.new-chat:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .new-chat-icon {
+        font-size: 32px;
+        margin-bottom: 15px;
+    }
+    
+    .new-chat-text {
+        font-size: 18px;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="support-dashboard">
+    <div class="dashboard-header">
+        <div>
+            <h1>Поддержка</h1>
+            <p class="text-muted">Получите помощь по работе с системой</p>
+        </div>
+        
+        <div class="ai-status {% if ai_available and ai_enabled %}enabled{% elif ai_available and not ai_enabled %}disabled{% else %}unavailable{% endif %}">
+            <i class="fas fa-robot"></i>
+            {% if ai_available and ai_enabled %}
+                ИИ включен
+            {% elif ai_available and not ai_enabled %}
+                ИИ отключен
+            {% else %}
+                ИИ недоступен
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="chats-section">
+        <div class="chats-header">
+            <h3>Мои чаты</h3>
+        </div>
+        
+        {% if chats %}
+            <ul class="chats-list">
+                {% for chat in chats %}
+                <li class="chat-item" onclick="window.location.href='{% url 'support:chat_detail' chat.id %}'">
+                    <div class="chat-header">
+                        <h4 class="chat-title">{{ chat.title }}</h4>
+                        <span class="chat-date">{{ chat.updated_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                    
+                    {% if chat.last_message %}
+                    <div class="chat-preview">
+                        {{ chat.last_message.content|truncatechars:100 }}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="chat-meta">
+                        <span class="message-count">{{ chat.message_count }} сообщений</span>
+                        <span>{{ chat.created_at|date:"d.m.Y" }}</span>
+                    </div>
+                </li>
+                {% endfor %}
+                
+                <li class="chat-item new-chat" onclick="window.location.href='{% url 'support:create_chat' %}'">
+                    <div class="new-chat-icon">
+                        <i class="fas fa-plus-circle"></i>
+                    </div>
+                    <div class="new-chat-text">Создать новый чат</div>
+                </li>
+            </ul>
+        {% else %}
+            <div class="no-chats">
+                <div class="no-chats-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h4>У вас пока нет чатов</h4>
+                <p>Создайте первый чат для получения поддержки</p>
+                <a href="{% url 'support:create_chat' %}" class="create-chat-btn">
+                    Создать чат
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Автообновление статуса ИИ каждые 30 секунд
+    setInterval(function() {
+        fetch('{% url "support:api_ai_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                const aiStatus = document.querySelector('.ai-status');
+                aiStatus.className = 'ai-status';
+                
+                if (data.ai_available && data.ai_enabled) {
+                    aiStatus.classList.add('enabled');
+                    aiStatus.innerHTML = '<i class="fas fa-robot"></i> ИИ включен';
+                } else if (data.ai_available && !data.ai_enabled) {
+                    aiStatus.classList.add('disabled');
+                    aiStatus.innerHTML = '<i class="fas fa-robot"></i> ИИ отключен';
+                } else {
+                    aiStatus.classList.add('unavailable');
+                    aiStatus.innerHTML = '<i class="fas fa-robot"></i> ИИ недоступен';
+                }
+            })
+            .catch(error => console.error('Ошибка обновления статуса ИИ:', error));
+    }, 30000);
+</script>
+{% endblock %} 

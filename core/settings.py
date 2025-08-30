@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'apps.plans',  # система планирования
     'apps.finance',  # финансы
     'apps.director',
+    'apps.support',
 ]
 
 MIDDLEWARE = [

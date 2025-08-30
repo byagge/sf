@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Создать чат поддержки{% endblock %}
+
+{% block extra_css %}
+<style>
+    .create-chat-container {
+        max-width: 600px;
+        margin: 40px auto;
+        padding: 20px;
+    }
+    
+    .create-chat-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .card-header h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 600;
+    }
+    
+    .card-header p {
+        margin: 10px 0 0 0;
+        opacity: 0.9;
+        font-size: 16px;
+    }
+    
+    .card-body {
+        padding: 40px;
+    }
+    
+    .form-group {
+        margin-bottom: 25px;
+    }
+    
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 16px;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+        box-sizing: border-box;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-textarea {
+        min-height: 120px;
+        resize: vertical;
+    }
+    
+    .form-help {
+        margin-top: 8px;
+        font-size: 14px;
+        color: #6c757d;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 15px;
+        margin-top: 30px;
+    }
+    
+    .btn {
+        flex: 1;
+        padding: 15px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        text-align: center;
+        display: inline-block;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+    
+    .btn-secondary:hover {
+        background: #5a6268;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .ai-info {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .ai-info-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .ai-status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #28a745;
+    }
+    
+    .ai-status-indicator.disabled {
+        background: #dc3545;
+    }
+    
+    .ai-status-indicator.unavailable {
+        background: #ffc107;
+    }
+    
+    .ai-features {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .ai-features li {
+        padding: 8px 0;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .ai-features li i {
+        color: #28a745;
+        width: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="create-chat-container">
+    <div class="create-chat-card">
+        <div class="card-header">
+            <h1>Создать чат поддержки</h1>
+            <p>Опишите вашу проблему, и мы поможем её решить</p>
+        </div>
+        
+        <div class="card-body">
+            <div class="ai-info">
+                <div class="ai-info-header">
+                    <div class="ai-status-indicator {% if ai_available and ai_enabled %}enabled{% elif ai_available and not ai_enabled %}disabled{% else %}unavailable{% endif %}"></div>
+                    <span>
+                        {% if ai_available and ai_enabled %}
+                            ИИ помощник доступен
+                        {% elif ai_available and not ai_enabled %}
+                            ИИ помощник отключен
+                        {% else %}
+                            ИИ помощник недоступен
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <ul class="ai-features">
+                    <li><i class="fas fa-check"></i> Мгновенные ответы на ваши вопросы</li>
+                    <li><i class="fas fa-check"></i> Помощь в работе с системой</li>
+                    <li><i class="fas fa-check"></i> Круглосуточная поддержка</li>
+                </ul>
+            </div>
+            
+            <form id="createChatForm" method="post">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="title" class="form-label">Название чата</label>
+                    <input type="text" id="title" name="title" class="form-input" 
+                           placeholder="Кратко опишите проблему" maxlength="255">
+                    <div class="form-help">Например: "Проблема с заказами" или "Вопрос по отчетам"</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description" class="form-label">Описание проблемы</label>
+                    <textarea id="description" name="description" class="form-input form-textarea" 
+                              placeholder="Подробно опишите вашу проблему или вопрос..."></textarea>
+                    <div class="form-help">Чем подробнее вы опишете проблему, тем быстрее мы сможем помочь</div>
+                </div>
+                
+                <div class="btn-group">
+                    <a href="{% url 'support:dashboard' %}" class="btn btn-secondary">Отмена</a>
+                    <button type="submit" class="btn btn-primary">Создать чат</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('createChatForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const title = formData.get('title');
+    const description = formData.get('description');
+    
+    if (!title.trim()) {
+        alert('Пожалуйста, укажите название чата');
+        return;
+    }
+    
+    // Отправляем запрос на создание чата
+    fetch('{% url "support:api_chat_list" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            title: title,
+            description: description
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.id) {
+            // Если есть описание, создаем первое сообщение
+            if (description.trim()) {
+                return fetch(`{% url 'support:api_chat_list' %}${data.id}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({
+                        content: description
+                    })
+                });
+            }
+            return Promise.resolve();
+        } else {
+            throw new Error('Ошибка создания чата');
+        }
+    })
+    .then(() => {
+        // Перенаправляем на созданный чат
+        window.location.href = `{% url 'support:dashboard' %}`;
+    })
+    .catch(error => {
+        console.error('Ошибка:', error);
+        alert('Произошла ошибка при создании чата. Попробуйте еще раз.');
+    });
+});
+</script>
+{% endblock %} 
