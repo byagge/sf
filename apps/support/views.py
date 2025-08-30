@@ -36,6 +36,11 @@ def support_dashboard(request):
     ai_available = ai_service.is_available()
     ai_enabled = ai_service.is_ai_enabled_for_user(request.user)
     
+    # Добавляем last_message и message_count для каждого чата
+    for chat in user_chats:
+        chat.last_message = chat.messages.last()
+        chat.message_count = chat.messages.count()
+    
     context = {
         'chats': user_chats,
         'ai_available': ai_available,
@@ -49,9 +54,14 @@ def chat_detail(request, chat_id):
     chat = get_object_or_404(SupportChat, id=chat_id, user=request.user)
     messages = chat.messages.all().order_by('created_at')
     
+    # Добавляем информацию о статусе ИИ
+    ai_service = AISupportService()
+    ai_enabled = ai_service.is_ai_enabled_for_user(request.user)
+    
     context = {
         'chat': chat,
         'messages': messages,
+        'ai_enabled': ai_enabled,
     }
     return render(request, 'support/chat_detail.html', context)
 
@@ -66,7 +76,17 @@ def create_chat(request):
         )
         return JsonResponse({'success': True, 'chat_id': chat.id})
     
-    return render(request, 'support/create_chat.html')
+    # Добавляем информацию о статусе ИИ
+    ai_service = AISupportService()
+    ai_available = ai_service.is_available()
+    ai_enabled = ai_service.is_ai_enabled_for_user(request.user)
+    
+    context = {
+        'ai_available': ai_available,
+        'ai_enabled': ai_enabled,
+    }
+    
+    return render(request, 'support/create_chat.html', context)
 
 # API Views
 class ChatListAPIView(APIView):
@@ -195,6 +215,16 @@ class AdminChatDetail(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['messages'] = self.object.messages.all().order_by('created_at')
         context['ticket'] = getattr(self.object, 'ticket', None)
+        
+        # Добавляем информацию о статусе ИИ
+        ai_service = AISupportService()
+        context['ai_enabled'] = ai_service.is_ai_enabled_for_user(self.object.user)
+        
+        # Добавляем список администраторов для назначения
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        context['admins'] = User.objects.filter(is_staff=True)
+        
         return context
 
 # Admin API Views

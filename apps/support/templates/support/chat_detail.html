@@ -1,0 +1,455 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ chat.title }} - Поддержка{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        height: calc(100vh - 100px);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-header {
+        background: white;
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+        border-radius: 12px 12px 0 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .chat-title {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .chat-meta {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        color: #6c757d;
+        font-size: 14px;
+    }
+    
+    .chat-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #28a745;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        background: white;
+        padding: 20px;
+        overflow-y: auto;
+        border-left: 1px solid #e9ecef;
+        border-right: 1px solid #e9ecef;
+    }
+    
+    .message {
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .message.user {
+        align-items: flex-end;
+    }
+    
+    .message.ai {
+        align-items: flex-start;
+    }
+    
+    .message.admin {
+        align-items: flex-start;
+    }
+    
+    .message-content {
+        max-width: 70%;
+        padding: 15px 20px;
+        border-radius: 18px;
+        font-size: 16px;
+        line-height: 1.4;
+        word-wrap: break-word;
+    }
+    
+    .message.user .message-content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 6px;
+    }
+    
+    .message.ai .message-content {
+        background: #f8f9fa;
+        color: #2c3e50;
+        border: 1px solid #e9ecef;
+        border-bottom-left-radius: 6px;
+    }
+    
+    .message.admin .message-content {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+        border-bottom-left-radius: 6px;
+    }
+    
+    .message-meta {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .message.user .message-meta {
+        justify-content: flex-end;
+    }
+    
+    .message-type-badge {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .message.user .message-type-badge {
+        background: rgba(255,255,255,0.2);
+        color: white;
+    }
+    
+    .message.ai .message-type-badge {
+        background: #e9ecef;
+        color: #6c757d;
+    }
+    
+    .message.admin .message-type-badge {
+        background: #ffeaa7;
+        color: #856404;
+    }
+    
+    .chat-input {
+        background: white;
+        padding: 20px;
+        border-top: 1px solid #e9ecef;
+        border-radius: 0 0 12px 12px;
+        box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .input-container {
+        display: flex;
+        gap: 15px;
+        align-items: flex-end;
+    }
+    
+    .message-input {
+        flex: 1;
+        padding: 15px;
+        border: 2px solid #e9ecef;
+        border-radius: 25px;
+        font-size: 16px;
+        resize: none;
+        min-height: 50px;
+        max-height: 120px;
+        transition: border-color 0.3s ease;
+    }
+    
+    .message-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .send-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 25px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 100px;
+    }
+    
+    .send-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .send-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+    
+    .ai-typing {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 15px 20px;
+        background: #f8f9fa;
+        border-radius: 18px;
+        border-bottom-left-radius: 6px;
+        max-width: 70%;
+        margin-bottom: 20px;
+    }
+    
+    .typing-dots {
+        display: flex;
+        gap: 4px;
+    }
+    
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #6c757d;
+        animation: typing 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes typing {
+        0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+    
+    .no-messages {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .no-messages-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .back-btn {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+    
+    .back-btn:hover {
+        background: #5a6268;
+        color: white;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+    <div class="chat-header">
+        <div>
+            <h1 class="chat-title">{{ chat.title }}</h1>
+            <div class="chat-meta">
+                <span>Создан: {{ chat.created_at|date:"d.m.Y H:i" }}</span>
+                <div class="chat-status">
+                    <div class="status-indicator"></div>
+                    <span>Активен</span>
+                </div>
+            </div>
+        </div>
+        <a href="{% url 'support:dashboard' %}" class="back-btn">← Назад</a>
+    </div>
+    
+    <div class="chat-messages" id="chatMessages">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="message {{ message.message_type }}">
+                <div class="message-content">
+                    {{ message.content|linebreaksbr }}
+                </div>
+                <div class="message-meta">
+                    <span class="message-type-badge">
+                        {% if message.message_type == 'user' %}
+                            Вы
+                        {% elif message.message_type == 'ai' %}
+                            ИИ
+                        {% else %}
+                            Админ
+                        {% endif %}
+                    </span>
+                    <span>{{ message.created_at|date:"d.m.Y H:i" }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-messages">
+                <div class="no-messages-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h4>Начните разговор</h4>
+                <p>Отправьте первое сообщение, и мы поможем вам</p>
+            </div>
+        {% endif %}
+        
+        <div class="ai-typing" id="aiTyping">
+            <i class="fas fa-robot"></i>
+            <span>ИИ печатает...</span>
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="chat-input">
+        <form id="messageForm">
+            <div class="input-container">
+                <textarea 
+                    id="messageInput" 
+                    class="message-input" 
+                    placeholder="Введите ваше сообщение..."
+                    rows="1"
+                ></textarea>
+                <button type="submit" class="send-btn" id="sendBtn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const chatId = {{ chat.id }};
+const messageInput = document.getElementById('messageInput');
+const messageForm = document.getElementById('messageForm');
+const sendBtn = document.getElementById('sendBtn');
+const chatMessages = document.getElementById('chatMessages');
+const aiTyping = document.getElementById('aiTyping');
+
+// Автоматическое изменение высоты поля ввода
+messageInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// Отправка сообщения
+messageForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const content = messageInput.value.trim();
+    if (!content) return;
+    
+    // Отключаем кнопку и поле ввода
+    sendBtn.disabled = true;
+    messageInput.disabled = true;
+    
+    // Показываем индикатор печати ИИ
+    aiTyping.style.display = 'flex';
+    scrollToBottom();
+    
+    // Отправляем сообщение
+    fetch(`{% url 'support:api_chat_list' %}${chatId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({ content: content })
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Скрываем индикатор печати
+        aiTyping.style.display = 'none';
+        
+        // Добавляем сообщение пользователя
+        addMessage(content, 'user');
+        
+        // Добавляем ответ ИИ, если есть
+        if (data.ai_message) {
+            addMessage(data.ai_message.content, 'ai');
+        }
+        
+        // Очищаем поле ввода
+        messageInput.value = '';
+        messageInput.style.height = 'auto';
+        
+        // Убираем сообщение "нет сообщений"
+        const noMessages = document.querySelector('.no-messages');
+        if (noMessages) {
+            noMessages.remove();
+        }
+    })
+    .catch(error => {
+        console.error('Ошибка отправки сообщения:', error);
+        aiTyping.style.display = 'none';
+        alert('Ошибка отправки сообщения. Попробуйте еще раз.');
+    })
+    .finally(() => {
+        // Включаем кнопку и поле ввода
+        sendBtn.disabled = false;
+        messageInput.disabled = false;
+        messageInput.focus();
+    });
+});
+
+function addMessage(content, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    
+    const now = new Date();
+    const timeString = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    const typeLabel = type === 'user' ? 'Вы' : type === 'ai' ? 'ИИ' : 'Админ';
+    
+    messageDiv.innerHTML = `
+        <div class="message-content">${content.replace(/\n/g, '<br>')}</div>
+        <div class="message-meta">
+            <span class="message-type-badge">${typeLabel}</span>
+            <span>${timeString}</span>
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+function scrollToBottom() {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Автофокус на поле ввода
+messageInput.focus();
+
+// Прокрутка вниз при загрузке
+scrollToBottom();
+</script>
+{% endblock %} 

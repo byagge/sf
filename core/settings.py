@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'apps.finance',  # финансы
     'apps.director',
     'apps.support',
+    'apps.online',
 ]
 
 MIDDLEWARE = [
@@ -77,6 +78,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.RoleBasedRedirectMiddleware',  # Middleware для редиректа на основе ролей
     'core.middleware.AuthenticationErrorMiddleware',  # Middleware для обработки ошибок аутентификации
+    'apps.online.middleware.UserActivityMiddleware',  # Middleware для отслеживания активности пользователей
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -185,3 +187,6 @@ REST_FRAMEWORK = {
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# OpenAI API settings
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')  # Получаем ключ из переменной окружения

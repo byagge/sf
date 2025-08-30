@@ -55,6 +55,7 @@ urlpatterns = [
 	path('menu/', TemplateView.as_view(template_name='mobile/menu.html'), name='mobile-menu'),
 	path('error/', custom_error, name='custom_error'),
 	path('support/', include('apps.support.urls')),
+	path('online/', include('apps.online.urls')),
 	# Тестовые URL для проверки страниц ошибок (только для разработки)
 	path('test/error/400/', test_400_view, name='test_400'),
 	path('test/error/401/', test_401_view, name='test_401'),
