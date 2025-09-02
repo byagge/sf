@@ -176,7 +176,7 @@
                             {% if request.order and request.order.stages %}
                                 {% for stage in request.order.stages.all %}
                                     {% if stage.workshop.id == workshop.id %}
-                                        <div class="card bg-white rounded-xl border border-blue-200 p-4 shadow-sm card-hover">
+                                        <div class="card bg-white rounded-xl border border-blue-200 p-4 shadow-sm card-hover cursor-pointer" @click="openRequestModal({{ request.id }})">
                                             <div class="flex items-start justify-between mb-3">
                                                 <h4 class="font-semibold text-gray-900 text-sm leading-tight">{{ request.name }}</h4>
                                                 <span class="text-xs text-blue-600 bg-blue-100 px-3 py-1 rounded-full font-medium">В работе</span>
@@ -226,7 +226,7 @@
                         {% if request.order and request.order.stages %}
                             {% for stage in request.order.stages.all %}
                                 {% if 'упаковк' in stage.operation|lower %}
-                                    <div class="card bg-white rounded-xl border border-green-200 p-4 shadow-sm card-hover">
+                                    <div class="card bg-white rounded-xl border border-green-200 p-4 shadow-sm card-hover cursor-pointer" @click="openRequestModal({{ request.id }})">
                                         <div class="flex items-start justify-between mb-3">
                                             <h4 class="font-semibold text-gray-900 text-sm leading-tight">{{ request.name }}</h4>
                                             <span class="text-xs text-green-600 bg-green-100 px-3 py-1 rounded-full font-medium">Упаковка</span>
