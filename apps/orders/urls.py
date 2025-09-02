@@ -19,6 +19,10 @@ urlpatterns = [
     path('admin/', AdminRequestsView.as_view(), name='admin-requests'),
     path('admin/client/<int:client_id>/', AdminClientRequestsView.as_view(), name='admin-client-requests'),
     
+    # Страницы планов мастера
+    path('plans/master/', PlansMasterView.as_view(), name='plans-master'),
+    path('plans/master/<int:stage_id>/', PlansMasterDetailView.as_view(), name='plans-master-detail'),
+    
     # API для одобрения заявок
     path('api/requests/approve/<int:request_id>/', ApproveRequestAPIView.as_view(), name='approve-request'),
     path('export/excel/', ExportRequestsExcelView.as_view(), name='export_requests_excel'),
