@@ -23,6 +23,12 @@ urlpatterns = [
     path('plans/master/', PlansMasterView.as_view(), name='plans-master'),
     path('plans/master/<int:stage_id>/', PlansMasterDetailView.as_view(), name='plans-master-detail'),
     
+    # API для планов мастера и этапов
+    path('api/stages/', WorkshopStagesView.as_view(), name='api-stages-list'),
+    path('api/stages/<int:stage_id>/', StageDetailView.as_view(), name='api-stages-detail'),
+    path('api/stages/<int:stage_id>/transfer/', OrderStageTransferAPIView.as_view(), name='api-stages-transfer'),
+    path('api/stages/<int:stage_id>/no-transfer/', OrderStageNoTransferAPIView.as_view(), name='api-stages-no-transfer'),
+    
     # API для одобрения заявок
     path('api/requests/approve/<int:request_id>/', ApproveRequestAPIView.as_view(), name='approve-request'),
     path('export/excel/', ExportRequestsExcelView.as_view(), name='export_requests_excel'),
