@@ -114,14 +114,16 @@ class EmployeeTask(models.Model):
         
         # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
         self.earnings = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
+        # Округляем до 0.1 для стабильности отображения и выплаты
+        self.earnings = self.earnings.quantize(Decimal('0.1'))
         
         # Штрафы: за брак + дополнительные вручную начисленные
         base_defect_penalties = Decimal(str(self.defective_quantity)) * Decimal(str(penalty_rate))
         manual_penalties = Decimal(str(self.additional_penalties or 0))
-        self.penalties = base_defect_penalties + manual_penalties
+        self.penalties = (base_defect_penalties + manual_penalties).quantize(Decimal('0.1'))
         
         # Чистый заработок
-        self.net_earnings = self.earnings - self.penalties
+        self.net_earnings = (self.earnings - self.penalties).quantize(Decimal('0.1'))
 
     @property
     def is_completed(self):
