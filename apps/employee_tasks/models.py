@@ -5,6 +5,7 @@ from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from django.db import transaction
 from decimal import Decimal
+import logging
 
 User = get_user_model()
 
@@ -66,18 +67,35 @@ class EmployeeTask(models.Model):
 
     def calculate_earnings(self):
         """Рассчитывает заработок, штрафы и чистый заработок"""
+        from decimal import Decimal, InvalidOperation
+        import logging
+        logger = logging.getLogger(__name__ + '.earnings')
+        
         # Базовая ставка за единицу работы (если услуга не найдена)
-        BASE_RATE = Decimal('0.00')  # 100 рублей за единицу
-        BASE_PENALTY_RATE = Decimal('0.00')  # 50 рублей за единицу брака
+        BASE_RATE = Decimal('100.00')  # 100 рублей за единицу
+        BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
+        
+        logger.debug("=== EARNINGS CALC START ===")
+        try:
+            logger.debug(f"Task ID: {getattr(self, 'id', None)} | Employee ID: {getattr(self, 'employee_id', None)}")
+            logger.debug(f"Stage: {getattr(self, 'stage', None)} | Workshop ID: {getattr(getattr(self.stage, 'workshop', None), 'id', None)}")
+        except Exception:
+            pass
+        logger.debug(f"Inputs → completed_quantity={self.completed_quantity}, defective_quantity={self.defective_quantity}, custom_unit_price={self.custom_unit_price}, layers_per_unit={self.layers_per_unit}")
         
         # Определяем ставку за единицу: приоритет custom_unit_price → цена продукта → цена услуги → базовая
         service_price = None
         penalty_rate = None
+        price_source = 'unknown'
         
         # 1) Индивидуальная цена от мастера
         if self.custom_unit_price is not None:
-            service_price = Decimal(str(self.custom_unit_price))
-            # Штраф берём из услуги, если доступен, иначе базовый
+            try:
+                service_price = Decimal(str(self.custom_unit_price))
+                price_source = 'custom_unit_price'
+            except InvalidOperation:
+                logger.warning(f"Invalid custom_unit_price: {self.custom_unit_price}")
+                service_price = None
             penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
         else:
             # 2) Цена продукта из позиции заказа (если указана)
@@ -90,20 +108,26 @@ class EmployeeTask(models.Model):
             if product_price:
                 try:
                     service_price = Decimal(str(product_price))
-                except Exception:
+                    price_source = 'product.price'
+                except InvalidOperation:
+                    logger.warning(f"Invalid product.price: {product_price}")
                     service_price = None
             
             # 3) Цена услуги (если найдена) и штраф
             if service_price is None:
                 if self.service:
                     service_price = self.service.service_price
+                    price_source = 'service.service_price'
                     penalty_rate = self.service.defect_penalty
                 else:
                     service_price = BASE_RATE
+                    price_source = 'BASE_RATE'
             
             # Если штраф не определен выше, используем базовый
             if penalty_rate is None:
                 penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
+        
+        logger.debug(f"Price source: {price_source} | unit_price={service_price} | penalty_rate={penalty_rate}")
         
         # Множитель слоёв только для цеха ID=7
         try:
@@ -111,19 +135,25 @@ class EmployeeTask(models.Model):
         except Exception:
             workshop_id = None
         layers_multiplier = self.layers_per_unit if (workshop_id == 7 and int(self.layers_per_unit or 1) > 0) else 1
+        logger.debug(f"Layers multiplier applied: {layers_multiplier} (workshop_id={workshop_id})")
         
         # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
-        self.earnings = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
-        # Округляем до 0.1 для стабильности отображения и выплаты
-        self.earnings = self.earnings.quantize(Decimal('0.1'))
+        gross = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
+        self.earnings = gross.quantize(Decimal('0.1'))
+        logger.debug(f"Gross calc: completed({self.completed_quantity}) * price({service_price}) * layers({layers_multiplier}) = {gross} → rounded earnings={self.earnings}")
         
         # Штрафы: за брак + дополнительные вручную начисленные
         base_defect_penalties = Decimal(str(self.defective_quantity)) * Decimal(str(penalty_rate))
         manual_penalties = Decimal(str(self.additional_penalties or 0))
-        self.penalties = (base_defect_penalties + manual_penalties).quantize(Decimal('0.1'))
+        raw_penalties = base_defect_penalties + manual_penalties
+        self.penalties = raw_penalties.quantize(Decimal('0.1'))
+        logger.debug(f"Penalties calc: defects({self.defective_quantity}) * rate({penalty_rate}) = {base_defect_penalties}; manual={manual_penalties}; total={raw_penalties} → rounded penalties={self.penalties}")
         
         # Чистый заработок
-        self.net_earnings = (self.earnings - self.penalties).quantize(Decimal('0.1'))
+        raw_net = self.earnings - self.penalties
+        self.net_earnings = raw_net.quantize(Decimal('0.1'))
+        logger.debug(f"Net calc: earnings({self.earnings}) - penalties({self.penalties}) = {raw_net} → rounded net={self.net_earnings}")
+        logger.debug("=== EARNINGS CALC END ===")
 
     @property
     def is_completed(self):
