@@ -76,12 +76,16 @@ class EmployeeTask(models.Model):
         BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
         
         logger.debug("=== EARNINGS CALC START ===")
+        print("=== EARNINGS CALC START ===")
         try:
             logger.debug(f"Task ID: {getattr(self, 'id', None)} | Employee ID: {getattr(self, 'employee_id', None)}")
             logger.debug(f"Stage: {getattr(self, 'stage', None)} | Workshop ID: {getattr(getattr(self.stage, 'workshop', None), 'id', None)}")
+            print(f"Task ID: {getattr(self, 'id', None)} | Employee ID: {getattr(self, 'employee_id', None)}")
+            print(f"Stage: {getattr(self, 'stage', None)} | Workshop ID: {getattr(getattr(self.stage, 'workshop', None), 'id', None)}")
         except Exception:
             pass
         logger.debug(f"Inputs → completed_quantity={self.completed_quantity}, defective_quantity={self.defective_quantity}, custom_unit_price={self.custom_unit_price}, layers_per_unit={self.layers_per_unit}")
+        print(f"Inputs → completed_quantity={self.completed_quantity}, defective_quantity={self.defective_quantity}, custom_unit_price={self.custom_unit_price}, layers_per_unit={self.layers_per_unit}")
         
         # Определяем ставку за единицу: приоритет custom_unit_price → цена продукта → цена услуги → базовая
         service_price = None
@@ -128,6 +132,7 @@ class EmployeeTask(models.Model):
                 penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
         
         logger.debug(f"Price source: {price_source} | unit_price={service_price} | penalty_rate={penalty_rate}")
+        print(f"Price source: {price_source} | unit_price={service_price} | penalty_rate={penalty_rate}")
         
         # Множитель слоёв только для цеха ID=7
         try:
@@ -136,11 +141,13 @@ class EmployeeTask(models.Model):
             workshop_id = None
         layers_multiplier = self.layers_per_unit if (workshop_id == 7 and int(self.layers_per_unit or 1) > 0) else 1
         logger.debug(f"Layers multiplier applied: {layers_multiplier} (workshop_id={workshop_id})")
+        print(f"Layers multiplier applied: {layers_multiplier} (workshop_id={workshop_id})")
         
         # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
         gross = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
         self.earnings = gross.quantize(Decimal('0.1'))
         logger.debug(f"Gross calc: completed({self.completed_quantity}) * price({service_price}) * layers({layers_multiplier}) = {gross} → rounded earnings={self.earnings}")
+        print(f"Gross calc: completed({self.completed_quantity}) * price({service_price}) * layers({layers_multiplier}) = {gross} → rounded earnings={self.earnings}")
         
         # Штрафы: за брак + дополнительные вручную начисленные
         base_defect_penalties = Decimal(str(self.defective_quantity)) * Decimal(str(penalty_rate))
@@ -148,12 +155,15 @@ class EmployeeTask(models.Model):
         raw_penalties = base_defect_penalties + manual_penalties
         self.penalties = raw_penalties.quantize(Decimal('0.1'))
         logger.debug(f"Penalties calc: defects({self.defective_quantity}) * rate({penalty_rate}) = {base_defect_penalties}; manual={manual_penalties}; total={raw_penalties} → rounded penalties={self.penalties}")
+        print(f"Penalties calc: defects({self.defective_quantity}) * rate({penalty_rate}) = {base_defect_penalties}; manual={manual_penalties}; total={raw_penalties} → rounded penalties={self.penalties}")
         
         # Чистый заработок
         raw_net = self.earnings - self.penalties
         self.net_earnings = raw_net.quantize(Decimal('0.1'))
         logger.debug(f"Net calc: earnings({self.earnings}) - penalties({self.penalties}) = {raw_net} → rounded net={self.net_earnings}")
+        print(f"Net calc: earnings({self.earnings}) - penalties({self.penalties}) = {raw_net} → rounded net={self.net_earnings}")
         logger.debug("=== EARNINGS CALC END ===")
+        print("=== EARNINGS CALC END ===")
 
     @property
     def is_completed(self):

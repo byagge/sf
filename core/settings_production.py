@@ -128,6 +128,11 @@ LOGGING = {
             'level': 'WARNING',
             'propagate': False,
         },
+        'apps.employee_tasks.models.earnings': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
 }
 
