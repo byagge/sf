@@ -237,7 +237,7 @@
             },
             formatMoney(v) {
                 const num = Number(v || 0);
-                return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(num);
+                return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(num);
             },
             formatDate(iso) {
                 if (!iso) return '';
