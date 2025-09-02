@@ -70,23 +70,40 @@ class EmployeeTask(models.Model):
         BASE_RATE = Decimal('100.00')  # 100 рублей за единицу
         BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
         
-        # Если установлена индивидуальная цена от мастера — используем её
+        # Определяем ставку за единицу: приоритет custom_unit_price → цена продукта → цена услуги → базовая
+        service_price = None
+        penalty_rate = None
+        
+        # 1) Индивидуальная цена от мастера
         if self.custom_unit_price is not None:
             service_price = Decimal(str(self.custom_unit_price))
             # Штраф берём из услуги, если доступен, иначе базовый
-            if self.service:
-                penalty_rate = self.service.defect_penalty
-            else:
-                penalty_rate = BASE_PENALTY_RATE
+            penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
         else:
-            if self.service:
-                # Используем цены из услуги
-                service_price = self.service.service_price
-                penalty_rate = self.service.defect_penalty
-            else:
-                # Используем базовые ставки
-                service_price = BASE_RATE
-                penalty_rate = BASE_PENALTY_RATE
+            # 2) Цена продукта из позиции заказа (если указана)
+            try:
+                order_item = getattr(self.stage, 'order_item', None)
+                product = getattr(order_item, 'product', None) if order_item else None
+                product_price = getattr(product, 'price', None)
+            except Exception:
+                product_price = None
+            if product_price:
+                try:
+                    service_price = Decimal(str(product_price))
+                except Exception:
+                    service_price = None
+            
+            # 3) Цена услуги (если найдена) и штраф
+            if service_price is None:
+                if self.service:
+                    service_price = self.service.service_price
+                    penalty_rate = self.service.defect_penalty
+                else:
+                    service_price = BASE_RATE
+            
+            # Если штраф не определен выше, используем базовый
+            if penalty_rate is None:
+                penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
         
         # Множитель слоёв только для цеха ID=7
         try:
@@ -96,7 +113,7 @@ class EmployeeTask(models.Model):
         layers_multiplier = self.layers_per_unit if (workshop_id == 7 and int(self.layers_per_unit or 1) > 0) else 1
         
         # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
-        self.earnings = (Decimal(str(self.completed_quantity)) * service_price) * Decimal(str(layers_multiplier))
+        self.earnings = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
         
         # Штрафы: за брак + дополнительные вручную начисленные
         base_defect_penalties = Decimal(str(self.defective_quantity)) * Decimal(str(penalty_rate))
