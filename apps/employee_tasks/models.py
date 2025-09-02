@@ -99,25 +99,49 @@ class EmployeeTask(models.Model):
                 price_source = 'custom_unit_price'
             except InvalidOperation:
                 logger.warning(f"Invalid custom_unit_price: {self.custom_unit_price}")
+                print(f"WARN: Invalid custom_unit_price: {self.custom_unit_price}")
                 service_price = None
             penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
         else:
             # 2) Цена продукта из позиции заказа (если указана)
+            product_price = None
             try:
                 order_item = getattr(self.stage, 'order_item', None)
                 product = getattr(order_item, 'product', None) if order_item else None
-                product_price = getattr(product, 'price', None)
-            except Exception:
+                if product and getattr(product, 'price', None):
+                    product_price = Decimal(str(product.price))
+                    service_price = product_price
+                    price_source = 'order_item.product.price'
+                    print(f"Unit price from order_item.product.price = {product_price}")
+            except Exception as e:
+                print(f"WARN: Cannot resolve order_item.product.price: {e}")
                 product_price = None
-            if product_price:
-                try:
-                    service_price = Decimal(str(product_price))
-                    price_source = 'product.price'
-                except InvalidOperation:
-                    logger.warning(f"Invalid product.price: {product_price}")
-                    service_price = None
             
-            # 3) Цена услуги (если найдена) и штраф
+            # 2b) Агрегированный этап: считаем взвешенную цену по всем позициям заказа
+            if service_price is None:
+                try:
+                    order = getattr(self.stage, 'order', None)
+                    if order and hasattr(order, 'items') and order.items.exists():
+                        total_qty = 0
+                        total_value = Decimal('0')
+                        print("Aggregated pricing over order items:")
+                        for it in order.items.all():
+                            it_qty = int(getattr(it, 'quantity', 0) or 0)
+                            it_price_raw = getattr(getattr(it, 'product', None), 'price', None) if getattr(it, 'product', None) else None
+                            it_price = Decimal(str(it_price_raw)) if it_price_raw is not None else Decimal('0')
+                            print(f" - item id={it.id}, product={(it.product.name if it.product else 'N/A')}, qty={it_qty}, price={it_price}")
+                            total_qty += it_qty
+                            total_value += (it_price * Decimal(str(it_qty)))
+                        if total_qty > 0:
+                            weighted = (total_value / Decimal(str(total_qty)))
+                            # округлим до 0.01 для ставки
+                            service_price = weighted.quantize(Decimal('0.01'))
+                            price_source = 'weighted_avg(order.items)'
+                            print(f"Weighted avg price: total_value={total_value} / total_qty={total_qty} = {weighted} → used {service_price}")
+                except Exception as e:
+                    print(f"WARN: Aggregated pricing failed: {e}")
+            
+            # 3) Цена услуги (если не удалось выше) и штраф
             if service_price is None:
                 if self.service:
                     service_price = self.service.service_price
