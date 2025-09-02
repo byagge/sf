@@ -603,3 +603,123 @@ class FinancialPeriod(models.Model):
             date__range=[self.start_date, self.end_date],
             posted=True
         )
+
+class Request(models.Model):
+    """Модель для заявок от бухгалтера к администратору"""
+    STATUS_CHOICES = [
+        ('pending', 'Ожидает рассмотрения'),
+        ('approved', 'Одобрена'),
+        ('rejected', 'Отклонена'),
+        ('in_production', 'В производстве'),
+    ]
+    
+    name = models.CharField('Название заявки', max_length=200)
+    client = models.ForeignKey('clients.Client', on_delete=models.CASCADE, related_name='requests', verbose_name='Клиент')
+    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+    updated_at = models.DateTimeField('Дата обновления', auto_now=True)
+    status = models.CharField('Статус', max_length=30, choices=STATUS_CHOICES, default='pending')
+    comment = models.TextField('Комментарий', blank=True)
+    total_amount = models.DecimalField('Общая сумма', max_digits=12, decimal_places=2, default=0)
+    
+    # Связь с заказом (создается после одобрения администратором)
+    order = models.ForeignKey('orders.Order', on_delete=models.SET_NULL, null=True, blank=True, related_name='source_request', verbose_name='Связанный заказ')
+    
+    class Meta:
+        verbose_name = 'Заявка'
+        verbose_name_plural = 'Заявки'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.client}) [{self.get_status_display()}]"
+    
+    @property
+    def status_display(self):
+        return dict(self.STATUS_CHOICES).get(self.status, self.status)
+    
+    def approve_and_create_order(self, admin_user):
+        """Одобряет заявку и создает заказ"""
+        from apps.orders.models import Order, OrderItem, create_order_stages
+        
+        if self.status != 'pending':
+            return False, "Заявка уже не в статусе ожидания"
+        
+        # Создаем заказ
+        order = Order.objects.create(
+            name=self.name,
+            client=self.client,
+            status='production',
+            comment=self.comment
+        )
+        
+        # Создаем позиции заказа из заявки
+        for item in self.items.all():
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                quantity=item.quantity,
+                size=item.size,
+                color=item.color,
+                glass_type=item.glass_type,
+                paint_type=item.paint_type,
+                paint_color=item.paint_color,
+                cnc_specs=item.cnc_specs,
+                cutting_specs=item.cutting_specs,
+                packaging_notes=item.packaging_notes
+            )
+        
+        # Создаем этапы заказа
+        create_order_stages(order)
+        
+        # Обновляем статус заявки
+        self.status = 'in_production'
+        self.order = order
+        self.save()
+        
+        return True, f"Заявка одобрена, создан заказ #{order.id}"
+
+
+class RequestItem(models.Model):
+    """Позиции заявки"""
+    request = models.ForeignKey(Request, on_delete=models.CASCADE, related_name='items', verbose_name='Заявка')
+    product = models.ForeignKey('products.Product', on_delete=models.CASCADE, related_name='request_items', verbose_name='Товар')
+    quantity = models.PositiveIntegerField('Количество', default=1)
+    size = models.CharField('Размер', max_length=100, blank=True)
+    color = models.CharField('Цвет', max_length=100, blank=True)
+    price = models.DecimalField('Цена за единицу', max_digits=10, decimal_places=2, default=0)
+    
+    # Дополнительные поля для передачи информации между цехами
+    glass_type = models.CharField('Тип стекла', max_length=20, blank=True, help_text='Пескоструйный или УФ')
+    paint_type = models.CharField('Тип краски', max_length=100, blank=True)
+    paint_color = models.CharField('Цвет краски', max_length=100, blank=True)
+    cnc_specs = models.TextField('Спецификации для ЧПУ', blank=True)
+    cutting_specs = models.TextField('Спецификации для распила', blank=True)
+    packaging_notes = models.TextField('Заметки для упаковки', blank=True)
+    
+    class Meta:
+        verbose_name = 'Позиция заявки'
+        verbose_name_plural = 'Позиции заявки'
+    
+    def __str__(self):
+        try:
+            details = []
+            if self.size:
+                details.append(self.size)
+            if self.color:
+                details.append(self.color)
+            if self.glass_type:
+                details.append(f"стекло: {self.glass_type}")
+            suffix = f" ({', '.join(details)})" if details else ''
+            product_name = self.product.name if self.product else 'Не указан'
+            return f"{product_name} x{self.quantity}{suffix}"
+        except:
+            return f"Товар x{self.quantity}"
+    
+    def save(self, *args, **kwargs):
+        """Автоматически заполняем тип стекла при создании стеклянного изделия"""
+        try:
+            if self.product and self.product.is_glass and not self.glass_type:
+                # По умолчанию устанавливаем пескоструйный тип
+                self.glass_type = 'sandblasted'
+        except:
+            pass
+        super().save(*args, **kwargs)

@@ -19,8 +19,8 @@ from .forms import (
 )
 from .forms import DebtForm, DebtPaymentForm
 from .models import Debt, DebtPayment
-from .models import AccountingAccount, JournalEntry, JournalEntryLine, AnalyticalAccount, StandardOperation, StandardOperationLine, AccountCorrespondence, FinancialPeriod
-from .forms import AccountingAccountForm, JournalEntryForm, JournalEntryLineForm, AnalyticalAccountForm, StandardOperationForm, StandardOperationLineForm, AccountCorrespondenceForm, FinancialPeriodForm
+from .models import AccountingAccount, JournalEntry, JournalEntryLine, AnalyticalAccount, StandardOperation, StandardOperationLine, AccountCorrespondence, FinancialPeriod, Request, RequestItem
+from .forms import AccountingAccountForm, JournalEntryForm, JournalEntryLineForm, AnalyticalAccountForm, StandardOperationForm, StandardOperationLineForm, AccountCorrespondenceForm, FinancialPeriodForm, RequestForm, RequestItemForm
 
 # Главная страница финансовой системы
 @login_required
@@ -1290,3 +1290,194 @@ def financial_period_edit(request, pk):
 	else:
 		form = FinancialPeriodForm(instance=period)
 	return render(request, 'finance/financial_period_form.html', {'form': form, 'title': 'Редактирование финансового периода'})
+
+
+# ===== ЗАЯВКИ =====
+
+@login_required
+def requests_list(request):
+	"""Список заявок"""
+	# Определяем мобильное устройство
+	user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+	is_mobile = any(m in user_agent for m in ['android', 'iphone', 'ipad', 'mobile'])
+	
+	requests = Request.objects.select_related('client').prefetch_related('items__product').order_by('-created_at')
+	
+	# Выбираем шаблон в зависимости от устройства
+	template = 'finance/requests_mobile.html' if is_mobile else 'finance/requests.html'
+	return render(request, template, {'requests': requests})
+
+
+@login_required
+def request_create(request):
+	"""Создание заявки"""
+	if request.method == 'POST':
+		form = RequestForm(request.POST)
+		if form.is_valid():
+			request_obj = form.save()
+			messages.success(request, 'Заявка создана')
+			return redirect('finance:request_detail', pk=request_obj.pk)
+	else:
+		form = RequestForm()
+	return render(request, 'finance/request_form.html', {'form': form, 'title': 'Новая заявка'})
+
+
+@login_required
+def request_detail(request, pk):
+	"""Детали заявки"""
+	request_obj = get_object_or_404(Request, pk=pk)
+	return render(request, 'finance/request_detail.html', {'request': request_obj})
+
+
+@login_required
+def request_edit(request, pk):
+	"""Редактирование заявки"""
+	request_obj = get_object_or_404(Request, pk=pk)
+	if request.method == 'POST':
+		form = RequestForm(request.POST, instance=request_obj)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Заявка обновлена')
+			return redirect('finance:request_detail', pk=request_obj.pk)
+	else:
+		form = RequestForm(instance=request_obj)
+	return render(request, 'finance/request_form.html', {'form': form, 'title': 'Редактирование заявки'})
+
+
+@login_required
+def request_delete(request, pk):
+	"""Удаление заявки"""
+	request_obj = get_object_or_404(Request, pk=pk)
+	if request.method == 'POST':
+		request_obj.delete()
+		messages.success(request, 'Заявка удалена')
+		return redirect('finance:requests')
+	return render(request, 'finance/request_delete_confirm.html', {'request': request_obj})
+
+
+# API для заявок
+@login_required
+def get_requests(request):
+	"""API: получение списка заявок"""
+	requests = Request.objects.select_related('client').prefetch_related('items__product').order_by('-created_at')
+	data = []
+	for req in requests:
+		data.append({
+			'id': req.id,
+			'name': req.name,
+			'client': {
+				'id': req.client.id,
+				'name': req.client.name,
+				'company': req.client.company,
+				'phone': req.client.phone,
+				'email': req.client.email,
+				'address': req.client.address,
+			} if req.client else None,
+			'status': req.status,
+			'status_display': req.status_display,
+			'created_at': req.created_at.isoformat(),
+			'updated_at': req.updated_at.isoformat(),
+			'comment': req.comment,
+			'total_amount': float(req.total_amount),
+			'items': [{
+				'id': item.id,
+				'product': {
+					'id': item.product.id,
+					'name': item.product.name,
+					'is_glass': item.product.is_glass,
+				} if item.product else None,
+				'quantity': item.quantity,
+				'size': item.size,
+				'color': item.color,
+				'price': float(item.price),
+				'glass_type': item.glass_type,
+				'paint_type': item.paint_type,
+				'paint_color': item.paint_color,
+				'cnc_specs': item.cnc_specs,
+				'cutting_specs': item.cutting_specs,
+				'packaging_notes': item.packaging_notes,
+			} for item in req.items.all()],
+			'order_id': req.order.id if req.order else None,
+		})
+	return JsonResponse(data, safe=False)
+
+
+@login_required
+def create_request(request):
+	"""API: создание заявки"""
+	if request.method != 'POST':
+		return JsonResponse({'error': 'Метод не поддерживается'}, status=405)
+	
+	try:
+		data = json.loads(request.body)
+		name = data.get('name')
+		client_id = data.get('client_id')
+		items_data = data.get('items_data', [])
+		comment = data.get('comment', '')
+		
+		if not name or not client_id or not items_data:
+			return JsonResponse({
+				'error': 'Необходимо указать название заявки, клиента и товары'
+			}, status=400)
+		
+		from apps.clients.models import Client
+		client = get_object_or_404(Client, pk=client_id)
+		
+		# Создаем заявку
+		request_obj = Request.objects.create(
+			name=name,
+			client=client,
+			comment=comment,
+			status='pending'
+		)
+		
+		# Создаем позиции заявки
+		total_amount = 0
+		for item_data in items_data:
+			product_id = item_data.get('product_id')
+			quantity = item_data.get('quantity', 1)
+			size = item_data.get('size', '')
+			color = item_data.get('color', '')
+			glass_type = item_data.get('glass_type', '')
+			paint_type = item_data.get('paint_type', '')
+			paint_color = item_data.get('paint_color', '')
+			cnc_specs = item_data.get('cnc_specs', '')
+			cutting_specs = item_data.get('cutting_specs', '')
+			packaging_notes = item_data.get('packaging_notes', '')
+			price = item_data.get('price', 0)
+			
+			from apps.products.models import Product
+			product = get_object_or_404(Product, pk=product_id)
+			
+			RequestItem.objects.create(
+				request=request_obj,
+				product=product,
+				quantity=quantity,
+				size=size,
+				color=color,
+				glass_type=glass_type,
+				paint_type=paint_type,
+				paint_color=paint_color,
+				cnc_specs=cnc_specs,
+				cutting_specs=cutting_specs,
+				packaging_notes=packaging_notes,
+				price=price
+			)
+			
+			total_amount += float(price) * quantity
+		
+		# Обновляем общую сумму
+		request_obj.total_amount = total_amount
+		request_obj.save()
+		
+		return JsonResponse({
+			'id': request_obj.id,
+			'name': request_obj.name,
+			'status': request_obj.status,
+			'message': 'Заявка успешно создана'
+		}, status=201)
+		
+	except Exception as e:
+		return JsonResponse({
+			'error': f'Ошибка создания заявки: {str(e)}'
+		}, status=500)

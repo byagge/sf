@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.db.models import Sum
 from .models import (
     ExpenseCategory, Supplier, SupplierItem, MainBankAccount, 
-    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport, AccountingAccount, JournalEntry, JournalEntryLine, AnalyticalAccount, StandardOperation, StandardOperationLine, AccountCorrespondence, FinancialPeriod
+    MoneyMovement, Expense, Income, FactoryAsset, FinancialReport, AccountingAccount, JournalEntry, JournalEntryLine, AnalyticalAccount, StandardOperation, StandardOperationLine, AccountCorrespondence, FinancialPeriod, Request, RequestItem
 )
 
 @admin.register(ExpenseCategory)
@@ -155,3 +155,34 @@ class FinancialPeriodAdmin(admin.ModelAdmin):
 	list_filter = ('period_type', 'is_closed')
 	search_fields = ('name',)
 	date_hierarchy = 'start_date'
+
+class RequestItemInline(admin.TabularInline):
+    model = RequestItem
+    extra = 1
+    fields = ['product', 'quantity', 'size', 'color', 'price', 'glass_type', 'paint_type', 'paint_color', 'cnc_specs', 'cutting_specs', 'packaging_notes']
+
+
+@admin.register(Request)
+class RequestAdmin(admin.ModelAdmin):
+    list_display = ['name', 'client', 'status', 'created_at', 'total_amount']
+    list_filter = ['status', 'created_at']
+    search_fields = ['name', 'client__name', 'client__company']
+    readonly_fields = ['created_at', 'updated_at', 'order']
+    inlines = [RequestItemInline]
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'client', 'status', 'comment', 'total_amount')
+        }),
+        ('Системная информация', {
+            'fields': ('created_at', 'updated_at', 'order'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(RequestItem)
+class RequestItemAdmin(admin.ModelAdmin):
+    list_display = ['request', 'product', 'quantity', 'size', 'color', 'price']
+    list_filter = ['request__status', 'product__is_glass']
+    search_fields = ['request__name', 'product__name']

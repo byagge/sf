@@ -97,4 +97,15 @@ urlpatterns = [
     path('financial-periods/create/', views.financial_period_create, name='financial_period_create'),
     path('financial-periods/<int:pk>/close/', views.financial_period_close, name='financial_period_close'),
     path('financial-periods/<int:pk>/edit/', views.financial_period_edit, name='financial_period_edit'),
+    
+    # Заявки
+    path('requests/', views.requests_list, name='requests'),
+    path('requests/create/', views.request_create, name='request_create'),
+    path('requests/<int:pk>/', views.request_detail, name='request_detail'),
+    path('requests/<int:pk>/edit/', views.request_edit, name='request_edit'),
+    path('requests/<int:pk>/delete/', views.request_delete, name='request_delete'),
+    
+    # API для заявок
+    path('api/requests/', views.get_requests, name='api_requests'),
+    path('api/requests/create/', views.create_request, name='api_create_request'),
 ]

@@ -181,3 +181,36 @@ class FinancialPeriodForm(forms.ModelForm):
 	class Meta:
 		model = FinancialPeriod
 		fields = ['name', 'period_type', 'start_date', 'end_date']
+
+
+class RequestForm(forms.ModelForm):
+	class Meta:
+		from .models import Request
+		model = Request
+		fields = ['name', 'client', 'comment', 'total_amount']
+		widgets = {
+			'name': forms.TextInput(attrs={'placeholder': 'Название заявки'}),
+			'client': forms.Select(attrs={'placeholder': 'Выберите клиента'}),
+			'comment': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Комментарий к заявке'}),
+			'total_amount': forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+		}
+
+
+class RequestItemForm(forms.ModelForm):
+	class Meta:
+		from .models import RequestItem
+		model = RequestItem
+		fields = ['product', 'quantity', 'size', 'color', 'price', 'glass_type', 'paint_type', 'paint_color', 'cnc_specs', 'cutting_specs', 'packaging_notes']
+		widgets = {
+			'product': forms.Select(attrs={'placeholder': 'Выберите товар'}),
+			'quantity': forms.NumberInput(attrs={'min': '1', 'placeholder': '1'}),
+			'size': forms.TextInput(attrs={'placeholder': 'Размер (S/M/40x60)'}),
+			'color': forms.TextInput(attrs={'placeholder': 'Цвет'}),
+			'price': forms.NumberInput(attrs={'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+			'glass_type': forms.Select(choices=[('', '— Выберите —'), ('sandblasted', 'Пескоструйный'), ('uv', 'УФ')]),
+			'paint_type': forms.TextInput(attrs={'placeholder': 'Тип краски (акрил, эмаль)'}),
+			'paint_color': forms.TextInput(attrs={'placeholder': 'Цвет краски'}),
+			'cnc_specs': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Спецификации для ЧПУ'}),
+			'cutting_specs': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Спецификации для распила'}),
+			'packaging_notes': forms.Textarea(attrs={'rows': 2, 'placeholder': 'Заметки для упаковки'}),
+		}

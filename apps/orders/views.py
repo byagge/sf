@@ -1,21 +1,23 @@
-from django.shortcuts import render
-from django.http import JsonResponse
+import json
+from django.shortcuts import render, get_object_or_404
+from django.views import View
+from django.http import JsonResponse, HttpResponse
+from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.views import View
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum, Count, F, Q, Max
+from django.db import models
+from django.utils import timezone
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
 from .models import Order, OrderItem, OrderStage, OrderDefect
 from .serializers import OrderSerializer, OrderItemSerializer, OrderStageConfirmSerializer, OrderStageSerializer
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
-from django.views.generic import TemplateView
-from django.shortcuts import get_object_or_404
-from django.db.models import Sum, Count, F
-from django.utils import timezone
-from rest_framework.decorators import api_view, permission_classes
 from apps.employee_tasks.models import EmployeeTask
 from apps.employees.models import User
 
@@ -227,13 +229,13 @@ class OrderPageView(View):
 			regular_orders = Order.objects.filter(
 				stages__workshop=workshop_1,
 				stages__status__in=['in_progress', 'partial']
-		 ).distinct().count()
+			).distinct().count()
 			
 			# Заказы в цехе 2 (стеклянные товары)
 			glass_orders = Order.objects.filter(
 				stages__workshop=workshop_2,
 				stages__status__in=['in_progress', 'partial']
-		 ).distinct().count()
+			).distinct().count()
 			
 			workshops_stats = {
 				'workshop_1': {
@@ -506,13 +508,555 @@ class StageViewSet(viewsets.ReadOnlyModelViewSet):
 			qs = qs.filter(workshop_id=workshop_param)
 		return qs
 
+
+
 class PlansMasterView(TemplateView):
     template_name = 'plans_master.html'
+class PlansMasterDetailView(View):
+	def get(self, request, stage_id):
+		stage = get_object_or_404(OrderStage, pk=stage_id)
+		context = {
+			'stage': stage,
+			'order': stage.order,
+			'workshop': stage.workshop,
+		}
+		return render(request, 'orders/plans_master_detail.html', context)
 
-class PlansMasterDetailView(TemplateView):
-    template_name = 'plans_master_detail.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['stage_id'] = self.kwargs.get('stage_id')
-        return context
+
+# ===== АДМИНИСТРАТОР ЗАЯВОК =====
+
+@method_decorator(login_required, name='dispatch')
+class AdminRequestsView(View):
+    """Главная страница администратора заявок"""
+    def get(self, request):
+        from apps.finance.models import Request
+        from apps.clients.models import Client
+        
+        # Определяем мобильное устройство
+        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+        is_mobile = any(m in user_agent for m in ['android', 'iphone', 'ipad', 'mobile'])
+        
+        # Получаем клиентов с заявками
+        clients_with_requests = Client.objects.filter(
+            requests__isnull=False
+        ).annotate(
+            requests_count=Count('requests'),
+            last_request_date=Max('requests__created_at')
+        ).filter(requests_count__gt=0).order_by('-last_request_date')
+        
+        # Статистика
+        stats = {
+            'pending': Request.objects.filter(status='pending').count(),
+            'approved': Request.objects.filter(status='approved').count(),
+            'in_production': Request.objects.filter(status='in_production').count(),
+        }
+        
+        # Подготавливаем JSON для JavaScript
+        clients_json = []
+        for client in clients_with_requests:
+            # Получаем количество заявок по статусам
+            pending_count = client.requests.filter(status='pending').count()
+            approved_count = client.requests.filter(status='approved').count()
+            in_production_count = client.requests.filter(status='in_production').count()
+            
+            clients_json.append({
+                'id': client.id,
+                'name': client.name,
+                'company': client.company or '',
+                'phone': client.phone or '',
+                'email': client.email or '',
+                'requests_count': client.requests_count,
+                'pending_count': pending_count,
+                'approved_count': approved_count,
+                'in_production_count': in_production_count,
+                'last_request_date': client.last_request_date.strftime('%d.%m.%Y') if client.last_request_date else ''
+            })
+        
+        context = {
+            'clients_with_requests': clients_with_requests,
+            'clients_with_requests_json': json.dumps(clients_json, ensure_ascii=False, default=str),
+            'stats': stats,
+        }
+        
+        # Выбираем шаблон в зависимости от устройства
+        template = 'orders/admin_requests_mobile.html' if is_mobile else 'orders/admin_requests.html'
+        return render(request, template, context)
+
+
+class AdminClientRequestsView(View):
+	"""Страница заявок конкретного клиента с канбан-доской"""
+	def get(self, request, client_id):
+		from apps.finance.models import Request
+		from apps.clients.models import Client
+		from apps.operations.workshops.models import Workshop
+		
+		# Определяем мобильное устройство
+		user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+		is_mobile = any(m in user_agent for m in ['android', 'iphone', 'ipad', 'mobile'])
+		
+		client = get_object_or_404(Client, pk=client_id)
+		
+		# Получаем все заявки клиента
+		requests = Request.objects.filter(client=client).order_by('-created_at')
+		
+		# Получаем все цеха
+		workshops = Workshop.objects.all().order_by('id')
+		
+		# Группируем заявки по статусам
+		pending_requests = requests.filter(status='pending')
+		approved_requests = requests.filter(status='approved')
+		in_production_requests = requests.filter(status='in_production')
+		
+		context = {
+			'client': client,
+			'requests': requests,
+			'workshops': workshops,
+			'pending_requests': pending_requests,
+			'approved_requests': approved_requests,
+			'in_production_requests': in_production_requests,
+		}
+		
+		# Выбираем шаблон в зависимости от устройства
+		template = 'orders/admin_client_requests_mobile.html' if is_mobile else 'orders/admin_client_requests.html'
+		return render(request, template, context)
+
+
+class ApproveRequestAPIView(APIView):
+	"""API для одобрения заявки и создания заказа"""
+	permission_classes = [permissions.IsAuthenticated]
+	
+	def post(self, request, request_id):
+		try:
+			from apps.finance.models import Request
+			request_obj = get_object_or_404(Request, pk=request_id)
+			
+			if request_obj.status != 'pending':
+				return Response({
+					'error': 'Заявка уже не в статусе ожидания'
+				}, status=400)
+			
+			# Одобряем заявку и создаем заказ
+			success, message = request_obj.approve_and_create_order(request.user)
+			
+			if success:
+				return Response({
+					'message': message,
+					'order_id': request_obj.order.id if request_obj.order else None,
+					'status': 'success'
+				})
+			else:
+				return Response({
+					'error': message
+				}, status=400)
+				
+		except Exception as e:
+			return Response({
+				'error': f'Ошибка одобрения заявки: {str(e)}'
+			}, status=500)
+
+
+@method_decorator(login_required, name='dispatch')
+class ExportRequestsExcelView(View):
+	"""Экспорт заявок в Excel файл"""
+	def get(self, request):
+		from apps.finance.models import Request
+		from apps.clients.models import Client
+		
+		# Получаем все заявки с детальной информацией
+		requests = Request.objects.select_related('client').prefetch_related('items__product').all().order_by('-created_at')
+		
+		# Создаем Excel файл
+		wb = Workbook()
+		
+		# Удаляем дефолтный лист
+		wb.remove(wb.active)
+		
+		# Стили для заголовков
+		header_font = Font(bold=True, size=12)
+		header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+		header_alignment = Alignment(horizontal="center", vertical="center")
+		border = Border(
+			left=Side(style='thin'),
+			right=Side(style='thin'),
+			top=Side(style='thin'),
+			bottom=Side(style='thin')
+		)
+		
+		# Создаем лист для каждой заявки
+		for request_obj in requests:
+			# Создаем лист с названием заявки (обрезаем до 31 символа)
+			sheet_name = f"Заявка {request_obj.id}"
+			if len(sheet_name) > 31:
+				sheet_name = f"Заявка{request_obj.id}"
+			
+			ws = wb.create_sheet(title=sheet_name)
+			
+			# Заголовок заявки
+			ws['A1'] = f"Заказ №{request_obj.id}-{request_obj.name} {request_obj.created_at.strftime('%d/%m/%y')}"
+			ws['A1'].font = Font(bold=True, size=14)
+			ws.merge_cells('A1:E1')
+			
+			# Информация о клиенте
+			ws['A3'] = "Клиент:"
+			ws['A3'].font = header_font
+			ws['B3'] = request_obj.client.name
+			ws['B3'].font = Font(size=12)
+			
+			ws['A4'] = "Компания:"
+			ws['A4'].font = header_font
+			ws['B4'] = request_obj.client.company or ""
+			ws['B4'].font = Font(size=12)
+			
+			ws['A5'] = "Телефон:"
+			ws['A5'].font = header_font
+			ws['B5'] = request_obj.client.phone or ""
+			ws['B5'].font = Font(size=12)
+			
+			# Заголовки таблицы
+			headers = ['№', 'Материал', 'Размер', 'Шт', 'Операции']
+			for col, header in enumerate(headers, 1):
+				cell = ws.cell(row=7, column=col, value=header)
+				cell.font = header_font
+				cell.fill = header_fill
+				cell.alignment = header_alignment
+				cell.border = border
+			
+			# Данные товаров
+			row = 8
+			for idx, item in enumerate(request_obj.items.all(), 1):
+				# Определяем материал
+				material = item.product.name
+				if item.glass_type:
+					material += f" ({item.glass_type})"
+				
+				# Размер
+				size = item.size or ""
+				
+				# Количество
+				quantity = item.quantity
+				
+				# Операции (на основе типа продукта)
+				operations = []
+				if item.product.is_glass:
+					operations.extend(['Распил', 'ЧПУ', 'Пескоструй', 'УФ печать'])
+				else:
+					operations.extend(['Распил', 'ЧПУ', 'Пресс', 'Кромка', 'Шлифовка', 'Грунтовка', 'Покраска'])
+				
+				operations_text = ", ".join(operations)
+				
+				# Записываем данные
+				ws.cell(row=row, column=1, value=idx).border = border
+				ws.cell(row=row, column=2, value=material).border = border
+				ws.cell(row=row, column=3, value=size).border = border
+				ws.cell(row=row, column=4, value=quantity).border = border
+				ws.cell(row=row, column=5, value=operations_text).border = border
+				
+				row += 1
+			
+			# Итоговая строка
+			total_quantity = sum(item.quantity for item in request_obj.items.all())
+			ws.cell(row=row, column=1, value="Общий").font = Font(bold=True)
+			ws.cell(row=row, column=1).border = border
+			ws.cell(row=row, column=4, value=f"{total_quantity}шт").font = Font(bold=True)
+			ws.cell(row=row, column=4).border = border
+			
+			# Настройка ширины столбцов
+			ws.column_dimensions['A'].width = 8
+			ws.column_dimensions['B'].width = 40
+			ws.column_dimensions['C'].width = 15
+			ws.column_dimensions['D'].width = 10
+			ws.column_dimensions['E'].width = 50
+			
+			# Дополнительная информация
+			row += 3
+			ws.cell(row=row, column=1, value="Комментарий:").font = header_font
+			ws.cell(row=row, column=2, value=request_obj.comment or "").font = Font(size=12)
+			
+			row += 1
+			ws.cell(row=row, column=1, value="Общая сумма:").font = header_font
+			ws.cell(row=row, column=2, value=f"{request_obj.total_amount or 0} сом").font = Font(size=12, bold=True)
+			
+			row += 1
+			ws.cell(row=row, column=1, value="Статус:").font = header_font
+			status_display = {
+				'pending': 'Ожидает',
+				'approved': 'Одобрена',
+				'in_production': 'В производстве',
+				'rejected': 'Отклонена'
+			}.get(request_obj.status, request_obj.status)
+			ws.cell(row=row, column=2, value=status_display).font = Font(size=12)
+		
+		# Создаем ответ
+		response = HttpResponse(
+			content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+		)
+		response['Content-Disposition'] = f'attachment; filename="заявки_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+		
+		# Сохраняем файл
+		wb.save(response)
+		return response
+
+
+@method_decorator(login_required, name='dispatch')
+class ExportRequestsExcelForClientView(View):
+	"""Экспорт заявок конкретного клиента в Excel файл с точным форматом как на фотографии"""
+	def get(self, request, client_id):
+		from apps.finance.models import Request
+		from apps.clients.models import Client
+		from apps.operations.workshops.models import Workshop
+		
+		# Получаем клиента
+		client = get_object_or_404(Client, pk=client_id)
+		
+		# Получаем все заявки клиента с детальной информацией
+		requests = Request.objects.filter(client=client).select_related('client').prefetch_related('items__product').order_by('-created_at')
+		
+		# Получаем цеха из БД (кроме ID 2)
+		workshops = Workshop.objects.exclude(id=2).order_by('id')
+		
+		# Создаем Excel файл
+		wb = Workbook()
+		
+		# Удаляем дефолтный лист
+		wb.remove(wb.active)
+		
+		# Стили для заголовков
+		header_font = Font(bold=True, size=10, color="FFFFFF")  # Уменьшаем размер с 12 до 10
+		header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+		header_alignment = Alignment(horizontal="center", vertical="center")
+		border = Border(
+			left=Side(style='thin'),
+			right=Side(style='thin'),
+			top=Side(style='thin'),
+			bottom=Side(style='thin')
+		)
+		
+		# Создаем лист для каждой заявки
+		for request_obj in requests:
+			# Создаем лист с названием заявки (обрезаем до 31 символа)
+			sheet_name = f"Заявка {request_obj.id}"
+			if len(sheet_name) > 31:
+				sheet_name = f"Заявка{request_obj.id}"
+			
+			ws = wb.create_sheet(title=sheet_name)
+			
+			# Заголовок заявки (точно как на фотографии)
+			ws['A1'] = f"Заказ №{request_obj.id}-{request_obj.name} {request_obj.created_at.strftime('%d/%m/%y')}"
+			ws['A1'].font = Font(bold=True, size=12)  # Уменьшаем размер шрифта с 14 до 12
+			ws.merge_cells('A1:I1')  # Объединяем все 9 столбцов
+			ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
+			
+			# Заголовки таблицы (точно как на фотографии)
+			headers = ['№', 'цеха', 'материал', 'размер', 'шт', '', '', '', '']
+			for col, header in enumerate(headers, 1):
+				cell = ws.cell(row=2, column=col, value=header)
+				cell.font = header_font
+				cell.fill = header_fill
+				cell.alignment = header_alignment
+				cell.border = border
+			
+			# Данные товаров (точно как на фотографии)
+			row = 3
+			workshop_num = 1
+			total_quantity = 0
+			
+			# Получаем товары из заявки
+			items = list(request_obj.items.all())
+			
+			# Создаем данные для каждого цеха из БД
+			for workshop in workshops:
+				# Определяем количество строк для каждого цеха
+				if workshop.id == 1:  # Распил
+					rows_for_workshop = 3
+				elif workshop.id == 2:  # ЧПУ (исключен)
+					continue
+				elif workshop.id == 3:  # Заготовка
+					rows_for_workshop = 2
+				elif workshop.id == 4:  # Пресс
+					rows_for_workshop = 2
+				elif workshop.id == 8:  # Грутовка
+					rows_for_workshop = 2
+				elif workshop.id == 9:  # Шкурка белый
+					rows_for_workshop = 6
+				elif workshop.id == 10:  # Покраска
+					rows_for_workshop = 2
+				elif workshop.id == 11:  # Упаковка
+					rows_for_workshop = 2
+				else:
+					rows_for_workshop = 1
+				
+				# Для каждого товара создаем отдельные строки
+				for item in items:
+					for workshop_row in range(rows_for_workshop):
+						# Первая строка цеха содержит номер и название
+						if workshop_row == 0:
+							ws.cell(row=row, column=1, value=workshop_num).border = border
+							ws.cell(row=row, column=2, value=workshop.name).border = border
+						else:
+							# Последующие строки цеха пустые в первых двух столбцах
+							ws.cell(row=row, column=1, value="").border = border
+							ws.cell(row=row, column=2, value="").border = border
+						
+						# Заполняем данные товаров только для определенных цехов
+						if workshop.id == 1 and workshop_row == 0:  # Распил
+							material = item.product.name  # Только название товара без скобок
+							size = item.size or "80-200"
+							# До пресса x2 от количества заявки
+							quantity = item.quantity * 2
+							# Добавляем 1 к размеру до пресса
+							size_with_plus_one = self.add_one_to_size(size)
+							total_quantity += quantity
+							
+							ws.cell(row=row, column=3, value=material).border = border
+							ws.cell(row=row, column=4, value=size_with_plus_one).border = border
+							ws.cell(row=row, column=5, value=quantity).border = border
+							ws.cell(row=row, column=6, value="").border = border
+							
+						elif workshop.id == 1 and workshop_row == 1:  # Распил вторая строка
+							# Берем данные из БД
+							material = f"{item.product.name} МДФ {item.size or '1,0'}"
+							ws.cell(row=row, column=3, value=material).border = border
+							ws.cell(row=row, column=4, value="").border = border
+							ws.cell(row=row, column=5, value="").border = border
+							ws.cell(row=row, column=6, value="").border = border
+							
+						elif workshop.id == 1 and workshop_row == 2:  # Распил третья строка
+							# Берем данные из БД
+							material = f"{item.product.name} стекло"
+							size = item.size or "30 40"
+							ws.cell(row=row, column=3, value=material).border = border
+							ws.cell(row=row, column=4, value=size).border = border
+							ws.cell(row=row, column=5, value="").border = border
+							ws.cell(row=row, column=6, value="").border = border
+							
+						elif workshop.id == 3 and workshop_row == 0:  # Заготовка
+							material = f"{item.product.name} ГЛУХОЙ"  # Убираем скобки с цветом
+							size = item.size or "80-200"
+							# До пресса x2 от количества заявки
+							quantity = item.quantity * 2
+							# Добавляем 1 к размеру до пресса
+							size_with_plus_one = self.add_one_to_size(size)
+							
+							ws.cell(row=row, column=3, value=material).border = border
+							ws.cell(row=row, column=4, value=size_with_plus_one).border = border
+							ws.cell(row=row, column=5, value=quantity).border = border
+							ws.cell(row=row, column=6, value="").border = border
+							
+						elif workshop.id == 4 and workshop_row == 0:  # Пресс
+							material = f"{item.product.name} ГЛУХОЙ"  # Убираем скобки с цветом
+							size = item.size or "80-200"
+							# На прессе и после - реальное количество
+							quantity = item.quantity
+							
+							ws.cell(row=row, column=3, value=material).border = border
+							ws.cell(row=row, column=4, value=size).border = border
+							ws.cell(row=row, column=5, value=quantity).border = border
+							ws.cell(row=row, column=6, value="").border = border
+							
+						elif workshop.id == 8 and workshop_row == 0:  # Грутовка
+							quantity = item.quantity  # Реальное количество из БД
+							ws.cell(row=row, column=3, value="").border = border
+							ws.cell(row=row, column=4, value="").border = border
+							ws.cell(row=row, column=5, value=f"{quantity}шт").border = border
+							ws.cell(row=row, column=6, value="").border = border
+							
+						elif workshop.id == 9 and workshop_row == 0:  # Шкурка белый
+							quantity = item.quantity  # Реальное количество из БД
+							ws.cell(row=row, column=3, value="").border = border
+							ws.cell(row=row, column=4, value="").border = border
+							ws.cell(row=row, column=5, value=f"{quantity}шт").border = border
+							ws.cell(row=row, column=6, value="").border = border
+							
+						elif workshop.id == 10 and workshop_row == 0:  # Покраска
+							material = f"{item.product.name} ГЛУХОЙ"  # Убираем скобки с цветом
+							size = item.size or "80-200"
+							# На прессе и после - реальное количество
+							quantity = item.quantity
+							
+							ws.cell(row=row, column=3, value=material).border = border
+							ws.cell(row=row, column=4, value=size).border = border
+							ws.cell(row=row, column=5, value=quantity).border = border
+							ws.cell(row=row, column=6, value="").border = border
+						
+						else:
+							# Для всех остальных строк заполняем пустые ячейки с границами
+							ws.cell(row=row, column=3, value="").border = border
+							ws.cell(row=row, column=4, value="").border = border
+							ws.cell(row=row, column=5, value="").border = border
+							ws.cell(row=row, column=6, value="").border = border
+						
+						# Заполняем пустые столбцы 7-9 границами для всех строк
+						for col in range(7, 10):
+							ws.cell(row=row, column=col, value="").border = border
+						
+						row += 1
+				
+				workshop_num += 1
+			
+			# Итоговая строка (точно как на фотографии)
+			ws.cell(row=row, column=1, value="общий").font = Font(bold=True)
+			ws.cell(row=row, column=1).border = border
+			ws.cell(row=row, column=1).alignment = Alignment(horizontal="right")
+			
+			# Вычисляем общее количество из БД
+			total_from_db = sum(item.quantity for item in items) if items else 0
+			ws.cell(row=row, column=7, value=f"{total_from_db}шт").font = Font(bold=True)  # В 7-м столбце как на фотографии
+			ws.cell(row=row, column=7).border = border
+			
+			# Заполняем границы для итоговой строки
+			for col in range(2, 10):
+				ws.cell(row=row, column=col, value="").border = border
+			
+			# Настройка ширины столбцов для растягивания на всю ширину листа
+			ws.column_dimensions['A'].width = 8   # №
+			ws.column_dimensions['B'].width = 20  # цеха
+			ws.column_dimensions['C'].width = 35  # материал - увеличиваем
+			ws.column_dimensions['D'].width = 18  # размер - увеличиваем
+			ws.column_dimensions['E'].width = 12  # шт - увеличиваем
+			ws.column_dimensions['F'].width = 18  # 6-й столбец - увеличиваем
+			ws.column_dimensions['G'].width = 15  # 7-й столбец - увеличиваем
+			ws.column_dimensions['H'].width = 12  # 8-й столбец - увеличиваем
+			ws.column_dimensions['I'].width = 12  # 9-й столбец - увеличиваем
+			
+			# Настройка ориентации страницы на альбомную
+			ws.page_setup.orientation = ws.ORIENTATION_LANDSCAPE
+			ws.page_setup.fitToPage = True
+			ws.page_setup.fitToHeight = 1
+			ws.page_setup.fitToWidth = 1
+			
+			# Настройка отступов страницы для максимального использования пространства
+			ws.page_margins.left = 0.3
+			ws.page_margins.right = 0.3
+			ws.page_margins.top = 0.3
+			ws.page_margins.bottom = 0.3
+			ws.page_margins.header = 0.2
+			ws.page_margins.footer = 0.2
+		
+		# Создаем ответ
+		response = HttpResponse(
+			content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+		)
+		response['Content-Disposition'] = f'attachment; filename="заявки_{client.name}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+		
+		# Сохраняем файл
+		wb.save(response)
+		return response
+	
+	def add_one_to_size(self, size):
+		"""Добавляет 1 к размеру до пресса (например, 80-200 -> 81-201)"""
+		if not size:
+			return size
+		
+		try:
+			# Разбиваем размер по дефису
+			parts = size.split('-')
+			if len(parts) == 2:
+				first_part = int(parts[0]) + 1
+				second_part = int(parts[1]) + 1
+				return f"{first_part}-{second_part}"
+			else:
+				# Если размер не в формате X-Y, возвращаем как есть
+				return size
+		except (ValueError, TypeError):
+			# Если не удается преобразовать в числа, возвращаем как есть
+			return size

@@ -73,6 +73,45 @@
     </div>
 </div>
 
+<!-- Quick Actions -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <a href="{% url 'finance:requests' %}" class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <i data-lucide="file-text" class="w-6 h-6 text-blue-600"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">Заявки</h3>
+                <p class="text-sm text-gray-600">Создание и управление заявками</p>
+            </div>
+        </div>
+    </a>
+    
+    <a href="{% url 'finance:expense_create' %}" class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <i data-lucide="minus-circle" class="w-6 h-6 text-red-600"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">Новый расход</h3>
+                <p class="text-sm text-gray-600">Зарегистрировать расход</p>
+            </div>
+        </div>
+    </a>
+    
+    <a href="{% url 'finance:incomes' %}" class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <i data-lucide="plus-circle" class="w-6 h-6 text-green-600"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">Новый доход</h3>
+                <p class="text-sm text-gray-600">Зарегистрировать доход</p>
+            </div>
+        </div>
+    </a>
+</div>
+
 <!-- Charts Section -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
     <!-- Income and Expense Dynamics -->
