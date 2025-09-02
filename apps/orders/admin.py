@@ -67,14 +67,14 @@ class OrderAdmin(admin.ModelAdmin):
         items = obj.glass_items
         if not items:
             return "Нет стеклянных изделий"
-        return ", ".join([f"{item['product']} x{item['quantity']}" for item in items])
+        return ", ".join([f"{(it.product.name if it.product else 'Не указан')} x{it.quantity}" for it in items])
     glass_items.short_description = 'Стеклянные изделия'
     
     def regular_items(self, obj):
         items = obj.regular_items
         if not items:
             return "Нет обычных изделий"
-        return ", ".join([f"{item['product']} x{item['quantity']}" for item in items])
+        return ", ".join([f"{(it.product.name if it.product else 'Не указан')} x{it.quantity}" for it in items])
     regular_items.short_description = 'Обычные изделия'
 
 @admin.register(OrderItem)
