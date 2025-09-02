@@ -87,6 +87,24 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
                 item_data = OrderItemSerializer(first_item).data
                 
                 # Добавляем информацию о заказе
+                # Также включаем список всех товаров заказа, чтобы фронт мог отобразить их
+                items_list = []
+                try:
+                    for it in order_items:
+                        items_list.append({
+                            'id': it.id,
+                            'quantity': it.quantity,
+                            'size': it.size,
+                            'color': it.color,
+                            'product': {
+                                'id': it.product.id if it.product else None,
+                                'name': it.product.name if it.product else 'Не указан',
+                                'is_glass': it.product.is_glass if it.product else False
+                            } if it.product else None
+                        })
+                except Exception:
+                    items_list = []
+                
                 item_data['order'] = {
                     'id': stage_obj.order.id,
                     'name': stage_obj.order.name,
@@ -95,7 +113,8 @@ class EmployeeTaskSerializer(serializers.ModelSerializer):
                     'created_at': stage_obj.order.created_at.isoformat() if stage_obj.order.created_at else None,
                     'client': {
                         'name': stage_obj.order.client.name if stage_obj.order.client else 'Не указан'
-                    } if stage_obj.order.client else None
+                    } if stage_obj.order.client else None,
+                    'items': items_list
                 }
                 
                 logger.info(f"Fallback order_item data: {item_data}")
