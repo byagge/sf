@@ -67,8 +67,8 @@ class EmployeeTask(models.Model):
     def calculate_earnings(self):
         """Рассчитывает заработок, штрафы и чистый заработок"""
         # Базовая ставка за единицу работы (если услуга не найдена)
-        BASE_RATE = Decimal('100.00')  # 100 рублей за единицу
-        BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
+        BASE_RATE = Decimal('0.00')  # 100 рублей за единицу
+        BASE_PENALTY_RATE = Decimal('0.00')  # 50 рублей за единицу брака
         
         # Определяем ставку за единицу: приоритет custom_unit_price → цена продукта → цена услуги → базовая
         service_price = None
