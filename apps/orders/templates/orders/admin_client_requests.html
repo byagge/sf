@@ -42,90 +42,13 @@
                         <i data-lucide="arrow-left" class="w-4 h-4 mr-2"></i>
                         К списку клиентов
                     </a>
-                    <!-- <a href="{% url 'orders:export_requests_excel_for_client' client.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200 shadow-sm">
+                    <a href="{% url 'orders:export_requests_excel_for_client' client.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-all duration-200 shadow-sm">
                         <i data-lucide="download" class="w-4 h-4 mr-2"></i>
                         Экспорт в Excel
-                    </a> -->
+                    </a>
                     <button @click="refreshData()" class="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md">
                         <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
                         Обновить
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Client Info Cards -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Contact Info -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 card-hover">
-                <div class="flex items-center mb-4">
-                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                        <i data-lucide="user" class="w-6 h-6 text-white"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-900 ml-4">Контактная информация</h3>
-                </div>
-                <div class="space-y-4">
-                    {% if client.phone %}
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i data-lucide="phone" class="w-4 h-4 mr-3 text-blue-500"></i>
-                            <span class="font-medium">{{ client.phone }}</span>
-                        </div>
-                    {% endif %}
-                    {% if client.email %}
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i data-lucide="mail" class="w-4 h-4 mr-3 text-blue-500"></i>
-                            <span class="font-medium">{{ client.email }}</span>
-                        </div>
-                    {% endif %}
-                    {% if client.address %}
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i data-lucide="map-pin" class="w-4 h-4 mr-3 text-blue-500"></i>
-                            <span class="font-medium">{{ client.address }}</span>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <!-- Statistics -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 card-hover">
-                <div class="flex items-center mb-4">
-                    <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-                        <i data-lucide="bar-chart-3" class="w-6 h-6 text-white"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-900 ml-4">Статистика заявок</h3>
-                </div>
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                        <span class="text-sm text-gray-600">Всего заявок:</span>
-                        <span class="font-bold text-lg text-gray-900">{{ requests.count }}</span>
-                    </div>
-                    <div class="flex items-center justify-between p-3 bg-yellow-50 rounded-xl">
-                        <span class="text-sm text-gray-600">Ожидают:</span>
-                        <span class="font-bold text-lg text-yellow-600">{{ pending_requests.count }}</span>
-                    </div>
-                    <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
-                        <span class="text-sm text-gray-600">В производстве:</span>
-                        <span class="font-bold text-lg text-blue-600">{{ in_production_requests.count }}</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Quick Actions -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 card-hover">
-                <div class="flex items-center mb-4">
-                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                        <i data-lucide="zap" class="w-6 h-6 text-white"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-900 ml-4">Быстрые действия</h3>
-                </div>
-                <div class="space-y-3">
-                    <button onclick="window.location.href='{% url 'orders:export_requests_excel_for_client' client.id %}'" class="w-full px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 text-sm font-medium shadow-sm">
-                        <i data-lucide="download" class="w-4 h-4 inline mr-2"></i>
-                        Экспорт данных
-                    </button>
-                    <button @click="printReport()" class="w-full px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-200 text-sm font-medium shadow-sm">
-                        <i data-lucide="printer" class="w-4 h-4 inline mr-2"></i>
-                        Печать отчета
                     </button>
                 </div>
             </div>
