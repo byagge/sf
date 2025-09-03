@@ -114,6 +114,14 @@ class EmployeeTask(models.Model):
                 print(f"Цех: {workshop}")
                 print(f"Операция: '{operation}'")
                 
+                # Если этап агрегированный (order_item отсутствует) — покажем товары заявки
+                if (product is None) and getattr(self.stage, 'order', None) and hasattr(self.stage.order, 'items'):
+                    try:
+                        items_info = ", ".join([f"{it.product.name if it.product else '—'} x{it.quantity}" for it in self.stage.order.items.all()])
+                        print(f"Товары в заявке: {items_info}")
+                    except Exception:
+                        pass
+                
                 if product and workshop:
                     # Пытаемся найти услугу по продукту, цеху и названию операции
                     qs = product.services.filter(workshop=workshop)
