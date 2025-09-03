@@ -129,10 +129,15 @@ class EmployeeTask(models.Model):
                     qs = product.services.filter(workshop=workshop)
                     print(f"Найдено услуг для товара в цехе: {qs.count()}")
                     
-                    # Берем первую активную услугу для продукта в данном цехе (без поиска по названию операции)
+                    # Всегда берем первую активную услугу для продукта в цехе (не ищем по названию операции)
                     matched_service = qs.filter(is_active=True).first()
                     if matched_service:
-                        print(f"✓ Найдена услуга для продукта в цехе: {matched_service.name}")
+                        print(f"✓ Берем первую активную услугу: {matched_service.name}")
+                    else:
+                        # Если активных услуг нет, берем любую
+                        matched_service = qs.first()
+                        if matched_service:
+                            print(f"  Активных услуг нет, берем любую: {matched_service.name}")
                         
                     if matched_service:
                         service_price = matched_service.service_price
@@ -170,10 +175,15 @@ class EmployeeTask(models.Model):
                                     qs = it.product.services.filter(workshop=workshop)
                                     print(f"Товар {it.product.name}: найдено услуг в цехе {workshop}: {qs.count()}")
                                     
-                                    # Берем первую активную услугу для продукта в данном цехе (без поиска по названию операции)
+                                    # Всегда берем первую активную услугу для продукта в цехе (не ищем по названию операции)
                                     it_service = qs.filter(is_active=True).first()
                                     if it_service:
-                                        print(f"  Найдена услуга для продукта в цехе: {it_service.name}")
+                                        print(f"  Берем первую активную услугу: {it_service.name}")
+                                    else:
+                                        # Если активных услуг нет, берем любую
+                                        it_service = qs.first()
+                                        if it_service:
+                                            print(f"  Активных услуг нет, берем любую: {it_service.name}")
                                     
                                     if it_service:
                                         it_price = Decimal(str(it_service.service_price or 0))

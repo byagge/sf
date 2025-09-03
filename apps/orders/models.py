@@ -812,7 +812,7 @@ def create_order_stages(order):
                 item_types.append('обычные')
                     
             print(f"Created/updated unified stage for order {order.id}: {total_qty} items ({', '.join(item_types)}) in workshop 1")
-                
+            
         except Workshop.DoesNotExist:
             print("Workshop with ID 1 not found, skipping stage creation")
 
