@@ -88,6 +88,8 @@ class EmployeeTask(models.Model):
         service_price = None
         penalty_rate = None
         price_source = 'unknown'
+        real_cost_sum = None  # Сумма реальной стоимости по продуктам для агрегированных этапов
+        real_cost_qty = 0     # Реальное выполненное количество, учтенное в сумме
         
         # 1) Индивидуальная цена от мастера
         if self.custom_unit_price is not None:
@@ -220,11 +222,11 @@ class EmployeeTask(models.Model):
                                 break
                         
                         if real_total_qty > 0:
-                            # Устанавливаем цену как общую стоимость / общее выполненное количество
-                            service_price = (real_total_value / Decimal(str(real_total_qty))).quantize(Decimal('0.01'))
-                            price_source = 'real_cost_by_products'
-                            print(f"✓ Реальная стоимость: {real_total_value} за {real_total_qty} выполненных единиц")
-                            print(f"✓ Средняя цена за выполненную единицу: {service_price}")
+                            # Сохраняем точную сумму и количество для дальнейшего расчета заработка без усреднения
+                            real_cost_sum = real_total_value
+                            real_cost_qty = real_total_qty
+                            price_source = 'real_cost_by_products_sum'
+                            print(f"✓ Реальная стоимость (сумма): {real_cost_sum} за {real_cost_qty} выполненных единиц")
                         else:
                             print("✗ Не выполнено ни одной единицы, не можем рассчитать стоимость")
                 except Exception as e:
@@ -259,10 +261,17 @@ class EmployeeTask(models.Model):
         layers_multiplier = self.layers_per_unit if (workshop_id == 7 and int(self.layers_per_unit or 1) > 0) else 1
         print(f"Множитель слоев (цех {workshop_id}): {layers_multiplier}")
         
-        # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
-        gross = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
-        self.earnings = gross.quantize(Decimal('0.1'))
-        print(f"Заработок: {self.completed_quantity} x {service_price} x {layers_multiplier} = {self.earnings}")
+        # Заработок за выполненную работу
+        if real_cost_sum is not None and real_cost_qty > 0:
+            # Агрегированный этап: используем точную сумму по продуктам, без усреднения
+            gross = Decimal(str(real_cost_sum)) * Decimal(str(layers_multiplier))
+            self.earnings = gross.quantize(Decimal('0.1'))
+            print(f"Заработок (точная сумма по продуктам): {real_cost_sum} x {layers_multiplier} = {self.earnings}")
+        else:
+            # Обычный этап или когда удалось определить единичную цену
+            gross = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
+            self.earnings = gross.quantize(Decimal('0.1'))
+            print(f"Заработок: {self.completed_quantity} x {service_price} x {layers_multiplier} = {self.earnings}")
         
         # Штрафы: за брак + дополнительные вручную начисленные
         base_defect_penalties = Decimal(str(self.defective_quantity)) * Decimal(str(penalty_rate))
