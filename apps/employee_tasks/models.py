@@ -36,28 +36,30 @@ class EmployeeTask(models.Model):
     @property
     def service(self):
         """Получаем услугу через цех этапа и название операции"""
-        if self.stage and self.stage.workshop and self.stage.operation:
+        if self.stage and self.stage.workshop:
             from apps.services.models import Service
             try:
-                # Сначала ищем услугу по цеху и названию операции
-                service = Service.objects.filter(
-                    workshop=self.stage.workshop, 
-                    name=self.stage.operation,
-                    is_active=True
-                ).first()
-                
-                # Если не найдена, ищем первую активную услугу для цеха
-                if not service:
+                # Если есть название операции, ищем по нему
+                if self.stage.operation and self.stage.operation.strip():
                     service = Service.objects.filter(
                         workshop=self.stage.workshop, 
+                        name=self.stage.operation,
                         is_active=True
                     ).first()
+                    
+                    if service:
+                        return service
+                
+                # Если по операции не найдено или операция пустая, ищем первую активную услугу для цеха
+                service = Service.objects.filter(
+                    workshop=self.stage.workshop, 
+                    is_active=True
+                ).first()
                 
                 return service
             except Exception:
                 return None
         return None
-
     class Meta:
         verbose_name = 'Задача сотрудника'
         verbose_name_plural = 'Задачи сотрудников'
@@ -117,22 +119,32 @@ class EmployeeTask(models.Model):
                     qs = product.services.filter(workshop=workshop)
                     print(f"Найдено услуг для товара в цехе: {qs.count()}")
                     
-                    if operation:
-                        matched_service = qs.filter(name=operation).first() or qs.first()
-                        print(f"Поиск по операции '{operation}': {matched_service}")
+                    if operation and operation.strip():
+                        # Ищем по точному названию операции
+                        matched_service = qs.filter(name=operation).first()
+                        if matched_service:
+                            print(f"✓ Найдена услуга по операции '{operation}': {matched_service.name}")
+                        else:
+                            # Если по операции не найдено, берем первую активную услугу
+                            matched_service = qs.filter(is_active=True).first()
+                            if matched_service:
+                                print(f"  Операция '{operation}' не найдена, берем первую услугу: {matched_service.name}")
                     else:
-                        matched_service = qs.first()
-                        print(f"Берем первую услугу: {matched_service}")
+                        # Если операция пустая, берем первую активную услугу
+                        matched_service = qs.filter(is_active=True).first()
+                        if matched_service:
+                            print(f"  Операция пустая, берем первую услугу: {matched_service.name}")
                         
                     if matched_service:
                         service_price = matched_service.service_price
                         penalty_rate = matched_service.defect_penalty
                         price_source = f'product.services[{matched_service.id}]@{workshop.id}'
                         print(f"✓ Найдена услуга товара: {matched_service.name} = {service_price}")
+                    else:
+                        print(f"✗ Услуга для товара {product.name} в цехе {workshop} не найдена!")
             except Exception as e:
                 matched_service = None
-                print(f"✗ Ошибка поиска услуги товара: {e}")
-            
+                print(f"✗ Ошибка поиска услуги товара: {e}")            
             # 2b) Агрегированный этап: считаем взвешенную цену по всем позициям заказа на основе их услуг
             if service_price is None:
                 print("Услуга товара не найдена, считаем взвешенную цену по заказу...")
@@ -148,19 +160,41 @@ class EmployeeTask(models.Model):
                         for it in order.items.all():
                             it_qty = int(getattr(it, 'quantity', 0) or 0)
                             it_service = None
+                            it_price = Decimal('0')
+                            
                             try:
                                 if it.product:
+                                    # Ищем услугу для конкретного продукта в данном цехе
                                     qs = it.product.services.filter(workshop=workshop)
-                                    if operation:
-                                        it_service = qs.filter(name=operation).first() or qs.first()
+                                    print(f"Товар {it.product.name}: найдено услуг в цехе {workshop}: {qs.count()}")
+                                    
+                                    if operation and operation.strip():
+                                        # Если есть название операции, ищем по нему
+                                        it_service = qs.filter(name=operation).first()
+                                        if it_service:
+                                            print(f"  Найдена услуга по операции '{operation}': {it_service.name}")
+                                        else:
+                                            # Если по операции не найдено, берем первую активную услугу
+                                            it_service = qs.filter(is_active=True).first()
+                                            if it_service:
+                                                print(f"  Операция '{operation}' не найдена, берем первую услугу: {it_service.name}")
                                     else:
-                                        it_service = qs.first()
-                                    print(f"Товар {it.product.name}: услуга = {it_service}")
-                            except Exception:
+                                        # Если операция пустая, берем первую активную услугу
+                                        it_service = qs.filter(is_active=True).first()
+                                        if it_service:
+                                            print(f"  Операция пустая, берем первую услугу: {it_service.name}")
+                                    
+                                    if it_service:
+                                        it_price = Decimal(str(it_service.service_price or 0))
+                                        print(f"  Цена услуги '{it_service.name}': {it_price}")
+                                    else:
+                                        print(f"  Услуга для товара {it.product.name} в цехе {workshop} не найдена!")
+                                        
+                            except Exception as e:
+                                print(f"✗ Ошибка поиска услуги для {it.product}: {e}")
                                 it_service = None
-                                print(f"Ошибка поиска услуги для {it.product}")
+                                it_price = Decimal('0')
                                 
-                            it_price = Decimal(str(getattr(it_service, 'service_price', 0) or 0))
                             total_qty += it_qty
                             total_value += (it_price * Decimal(str(it_qty)))
                             print(f"  {it_qty} x {it_price} = {it_price * Decimal(str(it_qty))}")
@@ -170,10 +204,11 @@ class EmployeeTask(models.Model):
                             service_price = weighted.quantize(Decimal('0.01'))
                             price_source = 'weighted_avg(product.services)'
                             print(f"✓ Взвешенная цена: {service_price} (общая стоимость {total_value} / общее количество {total_qty})")
+                        else:
+                            print("✗ Общее количество товаров равно 0, не можем рассчитать взвешенную цену")
                 except Exception as e:
                     print(f"✗ Ошибка расчета взвешенной цены: {e}")
-                    pass
-            
+                    pass            
             # 3) Цена услуги этапа (если не удалось выше) и штраф
             if service_price is None:
                 print("Взвешенная цена не рассчитана, ищем услугу цеха...")
@@ -189,9 +224,12 @@ class EmployeeTask(models.Model):
             
             # Если штраф не определен выше, используем базовый
             if penalty_rate is None:
-                penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
-                print(f"Штраф за брак: {penalty_rate}")
-        
+                if self.service:
+                    penalty_rate = self.service.defect_penalty
+                    print(f"Штраф за брак из услуги цеха: {penalty_rate}")
+                else:
+                    penalty_rate = BASE_PENALTY_RATE
+                    print(f"Штраф за брак базовый: {penalty_rate}")        
         # Множитель слоёв только для цеха ID=7
         try:
             workshop_id = getattr(self.stage.workshop, 'id', None)
