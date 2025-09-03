@@ -397,8 +397,12 @@ class OrderStage(models.Model):
                 except Workshop.DoesNotExist:
                     print(f"Workshop with ID {step['workshop']} not found, cannot create next stage")
             else:
-                # Если это последний этап в workflow, создаем этап упаковки
-                self._create_packaging_stage(qty)
+                # Если это последний этап в workflow
+                # Для стеклянного потока (parallel_group=1) — не создаём упаковку, этапы завершаются на цехе 5
+                if current_parallel_group is None:
+                    self._create_packaging_stage(qty)
+                else:
+                    return
     
     def _create_packaging_stage(self, qty):
         """
@@ -743,8 +747,11 @@ class OrderItem(models.Model):
 ORDER_WORKFLOW = [
     # Основной поток для обычных товаров (цех ID 1)
     {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": None},
-    # Параллельный поток для стеклянных товаров (цех ID 2)
-    {"workshop": 2, "operation": "Распил стекла", "sequence": 1, "parallel_group": 1},
+    # Параллельный поток для стеклянных товаров: 1 -> 3 -> 4 -> 5
+    {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": 1},
+    {"workshop": 3, "operation": "Обработка стекла (цех 3)", "sequence": 2, "parallel_group": 1},
+    {"workshop": 4, "operation": "Обработка стекла (цех 4)", "sequence": 3, "parallel_group": 1},
+    {"workshop": 5, "operation": "Обработка стекла (цех 5)", "sequence": 4, "parallel_group": 1},
 ]
 
 
@@ -802,22 +809,22 @@ def create_order_stages(order):
         except Workshop.DoesNotExist:
             print("Workshop with ID 1 not found, skipping regular stage creation")
     
-    # Создаем этап для стеклянных товаров в цехе ID 2
+    # Создаем этап для стеклянных товаров: стартуем в цехе ID 1 (а не 2)
     if glass_items:
         try:
-            workshop_2 = Workshop.objects.get(pk=2)  # Цех ID 2
+            workshop_1_for_glass = Workshop.objects.get(pk=1)  # Старт для стеклянных — тоже цех ID 1
             total_glass_qty = sum(item.quantity for item in glass_items)
             
-            # Создаем этап для стеклянных товаров
+            # Создаем агрегированный стартовый этап для стеклянных товаров
             stage_glass, created_glass = OrderStage.objects.get_or_create(
                 order=order,
-                order_item=None,  # Агрегированный этап для всех стеклянных товаров
+                order_item=None,
                 stage_type='workshop',
-                workshop=workshop_2,
+                workshop=workshop_1_for_glass,
                 sequence=1,
                 parallel_group=1,  # Параллельный поток для стекла
                 defaults={
-                    'operation': 'Распил стекла',
+                    'operation': 'Резка',
                     'plan_quantity': total_glass_qty,
                     'deadline': deadline_dt.date(),
                     'status': 'in_progress',
@@ -831,10 +838,10 @@ def create_order_stages(order):
                 stage_glass.deadline = deadline_dt.date()
                 stage_glass.save(update_fields=['plan_quantity', 'status', 'deadline'])
                 
-            print(f"Created/updated glass stage for order {order.id}: {total_glass_qty} items in workshop 2")
+            print(f"Created/updated glass stage for order {order.id}: {total_glass_qty} items start in workshop 1, then 3->4->5")
             
         except Workshop.DoesNotExist:
-            print("Workshop with ID 2 not found, skipping glass stage creation")
+            print("Workshop with ID 1 not found, skipping glass stage creation")
 
 
 def _create_stage_for_order_item(order, order_item):
@@ -843,8 +850,9 @@ def _create_stage_for_order_item(order, order_item):
     
     # Определяем цех в зависимости от типа товара
     if order_item.product and order_item.product.is_glass:
-        workshop_id = 2  # Цех для стеклянных товаров
-        operation = "Распил стекла"
+        # Для стеклянных: стартуем в цехе 1
+        workshop_id = 1
+        operation = "Резка"
         parallel_group = 1
     else:
         workshop_id = 1  # Цех для обычных товаров
