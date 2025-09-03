@@ -159,45 +159,98 @@ class EmployeeTask(models.Model):
                         real_total_qty = 0
                         remaining_completed = self.completed_quantity
                         
-                        for it in order.items.all():
-                            it_qty = int(getattr(it, 'quantity', 0) or 0)
-                            it_service = None
-                            it_price = Decimal('0')
+                        # Группируем стеклянные товары по рамкам
+                        glass_items = [it for it in order.items.all() if it.product and it.product.is_glass]
+                        regular_items = [it for it in order.items.all() if it.product and not it.product.is_glass]
+                        
+                        print(f"Стеклянные товары (рамки): {len(glass_items)}, Обычные товары: {len(regular_items)}")
+                        
+                        # Сначала обрабатываем стеклянные товары (рамки)
+                        if glass_items:
+                            print("Обработка стеклянных товаров (рамок):")
+                            # Считаем количество рамок (берем минимальное количество среди стеклянных товаров)
+                            frame_count = min([int(getattr(it, 'quantity', 0) or 0) for it in glass_items])
+                            print(f"Количество рамок: {frame_count}")
                             
-                            try:
-                                if it.product:
-                                    # Ищем услугу для конкретного продукта в данном цехе
-                                    qs = it.product.services.filter(workshop=workshop)
-                                    print(f"Товар {it.product.name}: найдено услуг в цехе {workshop}: {qs.count()}")
-                                    
-                                    # Берем первую активную услугу для продукта в данном цехе (без поиска по названию операции)
-                                    it_service = qs.filter(is_active=True).first()
-                                    if it_service:
-                                        print(f"  Найдена услуга для продукта в цехе: {it_service.name}")
-                                    
-                                    if it_service:
-                                        it_price = Decimal(str(it_service.service_price or 0))
-                                        print(f"  Цена услуги '{it_service.name}': {it_price}")
-                                    else:
-                                        print(f"  Услуга для товара {it.product.name} в цехе {workshop} не найдена!")
-                                        
-                            except Exception as e:
-                                print(f"✗ Ошибка поиска услуги для {it.product}: {e}")
+                            # Для каждой рамки считаем стоимость всех 3 товаров
+                            for frame_idx in range(min(frame_count, remaining_completed)):
+                                frame_cost = Decimal('0')
+                                frame_items_processed = 0
+                                
+                                for it in glass_items:
+                                    it_qty = int(getattr(it, 'quantity', 0) or 0)
+                                    if it_qty > frame_idx:  # Если в этой рамке есть этот товар
+                                        try:
+                                            if it.product:
+                                                # Ищем услугу для конкретного продукта в данном цехе
+                                                qs = it.product.services.filter(workshop=workshop)
+                                                print(f"  Рамка {frame_idx + 1}, товар {it.product.name}: найдено услуг в цехе {workshop}: {qs.count()}")
+                                                
+                                                # Берем первую активную услугу для продукта в данном цехе
+                                                it_service = qs.filter(is_active=True).first()
+                                                if it_service:
+                                                    print(f"    Найдена услуга для продукта в цехе: {it_service.name}")
+                                                    
+                                                    it_price = Decimal(str(it_service.service_price or 0))
+                                                    frame_cost += it_price
+                                                    frame_items_processed += 1
+                                                    print(f"    Цена услуги '{it_service.name}': {it_price}")
+                                                else:
+                                                    print(f"    Услуга для товара {it.product.name} в цехе {workshop} не найдена!")
+                                                    
+                                        except Exception as e:
+                                            print(f"✗ Ошибка поиска услуги для {it.product}: {e}")
+                                
+                                if frame_items_processed > 0:
+                                    real_total_value += frame_cost
+                                    real_total_qty += 1  # 1 рамка = 1 единица
+                                    remaining_completed -= 1
+                                    print(f"  Рамка {frame_idx + 1}: стоимость {frame_cost} за {frame_items_processed} товаров")
+                                
+                                if remaining_completed <= 0:
+                                    break
+                        
+                        # Затем обрабатываем обычные товары
+                        if regular_items and remaining_completed > 0:
+                            print("Обработка обычных товаров:")
+                            for it in regular_items:
+                                it_qty = int(getattr(it, 'quantity', 0) or 0)
                                 it_service = None
                                 it_price = Decimal('0')
-                            
-                            # Считаем реальную стоимость для этого продукта
-                            # Берем количество из позиции или оставшееся выполненное количество
-                            executed_qty = min(remaining_completed, it_qty)
-                            if executed_qty > 0:
-                                real_total_value += (it_price * Decimal(str(executed_qty)))
-                                real_total_qty += executed_qty
-                                remaining_completed -= executed_qty
-                                print(f"  Выполнено {executed_qty} x {it_price} = {it_price * Decimal(str(executed_qty))}")
-                            
-                            # Если все выполнено - выходим из цикла
-                            if remaining_completed <= 0:
-                                break
+                                
+                                try:
+                                    if it.product:
+                                        # Ищем услугу для конкретного продукта в данном цехе
+                                        qs = it.product.services.filter(workshop=workshop)
+                                        print(f"Товар {it.product.name}: найдено услуг в цехе {workshop}: {qs.count()}")
+                                        
+                                        # Берем первую активную услугу для продукта в данном цехе
+                                        it_service = qs.filter(is_active=True).first()
+                                        if it_service:
+                                            print(f"  Найдена услуга для продукта в цехе: {it_service.name}")
+                                        
+                                        if it_service:
+                                            it_price = Decimal(str(it_service.service_price or 0))
+                                            print(f"  Цена услуги '{it_service.name}': {it_price}")
+                                        else:
+                                            print(f"  Услуга для товара {it.product.name} в цехе {workshop} не найдена!")
+                                            
+                                except Exception as e:
+                                    print(f"✗ Ошибка поиска услуги для {it.product}: {e}")
+                                    it_service = None
+                                    it_price = Decimal('0')
+                                
+                                # Считаем реальную стоимость для этого продукта
+                                executed_qty = min(remaining_completed, it_qty)
+                                if executed_qty > 0:
+                                    real_total_value += (it_price * Decimal(str(executed_qty)))
+                                    real_total_qty += executed_qty
+                                    remaining_completed -= executed_qty
+                                    print(f"  Выполнено {executed_qty} x {it_price} = {it_price * Decimal(str(executed_qty))}")
+                                
+                                # Если все выполнено - выходим из цикла
+                                if remaining_completed <= 0:
+                                    break
                         
                         if real_total_qty > 0:
                             # Сохраняем точную сумму и количество для дальнейшего расчета заработка без усреднения
@@ -209,8 +262,7 @@ class EmployeeTask(models.Model):
                             print("✗ Не выполнено ни одной единицы, не можем рассчитать стоимость")
                 except Exception as e:
                     print(f"✗ Ошибка расчета реальной стоимости: {e}")
-                    pass
-            
+                    pass            
             # 3) Цена услуги этапа (если не удалось выше) и штраф
             if service_price is None:
                 print("Взвешенная цена не рассчитана, ищем услугу цеха...")
