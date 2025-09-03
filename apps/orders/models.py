@@ -749,9 +749,9 @@ ORDER_WORKFLOW = [
     {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": None},
     # Параллельный поток для стеклянных товаров: 1 -> 3 -> 4 -> 5
     {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": 1},
-    {"workshop": 3, "operation": "Обработка стекла (цех 3)", "sequence": 2, "parallel_group": 1},
-    {"workshop": 4, "operation": "Обработка стекла (цех 4)", "sequence": 3, "parallel_group": 1},
-    {"workshop": 5, "operation": "Обработка стекла (цех 5)", "sequence": 4, "parallel_group": 1},
+    {"workshop": 3, "operation": "", "sequence": 2, "parallel_group": 1},
+    {"workshop": 4, "operation": "", "sequence": 3, "parallel_group": 1},
+    {"workshop": 5, "operation": "", "sequence": 4, "parallel_group": 1},
 ]
 
 
@@ -839,7 +839,6 @@ def create_order_stages(order):
                 stage_glass.save(update_fields=['plan_quantity', 'status', 'deadline'])
                 
             print(f"Created/updated glass stage for order {order.id}: {total_glass_qty} items start in workshop 1, then 3->4->5")
-            
         except Workshop.DoesNotExist:
             print("Workshop with ID 1 not found, skipping glass stage creation")
 
