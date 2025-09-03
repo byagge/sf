@@ -129,21 +129,10 @@ class EmployeeTask(models.Model):
                     qs = product.services.filter(workshop=workshop)
                     print(f"Найдено услуг для товара в цехе: {qs.count()}")
                     
-                    if operation and operation.strip():
-                        # Ищем по точному названию операции
-                        matched_service = qs.filter(name=operation).first()
-                        if matched_service:
-                            print(f"✓ Найдена услуга по операции '{operation}': {matched_service.name}")
-                        else:
-                            # Если по операции не найдено, берем первую активную услугу
-                            matched_service = qs.filter(is_active=True).first()
-                            if matched_service:
-                                print(f"  Операция '{operation}' не найдена, берем первую услугу: {matched_service.name}")
-                    else:
-                        # Если операция пустая, берем первую активную услугу
-                        matched_service = qs.filter(is_active=True).first()
-                        if matched_service:
-                            print(f"  Операция пустая, берем первую услугу: {matched_service.name}")
+                    # Берем первую активную услугу для продукта в данном цехе (без поиска по названию операции)
+                    matched_service = qs.filter(is_active=True).first()
+                    if matched_service:
+                        print(f"✓ Найдена услуга для продукта в цехе: {matched_service.name}")
                         
                     if matched_service:
                         service_price = matched_service.service_price
@@ -181,21 +170,10 @@ class EmployeeTask(models.Model):
                                     qs = it.product.services.filter(workshop=workshop)
                                     print(f"Товар {it.product.name}: найдено услуг в цехе {workshop}: {qs.count()}")
                                     
-                                    if operation and operation.strip():
-                                        # Если есть название операции, ищем по нему
-                                        it_service = qs.filter(name=operation).first()
-                                        if it_service:
-                                            print(f"  Найдена услуга по операции '{operation}': {it_service.name}")
-                                        else:
-                                            # Если по операции не найдено, берем первую активную услугу
-                                            it_service = qs.filter(is_active=True).first()
-                                            if it_service:
-                                                print(f"  Операция '{operation}' не найдена, берем первую услугу: {it_service.name}")
-                                    else:
-                                        # Если операция пустая, берем первую активную услугу
-                                        it_service = qs.filter(is_active=True).first()
-                                        if it_service:
-                                            print(f"  Операция пустая, берем первую услугу: {it_service.name}")
+                                    # Берем первую активную услугу для продукта в данном цехе (без поиска по названию операции)
+                                    it_service = qs.filter(is_active=True).first()
+                                    if it_service:
+                                        print(f"  Найдена услуга для продукта в цехе: {it_service.name}")
                                     
                                     if it_service:
                                         it_price = Decimal(str(it_service.service_price or 0))
