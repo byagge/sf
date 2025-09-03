@@ -69,6 +69,15 @@ class EmployeeTask(models.Model):
         """Рассчитывает заработок, штрафы и чистый заработок"""
         from decimal import Decimal, InvalidOperation
         
+        print(f"\n=== DEBUG: Расчет заработка для EmployeeTask #{self.id} ===")
+        print(f"Сотрудник: {self.employee}")
+        print(f"Этап: {self.stage}")
+        print(f"Цех: {getattr(self.stage, 'workshop', 'N/A')}")
+        print(f"Операция: {getattr(self.stage, 'operation', 'N/A')}")
+        print(f"Выполнено: {self.completed_quantity}, Брак: {self.defective_quantity}")
+        print(f"Индивидуальная цена: {self.custom_unit_price}")
+        print(f"Слои на единицу: {self.layers_per_unit}")
+        
         # Базовая ставка за единицу работы (если услуга не найдена)
         BASE_RATE = Decimal('100.00')  # 100 рублей за единицу
         BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
@@ -83,10 +92,14 @@ class EmployeeTask(models.Model):
             try:
                 service_price = Decimal(str(self.custom_unit_price))
                 price_source = 'custom_unit_price'
+                print(f"✓ Используется индивидуальная цена: {service_price}")
             except InvalidOperation:
                 service_price = None
+                print("✗ Ошибка в индивидуальной цене")
             penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
         else:
+            print("Индивидуальная цена не задана, ищем услугу...")
+            
             # 2) Цена услуги ДЛЯ КОНКРЕТНОГО ТОВАРА в данном цехе (приоритетная логика)
             matched_service = None
             try:
@@ -94,22 +107,35 @@ class EmployeeTask(models.Model):
                 product = getattr(order_item, 'product', None) if order_item else None
                 workshop = getattr(self.stage, 'workshop', None)
                 operation = getattr(self.stage, 'operation', None)
+                
+                print(f"Поиск услуги для товара: {product}")
+                print(f"Цех: {workshop}")
+                print(f"Операция: '{operation}'")
+                
                 if product and workshop:
                     # Пытаемся найти услугу по продукту, цеху и названию операции
                     qs = product.services.filter(workshop=workshop)
+                    print(f"Найдено услуг для товара в цехе: {qs.count()}")
+                    
                     if operation:
                         matched_service = qs.filter(name=operation).first() or qs.first()
+                        print(f"Поиск по операции '{operation}': {matched_service}")
                     else:
                         matched_service = qs.first()
+                        print(f"Берем первую услугу: {matched_service}")
+                        
                     if matched_service:
                         service_price = matched_service.service_price
                         penalty_rate = matched_service.defect_penalty
                         price_source = f'product.services[{matched_service.id}]@{workshop.id}'
+                        print(f"✓ Найдена услуга товара: {matched_service.name} = {service_price}")
             except Exception as e:
                 matched_service = None
+                print(f"✗ Ошибка поиска услуги товара: {e}")
             
             # 2b) Агрегированный этап: считаем взвешенную цену по всем позициям заказа на основе их услуг
             if service_price is None:
+                print("Услуга товара не найдена, считаем взвешенную цену по заказу...")
                 try:
                     order = getattr(self.stage, 'order', None)
                     workshop = getattr(self.stage, 'workshop', None)
@@ -117,6 +143,8 @@ class EmployeeTask(models.Model):
                     if order and workshop and hasattr(order, 'items') and order.items.exists():
                         total_qty = 0
                         total_value = Decimal('0')
+                        print(f"Позиции заказа: {order.items.count()}")
+                        
                         for it in order.items.all():
                             it_qty = int(getattr(it, 'quantity', 0) or 0)
                             it_service = None
@@ -127,31 +155,42 @@ class EmployeeTask(models.Model):
                                         it_service = qs.filter(name=operation).first() or qs.first()
                                     else:
                                         it_service = qs.first()
+                                    print(f"Товар {it.product.name}: услуга = {it_service}")
                             except Exception:
                                 it_service = None
+                                print(f"Ошибка поиска услуги для {it.product}")
+                                
                             it_price = Decimal(str(getattr(it_service, 'service_price', 0) or 0))
                             total_qty += it_qty
                             total_value += (it_price * Decimal(str(it_qty)))
+                            print(f"  {it_qty} x {it_price} = {it_price * Decimal(str(it_qty))}")
+                            
                         if total_qty > 0:
                             weighted = (total_value / Decimal(str(total_qty)))
                             service_price = weighted.quantize(Decimal('0.01'))
                             price_source = 'weighted_avg(product.services)'
-                except Exception:
+                            print(f"✓ Взвешенная цена: {service_price} (общая стоимость {total_value} / общее количество {total_qty})")
+                except Exception as e:
+                    print(f"✗ Ошибка расчета взвешенной цены: {e}")
                     pass
             
             # 3) Цена услуги этапа (если не удалось выше) и штраф
             if service_price is None:
+                print("Взвешенная цена не рассчитана, ищем услугу цеха...")
                 if self.service:
                     service_price = self.service.service_price
                     price_source = 'service.service_price'
                     penalty_rate = self.service.defect_penalty
+                    print(f"✓ Найдена услуга цеха: {self.service.name} = {service_price}")
                 else:
                     service_price = BASE_RATE
                     price_source = 'BASE_RATE'
+                    print(f"✓ Используется базовая ставка: {BASE_RATE}")
             
             # Если штраф не определен выше, используем базовый
             if penalty_rate is None:
                 penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
+                print(f"Штраф за брак: {penalty_rate}")
         
         # Множитель слоёв только для цеха ID=7
         try:
@@ -159,20 +198,26 @@ class EmployeeTask(models.Model):
         except Exception:
             workshop_id = None
         layers_multiplier = self.layers_per_unit if (workshop_id == 7 and int(self.layers_per_unit or 1) > 0) else 1
+        print(f"Множитель слоев (цех {workshop_id}): {layers_multiplier}")
         
         # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
         gross = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
         self.earnings = gross.quantize(Decimal('0.1'))
+        print(f"Заработок: {self.completed_quantity} x {service_price} x {layers_multiplier} = {self.earnings}")
         
         # Штрафы: за брак + дополнительные вручную начисленные
         base_defect_penalties = Decimal(str(self.defective_quantity)) * Decimal(str(penalty_rate))
         manual_penalties = Decimal(str(self.additional_penalties or 0))
         raw_penalties = base_defect_penalties + manual_penalties
         self.penalties = raw_penalties.quantize(Decimal('0.1'))
+        print(f"Штрафы: брак {self.defective_quantity} x {penalty_rate} = {base_defect_penalties} + ручные {manual_penalties} = {self.penalties}")
         
         # Чистый заработок
         raw_net = self.earnings - self.penalties
         self.net_earnings = raw_net.quantize(Decimal('0.1'))
+        print(f"Чистый заработок: {self.earnings} - {self.penalties} = {self.net_earnings}")
+        print(f"Источник цены: {price_source}")
+        print("=== КОНЕЦ DEBUG ===\n")
 
     @property
     def is_completed(self):
