@@ -123,16 +123,7 @@ def employee_earnings_stats(request, employee_id):
             total_earnings = tasks.aggregate(s=Sum('earnings'))['s'] or 0
             total_penalties = tasks.aggregate(s=Sum('penalties'))['s'] or 0
             total_net_earnings = tasks.aggregate(s=Sum('net_earnings'))['s'] or 0
-            
-            # Отладочная информация
-            print(f"Employee {employee.username}: total_earnings={total_earnings}, total_penalties={total_penalties}, total_net={total_net_earnings}")
-            
-            # Проверяем отдельные задачи
-            for task in tasks[:5]:  # Первые 5 задач для отладки
-                print(f"Task {task.id}: earnings={task.earnings}, penalties={task.penalties}, net={task.net_earnings}, completed={task.completed_quantity}, service={task.service}")
-                
         except Exception as e:
-            print(f"Error aggregating earnings: {e}")
             total_earnings = 0
             total_penalties = 0
             total_net_earnings = 0
@@ -146,7 +137,6 @@ def employee_earnings_stats(request, employee_id):
             task_count=Count('id')
             ))
         except Exception as e:
-            print(f"Error with workshop stats: {e}")
             workshop_stats = []
         
         # Простая статистика по месяцам
@@ -164,7 +154,6 @@ def employee_earnings_stats(request, employee_id):
                 .order_by('year', 'month')
             )
         except Exception as e:
-            print(f"Error with monthly stats: {e}")
             monthly_stats = []
         
         return Response({
@@ -188,9 +177,6 @@ def employee_earnings_stats(request, employee_id):
     except User.DoesNotExist:
         return Response({'error': 'Сотрудник не найден'}, status=404)
     except Exception as e:
-        print(f"Error in employee_earnings_stats: {e}")
-        import traceback
-        traceback.print_exc()
         return Response({'error': str(e)}, status=500)
 
 @api_view(['GET'])
@@ -210,7 +196,6 @@ def workshop_earnings_stats(request, workshop_id):
             total_penalties = tasks.aggregate(s=Sum('penalties'))['s'] or 0
             total_net_earnings = tasks.aggregate(s=Sum('net_earnings'))['s'] or 0
         except Exception as e:
-            print(f"Error aggregating workshop earnings: {e}")
             total_earnings = 0
             total_penalties = 0
             total_net_earnings = 0
@@ -224,7 +209,6 @@ def workshop_earnings_stats(request, workshop_id):
             task_count=Count('id')
             ))
         except Exception as e:
-            print(f"Error with employee stats: {e}")
             employee_stats = []
         
         # Получаем услугу цеха
@@ -256,7 +240,6 @@ def workshop_earnings_stats(request, workshop_id):
     except Workshop.DoesNotExist:
         return Response({'error': 'Цех не найден'}, status=404)
     except Exception as e:
-        print(f"Error in workshop_earnings_stats: {e}")
         import traceback
         traceback.print_exc()
         return Response({'error': str(e)}, status=500)

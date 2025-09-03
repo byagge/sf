@@ -34,21 +34,18 @@ def employees_list(request):
 def employees_workshop_list(request):
     user = request.user
     is_master = getattr(user, 'role', None) == User.Role.MASTER
-    print(f"DEBUG: User {user.username} has role {user.role}, is_master: {is_master}")
     
     template = None
     context = {}
     if is_master:
         # Получаем цеха где пользователь является главным мастером
         managed_workshops = Workshop.objects.filter(manager=user)
-        print(f"DEBUG: Managed workshops: {list(managed_workshops.values('id', 'name'))}")
         
         # Получаем цеха где пользователь является дополнительным мастером
         additional_workshops = WorkshopMaster.objects.filter(
             master=user, 
             is_active=True
         ).select_related('workshop')
-        print(f"DEBUG: Additional workshops: {[(wm.workshop.id, wm.workshop.name) for wm in additional_workshops]}")
         
         # Объединяем все цеха
         all_workshops = list(managed_workshops.values('id', 'name'))
@@ -69,9 +66,6 @@ def employees_workshop_list(request):
         
         userWorkshopIds = [w['id'] for w in unique_workshops]
         userWorkshopList = unique_workshops
-        
-        print(f"DEBUG: Final userWorkshopIds: {userWorkshopIds}")
-        print(f"DEBUG: Final userWorkshopList: {userWorkshopList}")
         
         template = 'employees_mobile_master.html' if is_mobile(request) else 'employees_master.html'
         context = {
@@ -159,22 +153,17 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], url_path='stats')
     def individual_stats(self, request, pk=None):
         """Статистика конкретного сотрудника"""
-        print(f"DEBUG: individual_stats called for pk={pk}")
         try:
             employee = self.get_object()
-            print(f"DEBUG: Found employee: {employee.get_full_name()} (ID: {employee.id})")
             # Получаем существующую статистику
             stats = calculate_employee_stats(employee)
-            print(f"DEBUG: Returning stats: {stats}")
             return Response(stats)
         except User.DoesNotExist:
-            print(f"DEBUG: User not found for pk={pk}")
             return Response(
                 {'error': 'Сотрудник не найден'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            print(f"DEBUG: Error in individual_stats: {e}")
             return Response(
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -185,10 +174,8 @@ class EmployeeViewSet(viewsets.ModelViewSet):
 def employees_by_workshop(request):
     """Возвращает сотрудников по id цеха (workshop_id)"""
     workshop_id = request.GET.get('workshop_id')
-    print(f"DEBUG: employees_by_workshop called with workshop_id: {workshop_id}")
     
     if not workshop_id:
-        print("DEBUG: No workshop_id provided")
         return Response({'error': 'workshop_id required'}, status=400)
     
     staff_roles = [
@@ -197,10 +184,8 @@ def employees_by_workshop(request):
     ]
     
     users = User.objects.filter(role__in=staff_roles, workshop_id=workshop_id)
-    print(f"DEBUG: Found {users.count()} users in workshop {workshop_id}")
     
     data = EmployeeSerializer(users, many=True).data
-    print(f"DEBUG: Serialized data: {data}")
     
     return Response(data)
 

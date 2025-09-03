@@ -87,16 +87,6 @@ class AttendanceRecord(models.Model):
 
     def save(self, *args, **kwargs):
         # Автоматически рассчитываем штраф при сохранении
-        print(f"DEBUG: Сохранение записи для {self.employee.get_full_name()}")
-        print(f"DEBUG: UTC время прихода: {self.check_in}")
-        
-        # Показываем местное время
         local_time = timezone.localtime(self.check_in)
-        print(f"DEBUG: Местное время прихода: {local_time}")
-        print(f"DEBUG: До расчета - is_late: {self.is_late}, penalty: {self.penalty_amount}")
-        
         self.calculate_penalty()
-        
-        print(f"DEBUG: После расчета - is_late: {self.is_late}, penalty: {self.penalty_amount}")
-        
         super().save(*args, **kwargs)

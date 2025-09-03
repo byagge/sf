@@ -921,7 +921,6 @@ def journal_entry_create(request):
 			first_credit = line_form.cleaned_data.get('credit') or _D('0')
 			total_debit = first_debit
 			total_credit = first_credit
-			print("DEBUG: First line - Debit:", first_debit, "Credit:", first_credit)
 			indices = set()
 			for key in request.POST.keys():
 				if key.startswith('line_') and key.endswith('_account'):
@@ -930,16 +929,10 @@ def journal_entry_create(request):
 						indices.add(idx)
 					except Exception:
 						pass
-			# Debug: print all POST keys for debugging
-			print("DEBUG: All POST keys:", list(request.POST.keys()))
-			print("DEBUG: Found indices:", sorted(indices))
-			print("DEBUG: First line debit from form:", line_form.cleaned_data.get('debit'))
-			print("DEBUG: First line credit from form:", line_form.cleaned_data.get('credit'))
 			for idx in sorted(indices):
 				debit_val = request.POST.get(f'line_{idx}_debit')
 				credit_val = request.POST.get(f'line_{idx}_credit')
 				account_val = request.POST.get(f'line_{idx}_account')
-				print(f"DEBUG: Line {idx} - account: {account_val}, debit: {debit_val}, credit: {credit_val}")
 				try:
 					debit_amt = _D(debit_val or '0')
 					credit_amt = _D(credit_val or '0')
@@ -948,7 +941,6 @@ def journal_entry_create(request):
 					credit_amt = _D('0')
 				total_debit += debit_amt
 				total_credit += credit_amt
-			print("DEBUG: Final totals - Debit:", total_debit, "Credit:", total_credit)
 			if total_debit.quantize(_D('0.01')) != total_credit.quantize(_D('0.01')):
 				messages.error(request, f"Баланс не сходится: Дт={total_debit} Кт={total_credit}")
 				return render(request, 'finance/journal_entry_form.html', {

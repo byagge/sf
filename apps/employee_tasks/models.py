@@ -68,24 +68,10 @@ class EmployeeTask(models.Model):
     def calculate_earnings(self):
         """Рассчитывает заработок, штрафы и чистый заработок"""
         from decimal import Decimal, InvalidOperation
-        import logging
-        logger = logging.getLogger(__name__ + '.earnings')
         
         # Базовая ставка за единицу работы (если услуга не найдена)
         BASE_RATE = Decimal('100.00')  # 100 рублей за единицу
         BASE_PENALTY_RATE = Decimal('50.00')  # 50 рублей за единицу брака
-        
-        logger.debug("=== EARNINGS CALC START ===")
-        print("=== EARNINGS CALC START ===")
-        try:
-            logger.debug(f"Task ID: {getattr(self, 'id', None)} | Employee ID: {getattr(self, 'employee_id', None)}")
-            logger.debug(f"Stage: {getattr(self, 'stage', None)} | Workshop ID: {getattr(getattr(self.stage, 'workshop', None), 'id', None)}")
-            print(f"Task ID: {getattr(self, 'id', None)} | Employee ID: {getattr(self, 'employee_id', None)}")
-            print(f"Stage: {getattr(self, 'stage', None)} | Workshop ID: {getattr(getattr(self.stage, 'workshop', None), 'id', None)}")
-        except Exception:
-            pass
-        logger.debug(f"Inputs → completed_quantity={self.completed_quantity}, defective_quantity={self.defective_quantity}, custom_unit_price={self.custom_unit_price}, layers_per_unit={self.layers_per_unit}")
-        print(f"Inputs → completed_quantity={self.completed_quantity}, defective_quantity={self.defective_quantity}, custom_unit_price={self.custom_unit_price}, layers_per_unit={self.layers_per_unit}")
         
         # Определяем ставку за единицу: приоритет custom_unit_price → цена продукта → цена услуги → базовая
         service_price = None
@@ -98,8 +84,6 @@ class EmployeeTask(models.Model):
                 service_price = Decimal(str(self.custom_unit_price))
                 price_source = 'custom_unit_price'
             except InvalidOperation:
-                logger.warning(f"Invalid custom_unit_price: {self.custom_unit_price}")
-                print(f"WARN: Invalid custom_unit_price: {self.custom_unit_price}")
                 service_price = None
             penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
         else:
@@ -121,9 +105,7 @@ class EmployeeTask(models.Model):
                         service_price = matched_service.service_price
                         penalty_rate = matched_service.defect_penalty
                         price_source = f'product.services[{matched_service.id}]@{workshop.id}'
-                        print(f"Unit price from product.services: service_id={matched_service.id}, workshop_id={workshop.id}, operation={operation}, price={service_price}")
             except Exception as e:
-                print(f"WARN: Cannot resolve product.services price: {e}")
                 matched_service = None
             
             # 2b) Агрегированный этап: считаем взвешенную цену по всем позициям заказа на основе их услуг
@@ -135,7 +117,6 @@ class EmployeeTask(models.Model):
                     if order and workshop and hasattr(order, 'items') and order.items.exists():
                         total_qty = 0
                         total_value = Decimal('0')
-                        print("Aggregated pricing over order items by product.services:")
                         for it in order.items.all():
                             it_qty = int(getattr(it, 'quantity', 0) or 0)
                             it_service = None
@@ -149,16 +130,14 @@ class EmployeeTask(models.Model):
                             except Exception:
                                 it_service = None
                             it_price = Decimal(str(getattr(it_service, 'service_price', 0) or 0))
-                            print(f" - item id={it.id}, product={(it.product.name if it.product else 'N/A')}, qty={it_qty}, service_id={(it_service.id if it_service else 'N/A')}, price={it_price}")
                             total_qty += it_qty
                             total_value += (it_price * Decimal(str(it_qty)))
                         if total_qty > 0:
                             weighted = (total_value / Decimal(str(total_qty)))
                             service_price = weighted.quantize(Decimal('0.01'))
                             price_source = 'weighted_avg(product.services)'
-                            print(f"Weighted avg service price: total_value={total_value} / total_qty={total_qty} = {weighted} → used {service_price}")
-                except Exception as e:
-                    print(f"WARN: Aggregated product.services pricing failed: {e}")
+                except Exception:
+                    pass
             
             # 3) Цена услуги этапа (если не удалось выше) и штраф
             if service_price is None:
@@ -174,39 +153,26 @@ class EmployeeTask(models.Model):
             if penalty_rate is None:
                 penalty_rate = self.service.defect_penalty if self.service else BASE_PENALTY_RATE
         
-        logger.debug(f"Price source: {price_source} | unit_price={service_price} | penalty_rate={penalty_rate}")
-        print(f"Price source: {price_source} | unit_price={service_price} | penalty_rate={penalty_rate}")
-        
         # Множитель слоёв только для цеха ID=7
         try:
             workshop_id = getattr(self.stage.workshop, 'id', None)
         except Exception:
             workshop_id = None
         layers_multiplier = self.layers_per_unit if (workshop_id == 7 and int(self.layers_per_unit or 1) > 0) else 1
-        logger.debug(f"Layers multiplier applied: {layers_multiplier} (workshop_id={workshop_id})")
-        print(f"Layers multiplier applied: {layers_multiplier} (workshop_id={workshop_id})")
         
         # Заработок за выполненную работу: completed_quantity * price * layers (для цеха 7)
         gross = (Decimal(str(self.completed_quantity)) * Decimal(str(service_price))) * Decimal(str(layers_multiplier))
         self.earnings = gross.quantize(Decimal('0.1'))
-        logger.debug(f"Gross calc: completed({self.completed_quantity}) * price({service_price}) * layers({layers_multiplier}) = {gross} → rounded earnings={self.earnings}")
-        print(f"Gross calc: completed({self.completed_quantity}) * price({service_price}) * layers({layers_multiplier}) = {gross} → rounded earnings={self.earnings}")
         
         # Штрафы: за брак + дополнительные вручную начисленные
         base_defect_penalties = Decimal(str(self.defective_quantity)) * Decimal(str(penalty_rate))
         manual_penalties = Decimal(str(self.additional_penalties or 0))
         raw_penalties = base_defect_penalties + manual_penalties
         self.penalties = raw_penalties.quantize(Decimal('0.1'))
-        logger.debug(f"Penalties calc: defects({self.defective_quantity}) * rate({penalty_rate}) = {base_defect_penalties}; manual={manual_penalties}; total={raw_penalties} → rounded penalties={self.penalties}")
-        print(f"Penalties calc: defects({self.defective_quantity}) * rate({penalty_rate}) = {base_defect_penalties}; manual={manual_penalties}; total={raw_penalties} → rounded penalties={self.penalties}")
         
         # Чистый заработок
         raw_net = self.earnings - self.penalties
         self.net_earnings = raw_net.quantize(Decimal('0.1'))
-        logger.debug(f"Net calc: earnings({self.earnings}) - penalties({self.penalties}) = {raw_net} → rounded net={self.net_earnings}")
-        print(f"Net calc: earnings({self.earnings}) - penalties({self.penalties}) = {raw_net} → rounded net={self.net_earnings}")
-        logger.debug("=== EARNINGS CALC END ===")
-        print("=== EARNINGS CALC END ===")
 
     @property
     def is_completed(self):
@@ -262,7 +228,7 @@ class EmployeeTask(models.Model):
                     )
                 except Exception as e:
                     # Логируем ошибку, но не прерываем выполнение
-                    print(f"Ошибка создания записи расхода: {e}")
+                    logging.getLogger(__name__).warning(f"Ошибка создания записи расхода: {e}")
             else:
                 # Если недостаточно сырья, создаем предупреждение
                 try:
@@ -275,7 +241,7 @@ class EmployeeTask(models.Model):
                     )
                 except Exception as e:
                     # Логируем ошибку, но не прерываем выполнение
-                    print(f"Ошибка создания уведомления: {e}")
+                    logging.getLogger(__name__).warning(f"Ошибка создания уведомления: {e}")
 
 @receiver(pre_save, sender=EmployeeTask)
 def create_defect_on_defective_change(sender, instance, **kwargs):
@@ -341,4 +307,4 @@ def update_earnings_and_materials(sender, instance, created, **kwargs):
                 User.objects.filter(pk=instance.employee_id).update(balance=F('balance') + delta_net)
     except Exception as e:
         # Логируем ошибку, но не прерываем выполнение
-        print(f"Ошибка в update_earnings_and_materials: {e}")
+        logging.getLogger(__name__).warning(f"Ошибка в update_earnings_and_materials: {e}")
