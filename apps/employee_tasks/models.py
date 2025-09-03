@@ -145,17 +145,20 @@ class EmployeeTask(models.Model):
             except Exception as e:
                 matched_service = None
                 print(f"✗ Ошибка поиска услуги товара: {e}")            
-            # 2b) Агрегированный этап: считаем взвешенную цену по всем позициям заказа на основе их услуг
+                        # 2b) Агрегированный этап: считаем реальную стоимость по каждому продукту отдельно
             if service_price is None:
-                print("Услуга товара не найдена, считаем взвешенную цену по заказу...")
+                print("Услуга товара не найдена, считаем реальную стоимость по продуктам...")
                 try:
                     order = getattr(self.stage, 'order', None)
                     workshop = getattr(self.stage, 'workshop', None)
                     operation = getattr(self.stage, 'operation', None)
                     if order and workshop and hasattr(order, 'items') and order.items.exists():
-                        total_qty = 0
-                        total_value = Decimal('0')
                         print(f"Позиции заказа: {order.items.count()}")
+                        
+                        # Считаем реальную стоимость для выполненного количества
+                        real_total_value = Decimal('0')
+                        real_total_qty = 0
+                        remaining_completed = self.completed_quantity
                         
                         for it in order.items.all():
                             it_qty = int(getattr(it, 'quantity', 0) or 0)
@@ -194,21 +197,32 @@ class EmployeeTask(models.Model):
                                 print(f"✗ Ошибка поиска услуги для {it.product}: {e}")
                                 it_service = None
                                 it_price = Decimal('0')
-                                
-                            total_qty += it_qty
-                            total_value += (it_price * Decimal(str(it_qty)))
-                            print(f"  {it_qty} x {it_price} = {it_price * Decimal(str(it_qty))}")
                             
-                        if total_qty > 0:
-                            weighted = (total_value / Decimal(str(total_qty)))
-                            service_price = weighted.quantize(Decimal('0.01'))
-                            price_source = 'weighted_avg(product.services)'
-                            print(f"✓ Взвешенная цена: {service_price} (общая стоимость {total_value} / общее количество {total_qty})")
+                            # Считаем реальную стоимость для этого продукта
+                            # Берем количество из позиции или оставшееся выполненное количество
+                            executed_qty = min(remaining_completed, it_qty)
+                            if executed_qty > 0:
+                                real_total_value += (it_price * Decimal(str(executed_qty)))
+                                real_total_qty += executed_qty
+                                remaining_completed -= executed_qty
+                                print(f"  Выполнено {executed_qty} x {it_price} = {it_price * Decimal(str(executed_qty))}")
+                            
+                            # Если все выполнено - выходим из цикла
+                            if remaining_completed <= 0:
+                                break
+                        
+                        if real_total_qty > 0:
+                            # Устанавливаем цену как общую стоимость / общее выполненное количество
+                            service_price = (real_total_value / Decimal(str(real_total_qty))).quantize(Decimal('0.01'))
+                            price_source = 'real_cost_by_products'
+                            print(f"✓ Реальная стоимость: {real_total_value} за {real_total_qty} выполненных единиц")
+                            print(f"✓ Средняя цена за выполненную единицу: {service_price}")
                         else:
-                            print("✗ Общее количество товаров равно 0, не можем рассчитать взвешенную цену")
+                            print("✗ Не выполнено ни одной единицы, не можем рассчитать стоимость")
                 except Exception as e:
-                    print(f"✗ Ошибка расчета взвешенной цены: {e}")
-                    pass            
+                    print(f"✗ Ошибка расчета реальной стоимости: {e}")
+                    pass
+            
             # 3) Цена услуги этапа (если не удалось выше) и штраф
             if service_price is None:
                 print("Взвешенная цена не рассчитана, ищем услугу цеха...")
@@ -220,8 +234,7 @@ class EmployeeTask(models.Model):
                 else:
                     service_price = BASE_RATE
                     price_source = 'BASE_RATE'
-                    print(f"✓ Используется базовая ставка: {BASE_RATE}")
-            
+                    print(f"✓ Используется базовая ставка: {BASE_RATE}")            
             # Если штраф не определен выше, используем базовый
             if penalty_rate is None:
                 if self.service:
