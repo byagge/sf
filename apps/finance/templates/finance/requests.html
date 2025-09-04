@@ -742,9 +742,26 @@
             },
             
             async fetchProducts() {
-                const resp = await fetch('/products/api/products/');
-                const data = await resp.json();
-                this.products = Array.isArray(data) ? data : (data.results || []);
+                // Fetch all products across paginated API
+                try {
+                    let url = '/products/api/products/';
+                    const all = [];
+                    while (url) {
+                        const resp = await fetch(url);
+                        const data = await resp.json();
+                        if (Array.isArray(data)) {
+                            // Pagination disabled; data already full list
+                            this.products = data;
+                            return;
+                        }
+                        const results = data.results || [];
+                        for (const p of results) all.push(p);
+                        url = data.next;
+                    }
+                    this.products = all;
+                } catch (e) {
+                    this.products = [];
+                }
             },
             
             filteredRequests() {
