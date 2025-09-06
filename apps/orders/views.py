@@ -347,7 +347,7 @@ class OrderStageTransferAPIView(APIView):
 					parallel_group=stage.parallel_group,
 				).order_by('sequence').first()
 				if next_stage:
-					next_stage.plan_quantity += completed_qty
+					next_stage.plan_quantity = completed_qty
 					next_stage.status = 'in_progress'
 					next_stage.save(update_fields=['plan_quantity', 'status'])
 				else:
@@ -380,7 +380,7 @@ class OrderStageTransferAPIView(APIView):
 				parallel_group=stage.parallel_group,
 			).order_by('sequence').first()
 			if next_stage:
-				next_stage.plan_quantity += completed_qty
+				next_stage.plan_quantity = completed_qty
 				next_stage.status = 'in_progress'
 				next_stage.save()
 			else:
