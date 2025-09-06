@@ -37,12 +37,14 @@ class OrderViewSet(viewsets.ModelViewSet):
 			# Фильтруем заказы по конкретному цеху
 			queryset = Order.objects.filter(
 				stages__workshop_id=workshop_id,
-				stages__status__in=['in_progress', 'partial']
+				stages__status__in=['in_progress', 'partial'],
+				stages__order_item__product__is_glass=False
 			).distinct().order_by('-created_at')
 		else:
 			# Получаем все заказы с группировкой по цехам
 			queryset = Order.objects.filter(
-				stages__status__in=['in_progress', 'partial']
+				stages__status__in=['in_progress', 'partial'],
+				stages__order_item__product__is_glass=False
 			).distinct().order_by('-created_at')
 		
 		# Добавляем информацию о разделении по цехам
@@ -52,7 +54,10 @@ class OrderViewSet(viewsets.ModelViewSet):
 			
 			# Добавляем информацию о цехах
 			workshops_info = {}
-			for stage in order.stages.filter(status__in=['in_progress', 'partial']):
+			for stage in order.stages.filter(
+				status__in=['in_progress', 'partial'],
+				Q(order_item__product__is_glass=False) | Q(order_item__isnull=True)
+			):
 				workshop_name = stage.workshop.name if stage.workshop else 'Не указан'
 				workshop_type = 'Стеклянные товары' if stage.parallel_group == 1 else 'Обычные товары'
 				
@@ -443,7 +448,7 @@ class OrderStageNoTransferAPIView(APIView):
 class DashboardOverviewAPIView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 	def get(self, request):
-		# Доход — сумма (цена продукта * количество) по всем позициям заявок
+		# Доход — сумма сумма (цена продукта * количество) по всем позициям заявок
 		total_income = OrderItem.objects.aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
 		# Продажи — сумма quantity по всем позициям
 		product_sales = OrderItem.objects.aggregate(total=Sum('quantity'))['total'] or 0
@@ -516,6 +521,7 @@ class StageViewSet(viewsets.ReadOnlyModelViewSet):
 
 	def get_queryset(self):
 		qs = super().get_queryset()
+		qs = qs.filter(Q(order_item__product__is_glass=False) | Q(order_item__isnull=True))
 		status_param = self.request.query_params.get('status')
 		if status_param:
 			qs = qs.filter(status=status_param)
