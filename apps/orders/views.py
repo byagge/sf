@@ -58,12 +58,17 @@ class OrderViewSet(viewsets.ModelViewSet):
 			stages_query = order.stages.filter(status__in=['in_progress', 'partial'])
 			for stage in stages_query:
 				if stage.workshop and stage.workshop.id >= 6:
+					# Для цехов с ID >= 6 учитываем только товары с is_glass=False
 					if stage.order_item and stage.order_item.product.is_glass:
-						continue
+						continue  # Пропускаем стеклянные товары
 					elif stage.order_item is None:  # aggregated
 						quantity = sum(it.quantity for it in order.items.filter(product__is_glass=False))
 					else:
-						quantity = stage.plan_quantity
+						# Для обычных этапов проверяем, что товар не стеклянный
+						if not stage.order_item.product.is_glass:
+							quantity = stage.plan_quantity
+						else:
+							continue  # Пропускаем стеклянные товары
 				else:
 					quantity = stage.plan_quantity
 				
