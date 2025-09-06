@@ -791,46 +791,12 @@
                 },
 
                 // Сохранение редактирования ячейки
-                async saveEdit(id, field) {
+                saveEdit(id, field) {
                     const material = this.materials.find(m => m.id === id);
                     if (material) {
-                        const oldValue = material[field];
-                        const newValue = field === 'service_price' || field === 'defect_penalty' ? Number(this.editValue) : this.editValue;
-                        
-                        // Обновляем локально для мгновенного отклика
-                        material[field] = newValue;
+                        material[field] = field === 'service_price' || field === 'defect_penalty' ? Number(this.editValue) : this.editValue;
                         if (field === 'service_price' || field === 'defect_penalty') {
                             material.total_cost = material.service_price + material.defect_penalty;
-                        }
-                        
-                        // Отправляем изменения на сервер
-                        try {
-                            const updateData = { [field]: newValue };
-                            const resp = await fetch(`/services/api/services/${id}/update/`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(updateData)
-                            });
-                            const data = await resp.json();
-                            
-                            if (data.status !== 'success') {
-                                // Если ошибка, возвращаем старое значение
-                                material[field] = oldValue;
-                                if (field === 'service_price' || field === 'defect_penalty') {
-                                    material.total_cost = material.service_price + material.defect_penalty;
-                                }
-                                alert(data.message || 'Ошибка сохранения');
-                            } else {
-                                // Обновляем статистику после успешного сохранения
-                                await this.fetchStats();
-                            }
-                        } catch (error) {
-                            // Если ошибка, возвращаем старое значение
-                            material[field] = oldValue;
-                            if (field === 'service_price' || field === 'defect_penalty') {
-                                material.total_cost = material.service_price + material.defect_penalty;
-                            }
-                            alert('Ошибка сохранения изменений');
                         }
                     }
                     this.editingCell = null;
@@ -1124,4 +1090,3 @@
     </script>
 </body>
 </html>
-

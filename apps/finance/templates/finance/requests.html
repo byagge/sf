@@ -26,6 +26,32 @@
         .animate-success-pop {
             animation: success-pop 0.5s cubic-bezier(.4,0,.2,1);
         }
+        /* Убираем стрелки у input[type="number"] */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        /* Стили для кнопок количества */
+        .quantity-btn {
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .quantity-btn:hover {
+            background-color: #f3f4f6;
+        }
+        .quantity-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Скрытие элементов до инициализации Alpine.js */
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -358,38 +384,124 @@
 
                                     <template x-if="createStep === 3">
                                         <div class="space-y-4">
-                                            <div class="flex items-center justify-between">
-                                                <label class="block text-sm font-medium text-gray-700">Товары <span class="text-red-500">*</span></label>
-                                                <button type="button" @click="addItem()" class="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">+ Добавить товар</button>
-                                            </div>
-                                            <div class="space-y-3">
+                                            <label class="block text-sm font-medium text-gray-700 mb-3">Товары <span class="text-red-500">*</span></label>
+                                            
+                                            <!-- Список товаров -->
+                                            <div class="space-y-4">
                                                 <template x-for="(item, idx) in newRequest.items" :key="idx">
-                                                    <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                                        <div class="grid grid-cols-12 gap-4 items-end">
-                                                            <div class="col-span-4">
-                                                                <label class="block text-sm font-medium text-gray-700 mb-2">Товар</label>
+                                                    <div class="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                                                        <div class="grid grid-cols-12 gap-4">
+                                                            <!-- Выбор товара через select -->
+                                                            <div class="col-span-6">
+                                                                <label class="block text-sm font-medium text-gray-700 mb-2">Товар <span class="text-red-500">*</span></label>
                                                                 <select x-model="item.product_id" @change="onProductChange(idx)" required class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                                    <option value="">— Товар —</option>
+                                                                    <option value="">— Выберите товар —</option>
                                                                     <template x-for="product in products" :key="product.id">
                                                                         <option :value="product.id" x-text="product.name"></option>
                                                                     </template>
                                                                 </select>
                                                             </div>
-                                                            <div class="col-span-2">
-                                                                <label class="block text-sm font-medium text-gray-700 mb-2">Кол-во</label>
-                                                                <input type="number" min="1" x-model.number="item.quantity" required class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                            
+                                                            <!-- Количество с кнопками -->
+                                                            <div class="col-span-3">
+                                                                <label class="block text-sm font-medium text-gray-700 mb-2">Количество <span class="text-red-500">*</span></label>
+                                                                <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                                                                    <button type="button" @click="decreaseQuantity(idx)" 
+                                                                            class="quantity-btn px-3 py-3 text-gray-600 hover:text-gray-900 border-r border-gray-300">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                                                        </svg>
+                                                                    </button>
+                                                                    <input type="text" 
+                                                                           x-model="item.quantity" 
+                                                                           @input="validateQuantity(idx)"
+                                                                           class="flex-1 px-3 py-3 border-0 text-center focus:outline-none focus:ring-0 bg-white"
+                                                                           style="-webkit-appearance: none; -moz-appearance: textfield;">
+                                                                    <button type="button" @click="increaseQuantity(idx)" 
+                                                                            class="quantity-btn px-3 py-3 text-gray-600 hover:text-gray-900 border-l border-gray-300">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
                                                             </div>
+                                                            
+                                                            <!-- Размер с подсказками -->
                                                             <div class="col-span-3">
                                                                 <label class="block text-sm font-medium text-gray-700 mb-2">Размер</label>
-                                                                <input type="text" x-model="item.size" placeholder="S/M/40x60" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                <div class="relative">
+                                                                    <input type="text" 
+                                                                           x-model="item.size" 
+                                                                           @input="filterSizes(idx)"
+                                                                           @focus="item.show_size_dropdown = true"
+                                                                           @click.away="item.show_size_dropdown = false"
+                                                                           placeholder="40-200, 60-200..." 
+                                                                           class="w-full px-3 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                    <svg class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                                    </svg>
+                                                                    
+                                                                    <!-- Dropdown с размерами -->
+                                                                    <div x-show="item.show_size_dropdown && item.filtered_sizes && item.filtered_sizes.length > 0" 
+                                                                         x-transition 
+                                                                         class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                                                        <template x-for="size in item.filtered_sizes" :key="size">
+                                                                            <div @click="selectSize(idx, size)" 
+                                                                                 class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                                                                                <div class="font-medium text-gray-900" x-text="size"></div>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            <div class="col-span-3">
+                                                            
+                                                            <!-- Цвет с подсказками -->
+                                                            <div class="col-span-6">
                                                                 <label class="block text-sm font-medium text-gray-700 mb-2">Цвет</label>
-                                                                <input type="text" x-model="item.color" placeholder="Белый" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                <div class="relative">
+                                                                    <input type="text" 
+                                                                           x-model="item.color" 
+                                                                           @input="filterColors(idx)"
+                                                                           @focus="item.show_color_dropdown = true"
+                                                                           @click.away="item.show_color_dropdown = false"
+                                                                           placeholder="Введите цвет или выберите из списка..." 
+                                                                           class="w-full px-3 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                    <svg class="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                                    </svg>
+                                                                    
+                                                                    <!-- Dropdown с цветами -->
+                                                                    <div x-show="item.show_color_dropdown && item.filtered_colors && item.filtered_colors.length > 0" 
+                                                                         x-transition 
+                                                                         class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                                                        <template x-for="color in item.filtered_colors" :key="color">
+                                                                            <div @click="selectColor(idx, color)" 
+                                                                                 class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                                                                                <div class="font-medium text-gray-900" x-text="color"></div>
+                                                                            </div>
+                                                                        </template>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <!-- Быстрые кнопки цветов -->
+                                                                <div class="mt-2 flex flex-wrap gap-2">
+                                                                    <template x-for="quickColor in quickColors" :key="quickColor">
+                                                                        <button type="button" @click="selectColor(idx, quickColor)" 
+                                                                                class="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-blue-100 hover:text-blue-700 transition-colors">
+                                                                            <span x-text="quickColor"></span>
+                                                                        </button>
+                                                                    </template>
+                                                                </div>
                                                             </div>
-                                                            <div class="col-span-12 flex justify-end pt-2">
-                                                                <button type="button" @click="removeItem(idx)" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 transition-colors">
-                                                                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                                            
+                                                            <!-- Кнопка удаления -->
+                                                            <div class="col-span-6 flex items-end justify-end">
+                                                                <button type="button" @click="removeItem(idx)" 
+                                                                        x-show="newRequest.items.length > 1"
+                                                                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 transition-colors">
+                                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                                    </svg>
                                                                     <span>Удалить</span>
                                                                 </button>
                                                             </div>
@@ -398,6 +510,7 @@
                                                         <!-- Дополнительные поля для стеклянных изделий -->
                                                         <template x-if="getProductById(item.product_id) && getProductById(item.product_id).is_glass">
                                                             <div class="mt-4 pt-4 border-t border-gray-200">
+                                                                <h4 class="text-sm font-medium text-gray-700 mb-3">Параметры стекла</h4>
                                                                 <div class="grid grid-cols-12 gap-4">
                                                                     <div class="col-span-4">
                                                                         <label class="block text-sm font-medium text-gray-700 mb-2">Тип стекла</label>
@@ -408,11 +521,13 @@
                                                                     </div>
                                                                     <div class="col-span-4">
                                                                         <label class="block text-sm font-medium text-gray-700 mb-2">Тип краски</label>
-                                                                        <input type="text" x-model="item.paint_type" placeholder="Акрил, эмаль" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                        <input type="text" x-model="item.paint_type" placeholder="Акрил, эмаль" 
+                                                                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                                                     </div>
                                                                     <div class="col-span-4">
                                                                         <label class="block text-sm font-medium text-gray-700 mb-2">Цвет краски</label>
-                                                                        <input type="text" x-model="item.paint_color" placeholder="Белый" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                                        <input type="text" x-model="item.paint_color" placeholder="Белый" 
+                                                                               class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -420,23 +535,37 @@
                                                         
                                                         <!-- Дополнительные поля для всех изделий -->
                                                         <div class="mt-4 pt-4 border-t border-gray-200">
+                                                            <h4 class="text-sm font-medium text-gray-700 mb-3">Дополнительные спецификации</h4>
                                                             <div class="grid grid-cols-12 gap-4">
                                                                 <div class="col-span-6">
                                                                     <label class="block text-sm font-medium text-gray-700 mb-2">Спецификации для ЧПУ</label>
-                                                                    <textarea x-model="item.cnc_specs" placeholder="Детали для обработки на станках" rows="2" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                                                    <textarea x-model="item.cnc_specs" placeholder="Детали для обработки на станках" rows="2" 
+                                                                              class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                                                                 </div>
                                                                 <div class="col-span-6">
                                                                     <label class="block text-sm font-medium text-gray-700 mb-2">Спецификации для распила</label>
-                                                                    <textarea x-model="item.cutting_specs" placeholder="Детали для распила" rows="2" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                                                    <textarea x-model="item.cutting_specs" placeholder="Детали для распила" rows="2" 
+                                                                              class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                                                                 </div>
                                                                 <div class="col-span-12">
                                                                     <label class="block text-sm font-medium text-gray-700 mb-2">Заметки для упаковки</label>
-                                                                    <textarea x-model="item.packaging_notes" placeholder="Особенности упаковки, маркировки" rows="2" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                                                    <textarea x-model="item.packaging_notes" placeholder="Особенности упаковки, маркировки" rows="2" 
+                                                                              class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </template>
+                                            </div>
+                                            
+                                            <!-- Кнопка добавления товара внизу -->
+                                            <div class="flex justify-center pt-4">
+                                                <button type="button" @click="addItem()" class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                                    </svg>
+                                                    <span>Добавить товар</span>
+                                                </button>
                                             </div>
                                         </div>
                                     </template>
@@ -642,6 +771,25 @@
             clientSearchTerm: '',
             filteredClients: [],
             
+            // Цвета и подсказки
+            quickColors: [
+                'Белый', 'Черный', 'Серый (1966)', 'Коричневый', 'Бежевый',
+                'Красный', 'Синий', 'Зеленый', 'Желтый', 'Оранжевый',
+                'Фиолетовый', 'Розовый', 'Голубой', 'Темно-синий', 'Темно-зеленый'
+            ],
+            allColors: [
+                'Белый', 'Черный', 'Серый (1966)', 'Коричневый', 'Бежевый',
+                'Красный', 'Синий', 'Зеленый', 'Желтый', 'Оранжевый',
+                'Фиолетовый', 'Розовый', 'Голубой', 'Темно-синий', 'Темно-зеленый',
+                'Серый (RAL 7035)', 'Коричневый (RAL 8004)', 'Красный (RAL 3000)',
+                'Синий (RAL 5002)', 'Зеленый (RAL 6001)', 'Желтый (RAL 1003)',
+                'Оранжевый (RAL 2000)', 'Фиолетовый (RAL 4005)', 'Розовый (RAL 4003)',
+                'Голубой (RAL 5012)', 'Темно-синий (RAL 5004)', 'Темно-зеленый (RAL 6007)',
+                'Светло-серый', 'Темно-серый', 'Светло-коричневый', 'Темно-коричневый',
+                'Светло-красный', 'Темно-красный', 'Светло-синий', 'Темно-синий',
+                'Светло-зеленый', 'Темно-зеленый', 'Светло-желтый', 'Темно-желтый'
+            ],
+
             openCreate() {
                 this.showCreatePane = true;
                 this.selectedRequest = {};
@@ -695,7 +843,11 @@
                     this.openCreate();
                 } else if (e.key === 'Escape') {
                     e.preventDefault();
-                    if (this.showCreatePane) this.showCreatePane = false; else this.clearSelection();
+                    if (this.showCreatePane) {
+                        this.showCreatePane = false;
+                    } else {
+                        this.clearSelection();
+                    }
                 } else if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     const list = this.sortedFilteredRequests();
@@ -824,6 +976,71 @@
                 if (this.createStep > 1) this.createStep--;
             },
             
+            // Функции для модального окна товаров
+            openProductModal(idx) {
+                console.log('Opening product modal for index:', idx); // Для отладки
+                this.currentItemIndex = idx;
+                this.showProductModal = true;
+                this.productSearchTerm = '';
+                this.filteredProducts = this.products.slice(0, 20);
+                
+                // Принудительно обновляем отображение
+                this.$nextTick(() => {
+                    console.log('Modal should be visible now');
+                });
+            },
+
+            closeProductModal() {
+                this.showProductModal = false;
+                this.currentItemIndex = -1;
+                this.productSearchTerm = '';
+                this.filteredProducts = [];
+            },
+
+            selectProductFromModal(product) {
+                if (this.currentItemIndex >= 0) {
+                    const item = this.newRequest.items[this.currentItemIndex];
+                    item.product_id = product.id;
+                    this.onProductChange(this.currentItemIndex);
+                }
+                this.closeProductModal();
+            },
+
+            filterProducts() {
+                const term = this.productSearchTerm.toLowerCase();
+                if (term.length < 2) {
+                    this.filteredProducts = this.products.slice(0, 20);
+                    return;
+                }
+                
+                this.filteredProducts = this.products.filter(product => 
+                    product.name.toLowerCase().includes(term) ||
+                    (product.description && product.description.toLowerCase().includes(term))
+                ).slice(0, 20);
+            },
+
+            // Функции для работы с цветами
+            filterColors(idx) {
+                const item = this.newRequest.items[idx];
+                const term = item.color.toLowerCase();
+                if (term.length < 1) {
+                    item.filtered_colors = [];
+                    return;
+                }
+                
+                item.filtered_colors = this.allColors.filter(color => 
+                    color.toLowerCase().includes(term)
+                ).slice(0, 10);
+            },
+
+            selectColor(idx, color) {
+                const item = this.newRequest.items[idx];
+                item.color = color;
+                item.show_color_dropdown = false;
+                item.filtered_colors = [];
+            },
+
+            // Обновленная функция addItem
             addItem() {
                 this.newRequest.items.push({ 
                     product_id: '', 
@@ -836,28 +1053,38 @@
                     paint_color: '',
                     cnc_specs: '',
                     cutting_specs: '',
-                    packaging_notes: ''
+                    packaging_notes: '',
+                    show_color_dropdown: false,
+                    filtered_colors: [],
+                    show_size_dropdown: false,
+                    filtered_sizes: []
                 });
             },
-            
-            removeItem(idx) {
-                this.newRequest.items.splice(idx, 1);
-                if (this.newRequest.items.length === 0) {
-                    this.addItem();
+
+            // Остальные функции
+            increaseQuantity(idx) {
+                const item = this.newRequest.items[idx];
+                item.quantity = Math.max(1, parseInt(item.quantity) || 0) + 1;
+            },
+
+            decreaseQuantity(idx) {
+                const item = this.newRequest.items[idx];
+                item.quantity = Math.max(1, (parseInt(item.quantity) || 1) - 1);
+            },
+
+            validateQuantity(idx) {
+                const item = this.newRequest.items[idx];
+                const value = parseInt(item.quantity);
+                if (isNaN(value) || value < 1) {
+                    item.quantity = 1;
+                } else {
+                    item.quantity = value;
                 }
             },
-            
-            onProductChange(idx) {
+
+            clearProductSelection(idx) {
                 const item = this.newRequest.items[idx];
-                if (item.product_id) {
-                    const product = this.products.find(p => p.id === item.product_id);
-                    if (product) {
-                        // Автоматически заполняем тип стекла для стеклянных изделий
-                        if (product.is_glass && !item.glass_type) {
-                            item.glass_type = 'sandblasted';
-                        }
-                    }
-                }
+                item.product_id = '';
             },
             
             getProductById(id) {
@@ -1016,7 +1243,54 @@
                 }
                 
                 this.$nextTick(() => lucide.createIcons());
-            }
+            },
+
+            // Дополнительные функции для улучшенного интерфейса товаров
+            onProductChange(idx) {
+                const item = this.newRequest.items[idx];
+                if (item.product_id) {
+                    const product = this.products.find(p => p.id === item.product_id);
+                    if (product) {
+                        // Автоматически заполняем тип стекла для стеклянных изделий
+                        if (product.is_glass && !item.glass_type) {
+                            item.glass_type = 'sandblasted';
+                        }
+                    }
+                }
+            },
+            
+            removeItem(idx) {
+                this.newRequest.items.splice(idx, 1);
+                if (this.newRequest.items.length === 0) {
+                    this.addItem();
+                }
+            },
+
+            // Размеры и подсказки (только 5 вариантов)
+            allSizes: [
+                '40-200', '60-200', '70-200', '80-200', '90-200'
+            ],
+
+            // Функции для работы с размерами
+            filterSizes(idx) {
+                const item = this.newRequest.items[idx];
+                const term = item.size.toLowerCase();
+                if (term.length < 1) {
+                    item.filtered_sizes = [];
+                    return;
+                }
+                
+                item.filtered_sizes = this.allSizes.filter(size => 
+                    size.toLowerCase().includes(term)
+                );
+            },
+
+            selectSize(idx, size) {
+                const item = this.newRequest.items[idx];
+                item.size = size;
+                item.show_size_dropdown = false;
+                item.filtered_sizes = [];
+            },
         }
     }
     
