@@ -55,8 +55,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 			# Добавляем информацию о цехах
 			workshops_info = {}
 			for stage in order.stages.filter(
-				status__in=['in_progress', 'partial'],
-				Q(order_item__product__is_glass=False) | Q(order_item__isnull=True)
+				Q(status__in=['in_progress', 'partial']) & (Q(order_item__product__is_glass=False) | Q(order_item__isnull=True))
 			):
 				workshop_name = stage.workshop.name if stage.workshop else 'Не указан'
 				workshop_type = 'Стеклянные товары' if stage.parallel_group == 1 else 'Обычные товары'
