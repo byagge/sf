@@ -331,6 +331,9 @@ class OrderStageTransferAPIView(APIView):
 				from apps.operations.workshops.models import Workshop
 				workshop = get_object_or_404(Workshop, pk=target_workshop_id)
 				
+				# Вычисляем количество только нестеклянных товаров
+				non_glass_quantity = sum(item.quantity for item in stage.order.items.filter(product__is_glass=False))
+
 				# Создаем агрегированный этап для всех нестеклянных товаров
 				OrderStage.objects.create(
 					order=stage.order,
@@ -339,12 +342,12 @@ class OrderStageTransferAPIView(APIView):
 					stage_type='workshop',
 					workshop=workshop,
 					operation=f"Передано из: {stage.workshop.name if stage.workshop else ''}",
-					plan_quantity=completed_qty,
+					plan_quantity=non_glass_quantity,  # Используем только количество нестеклянных товаров
 					deadline=timezone.now().date(),
 					status='in_progress',
 					parallel_group=stage.parallel_group,
 				)
-				return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': target_workshop_id, 'completed_quantity': completed_qty, 'aggregated': True})
+				return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': target_workshop_id, 'completed_quantity': non_glass_quantity, 'aggregated': True})
 			
 			if is_glass:
 				# Допускаем только перемещения между цехами 2 и 12
