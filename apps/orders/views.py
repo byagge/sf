@@ -368,6 +368,17 @@ class OrderStageTransferAPIView(APIView):
 			# Нестеклянные — прежняя логика явного перевода
 			# Завершаем текущий этап на указанное количество (частично или полностью)
 			stage.confirm_stage(completed_qty)
+			
+			# АВТОМАТИЧЕСКОЕ УДАЛЕНИЕ СТЕКЛЯННЫХ ТОВАРОВ ПРИ ПЕРЕВОДЕ С ПРЕССА (ID5)
+			if current_workshop_id == 5 and target_workshop_id > 5:
+				# Удаляем все стеклянные товары из заказа при переводе с пресса
+				glass_items = stage.order.items.filter(product__is_glass=True)
+				if glass_items.exists():
+					glass_count = glass_items.count()
+					glass_items.delete()
+					# Логируем удаление
+					print(f"Удалено {glass_count} стеклянных товаров из заказа {stage.order.id} при переводе с пресса")
+			
 			# Явно создаём/активируем этап в выбранном цехе
 			from apps.operations.workshops.models import Workshop
 			workshop = get_object_or_404(Workshop, pk=target_workshop_id)

@@ -5,95 +5,58 @@ from apps.products.models import Product
 from django.db.models import Q
 
 class Command(BaseCommand):
-    help = 'Полностью удаляет стеклянные товары из заказов в цехах после ID5'
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            '--dry-run',
-            action='store_true',
-            help='Показать что будет удалено без фактического удаления',
-        )
-        parser.add_argument(
-            '--workshop-id',
-            type=int,
-            help='Обработать только конкретный цех (ID >= 6)',
-        )
+    help = 'Диагностика стеклянных товаров в цехах'
 
     def handle(self, *args, **options):
-        dry_run = options['dry_run']
-        workshop_id = options.get('workshop_id')
+        self.stdout.write('=== ДИАГНОСТИКА СТЕКЛЯННЫХ ТОВАРОВ ===\n')
         
-        self.stdout.write('Начинаем удаление стеклянных товаров из заказов после пресса...')
-        
-        # Определяем цеха для обработки
-        if workshop_id:
-            if workshop_id < 6:
-                self.stdout.write(
-                    self.style.ERROR(f'Цех ID {workshop_id} не требует обработки (только ID >= 6)')
-                )
-                return
-            workshop_ids = [workshop_id]
-        else:
-            # Все цеха с ID >= 6
-            workshop_ids = list(range(6, 20))  # Предполагаем максимум ID 19
-        
-        total_removed_items = 0
-        total_updated_orders = 0
-        
-        for workshop_id in workshop_ids:
-            self.stdout.write(f'\nОбрабатываем цех ID {workshop_id}...')
+        # Проверяем все цеха с ID >= 6
+        for workshop_id in range(6, 20):
+            self.stdout.write(f'--- Цех ID {workshop_id} ---')
             
             # Находим все этапы в этом цехе
             stages = OrderStage.objects.filter(
                 workshop_id=workshop_id,
-                status__in=['in_progress', 'waiting', 'partial']
+                status__in=['in_progress', 'waiting', 'partial', 'done']
             ).select_related('order', 'workshop')
             
-            workshop_removed_items = 0
-            workshop_updated_orders = 0
-            processed_orders = set()
+            self.stdout.write(f'  Всего этапов: {stages.count()}')
             
-            for stage in stages:
-                if not stage.order or stage.order.id in processed_orders:
-                    continue
-                    
-                order = stage.order
-                processed_orders.add(order.id)
+            if stages.exists():
+                # Проверяем заказы на стеклянные товары
+                orders_with_glass = 0
+                total_glass_items = 0
                 
-                # Находим все стеклянные товары в заказе
-                glass_items = order.items.filter(
-                    product__is_glass=True
-                )
-                
-                if glass_items.exists():
-                    self.stdout.write(f'  Заказ {order.id}: найдено {glass_items.count()} стеклянных товаров')
-                    
-                    if dry_run:
-                        for item in glass_items:
-                            self.stdout.write(
-                                f'    [DRY RUN] Будет удален товар {item.id}: {item.product.name if item.product else "Без названия"}'
-                            )
-                    else:
-                        # Удаляем стеклянные товары
-                        with transaction.atomic():
+                for stage in stages:
+                    if stage.order:
+                        glass_items = stage.order.items.filter(product__is_glass=True)
+                        if glass_items.exists():
+                            orders_with_glass += 1
+                            total_glass_items += glass_items.count()
+                            self.stdout.write(f'    Заказ {stage.order.id}: {glass_items.count()} стеклянных товаров')
                             for item in glass_items:
-                                self.stdout.write(
-                                    f'    Удаляем товар {item.id}: {item.product.name if item.product else "Без названия"}'
-                                )
-                                item.delete()
-                                workshop_removed_items += 1
-                    
-                    workshop_updated_orders += 1
+                                self.stdout.write(f'      - {item.id}: {item.product.name if item.product else "Без названия"}')
+                
+                self.stdout.write(f'  Заказов со стеклянными товарами: {orders_with_glass}')
+                self.stdout.write(f'  Всего стеклянных товаров: {total_glass_items}')
+            else:
+                self.stdout.write('  Нет этапов в этом цехе')
             
-            self.stdout.write(f'Цех ID {workshop_id}: удалено {workshop_removed_items} товаров из {workshop_updated_orders} заказов')
-            total_removed_items += workshop_removed_items
-            total_updated_orders += workshop_updated_orders
+            self.stdout.write('')
         
-        if dry_run:
-            self.stdout.write(
-                self.style.WARNING(f'\n[DRY RUN] Всего будет удалено: {total_removed_items} товаров из {total_updated_orders} заказов')
-            )
-        else:
-            self.stdout.write(
-                self.style.SUCCESS(f'\nУдаление завершено! Всего удалено: {total_removed_items} товаров из {total_updated_orders} заказов')
-            )
+        # Общая статистика по стеклянным товарам
+        self.stdout.write('=== ОБЩАЯ СТАТИСТИКА ===')
+        all_glass_items = OrderItem.objects.filter(product__is_glass=True)
+        self.stdout.write(f'Всего стеклянных товаров в системе: {all_glass_items.count()}')
+        
+        # Проверяем, в каких цехах есть этапы
+        workshops_with_stages = OrderStage.objects.values_list('workshop_id', flat=True).distinct()
+        self.stdout.write(f'Цеха с этапами: {sorted(workshops_with_stages)}')
+        
+        # Проверяем заказы со стеклянными товарами
+        orders_with_glass = Order.objects.filter(items__product__is_glass=True).distinct()
+        self.stdout.write(f'Заказов со стеклянными товарами: {orders_with_glass.count()}')
+        
+        for order in orders_with_glass[:5]:  # Показываем первые 5
+            glass_count = order.items.filter(product__is_glass=True).count()
+            self.stdout.write(f'  Заказ {order.id}: {glass_count} стеклянных товаров')
