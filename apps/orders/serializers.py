@@ -188,9 +188,17 @@ class OrderStageSerializer(serializers.ModelSerializer):
         try:
             if obj.order_item is not None or not obj.order:
                 return None
+            
+            # Получаем workshop_id из контекста
+            workshop_id = self.context.get('workshop_id', 0)
+            
             items = []
             workshop_name = obj.workshop.name if obj.workshop else ''
             for it in obj.order.items.all():
+                # Фильтруем стеклянные товары для цехов после ID5
+                if workshop_id > 5 and it.product and getattr(it.product, 'is_glass', False):
+                    continue
+                    
                 info = it.get_workshop_info(workshop_name)
                 # try to resolve product image url
                 img_url = None
@@ -219,7 +227,7 @@ class OrderStageSerializer(serializers.ModelSerializer):
                     if v is None:
                         v = getattr(it, k, '')
                     if v:
-                        item_data[k] = _safe_str(v)
+                        item_data[k] = v
                 items.append(item_data)
             return items
         except Exception:

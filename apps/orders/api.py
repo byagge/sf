@@ -34,7 +34,9 @@ class WorkshopStagesView(APIView):
                 Q(order_item__isnull=True, order__items__product__is_glass=True)
             ).distinct()
         
-        return Response(OrderStageSerializer(stages, many=True).data) 
+        # Передаем workshop_id в сериализатор для фильтрации товаров
+        serializer = OrderStageSerializer(stages, many=True, context={'workshop_id': workshop_id_int})
+        return Response(serializer.data) 
 
 class StageDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -54,4 +56,7 @@ class StageDetailView(APIView):
             ),
             id=stage_id
         )
-        return Response(OrderStageSerializer(stage).data) 
+        # Передаем workshop_id в сериализатор для фильтрации товаров
+        workshop_id = getattr(stage.workshop, 'id', 0) if stage.workshop else 0
+        serializer = OrderStageSerializer(stage, context={'workshop_id': workshop_id})
+        return Response(serializer.data) 
