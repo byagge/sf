@@ -48,7 +48,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 				)
 			queryset = queryset.distinct().order_by('-created_at')
 		
-		# Добавляем информацию о разделении по цехам
+		# Добавляем информацию о цехах
 		orders_data = []
 		for order in queryset:
 			order_data = OrderSerializer(order).data
@@ -62,6 +62,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 					if stage.order_item and stage.order_item.product.is_glass:
 						continue  # Пропускаем стеклянные товары
 					elif stage.order_item is None:  # aggregated
+						# Для агрегированных этапов суммируем только нестеклянные товары
 						quantity = sum(it.quantity for it in order.items.filter(product__is_glass=False))
 					else:
 						# Для обычных этапов проверяем, что товар не стеклянный
@@ -320,6 +321,30 @@ class OrderStageTransferAPIView(APIView):
 					glass_count = glass_items.count()
 					glass_items.delete()
 					print(f"Удалено {glass_count} стеклянных товаров из заказа {stage.order.id} при переводе с пресса в цех {target_workshop_id}")
+				
+				# Завершаем текущий этап полностью (статус 'completed')
+				stage.confirm_stage(stage.plan_quantity)  # Завершаем весь план
+				stage.status = 'completed'
+				stage.save(update_fields=['status'])
+				
+				# Создаем новый этап в цехе 6+ только для нестеклянных товаров
+				from apps.operations.workshops.models import Workshop
+				workshop = get_object_or_404(Workshop, pk=target_workshop_id)
+				
+				# Создаем агрегированный этап для всех нестеклянных товаров
+				OrderStage.objects.create(
+					order=stage.order,
+					order_item=None,  # Агрегированный этап
+					sequence=(stage.sequence or 0) + 1,
+					stage_type='workshop',
+					workshop=workshop,
+					operation=f"Передано из: {stage.workshop.name if stage.workshop else ''}",
+					plan_quantity=completed_qty,
+					deadline=timezone.now().date(),
+					status='in_progress',
+					parallel_group=stage.parallel_group,
+				)
+				return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': target_workshop_id, 'completed_quantity': completed_qty, 'aggregated': True})
 			
 			if is_glass:
 				# Допускаем только перемещения между цехами 2 и 12
