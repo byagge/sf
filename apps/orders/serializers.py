@@ -99,10 +99,17 @@ class OrderItemSerializer(serializers.ModelSerializer):
             return None
         try:
             client = obj.order.client
+            # Получаем workshop_id из контекста для фильтрации
+            workshop_id = self.context.get('workshop_id', 0)
+            
             # Получаем все товары заказа без рекурсивной сериализации
             items = []
             if obj.order.items.exists():
                 for item in obj.order.items.all():
+                    # Фильтруем стеклянные товары для цехов после ID5
+                    if workshop_id > 5 and item.product and getattr(item.product, 'is_glass', False):
+                        continue
+                        
                     items.append({
                         'id': item.id,
                         'quantity': item.quantity,
@@ -258,10 +265,30 @@ class OrderStageSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """Переопределяем для безопасной обработки null значений"""
         data = super().to_representation(instance)
+        
+        # Получаем workshop_id из контекста
+        workshop_id = self.context.get('workshop_id', 0)
+        
+        # Фильтруем стеклянные товары для цехов после ID5
+        if workshop_id > 5:
+            # Если order_item является стеклянным товаром, обнуляем его
+            if (instance.order_item and 
+                instance.order_item.product and 
+                getattr(instance.order_item.product, 'is_glass', False)):
+                data['order_item'] = None
+            
+            # Фильтруем стеклянные товары в aggregated_items
+            if 'aggregated_items' in data and data['aggregated_items']:
+                data['aggregated_items'] = [
+                    item for item in data['aggregated_items']
+                    if not (item.get('product', {}).get('is_glass', False))
+                ]
+        
         # Sanitize string fields
         for key in ['operation', 'comment']:
             if key in data:
                 data[key] = _safe_str(data.get(key))
+        
         # Убеждаемся, что order_item не вызывает ошибок
         if not instance.order_item:
             data['order_item'] = None
