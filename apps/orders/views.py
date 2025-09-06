@@ -33,19 +33,20 @@ class OrderViewSet(viewsets.ModelViewSet):
 		"""Получает заказы с разделением по цехам"""
 		workshop_id = request.query_params.get('workshop_id')
 		
+		queryset = Order.objects.filter(
+			stages__status__in=['in_progress', 'partial']
+		).distinct().order_by('-created_at')
+		
 		if workshop_id:
-			# Фильтруем заказы по конкретному цеху
-			queryset = Order.objects.filter(
-				stages__workshop_id=workshop_id,
-				stages__status__in=['in_progress', 'partial'],
-				stages__order_item__product__is_glass=False
-			).distinct().order_by('-created_at')
-		else:
-			# Получаем все заказы с группировкой по цехам
-			queryset = Order.objects.filter(
-				stages__status__in=['in_progress', 'partial'],
-				stages__order_item__product__is_glass=False
-			).distinct().order_by('-created_at')
+			workshop_id_int = int(workshop_id)
+			queryset = queryset.filter(
+				stages__workshop_id=workshop_id
+			)
+			if workshop_id_int >= 6:
+				queryset = queryset.filter(
+					Q(stages__order_item__product__is_glass=False) | Q(stages__order_item__isnull=True)
+				)
+			queryset = queryset.distinct().order_by('-created_at')
 		
 		# Добавляем информацию о разделении по цехам
 		orders_data = []
@@ -54,9 +55,10 @@ class OrderViewSet(viewsets.ModelViewSet):
 			
 			# Добавляем информацию о цехах
 			workshops_info = {}
-			for stage in order.stages.filter(
-				Q(status__in=['in_progress', 'partial']) & (Q(order_item__product__is_glass=False) | Q(order_item__isnull=True))
-			):
+			stages_query = order.stages.filter(status__in=['in_progress', 'partial'])
+			for stage in stages_query:
+				if stage.workshop and stage.workshop.id >= 6 and stage.order_item and stage.order_item.product.is_glass:
+					continue
 				workshop_name = stage.workshop.name if stage.workshop else 'Не указан'
 				workshop_type = 'Стеклянные товары' if stage.parallel_group == 1 else 'Обычные товары'
 				
@@ -447,7 +449,7 @@ class OrderStageNoTransferAPIView(APIView):
 class DashboardOverviewAPIView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 	def get(self, request):
-		# Доход — сумма сумма (цена продукта * количество) по всем позициям заявок
+		# Доход — сумма (цена продукта * количество) по всем позициям заявок
 		total_income = OrderItem.objects.aggregate(total=Sum(F('product__price') * F('quantity')))['total'] or 0
 		# Продажи — сумма quantity по всем позициям
 		product_sales = OrderItem.objects.aggregate(total=Sum('quantity'))['total'] or 0
@@ -520,13 +522,14 @@ class StageViewSet(viewsets.ReadOnlyModelViewSet):
 
 	def get_queryset(self):
 		qs = super().get_queryset()
-		qs = qs.filter(Q(order_item__product__is_glass=False) | Q(order_item__isnull=True))
 		status_param = self.request.query_params.get('status')
 		if status_param:
 			qs = qs.filter(status=status_param)
 		workshop_param = self.request.query_params.get('workshop')
 		if workshop_param:
 			qs = qs.filter(workshop_id=workshop_param)
+			if int(workshop_param) >= 6:
+				qs = qs.filter(Q(order_item__product__is_glass=False) | Q(order_item__isnull=True))
 		return qs
 
 
