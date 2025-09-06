@@ -273,7 +273,6 @@ class OrderStageTransferAPIView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 	def post(self, request, stage_id):
 		stage = get_object_or_404(OrderStage, pk=stage_id)
-		# Поддержка явного выбора цеха и количества, без жёсткого workflow
 		target_workshop_id = request.data.get('target_workshop_id')
 		completed_qty = request.data.get('completed_quantity')
 		try:
@@ -285,7 +284,6 @@ class OrderStageTransferAPIView(APIView):
 		if completed_qty > stage.plan_quantity:
 			completed_qty = stage.plan_quantity
 		
-		# Ограничения и логика для стеклянных изделий: только цеха 2 и 12; при переводе в 12 — агрегируем
 		is_glass = bool(getattr(getattr(getattr(stage, 'order_item', None), 'product', None), 'is_glass', False))
 		current_workshop_id = getattr(getattr(stage, 'workshop', None), 'id', None)
 		
@@ -294,6 +292,15 @@ class OrderStageTransferAPIView(APIView):
 				target_workshop_id = int(target_workshop_id)
 			except (TypeError, ValueError):
 				return Response({'error': 'target_workshop_id must be an integer'}, status=400)
+			
+			# АВТОМАТИЧЕСКОЕ УДАЛЕНИЕ СТЕКЛЯННЫХ ТОВАРОВ ПРИ ПЕРЕВОДЕ С ПРЕССА (ID5) В ЦЕХ >5
+			# Выносим это сюда, чтобы работало для любого этапа (glass или non-glass)
+			if current_workshop_id == 5 and target_workshop_id > 5:
+				glass_items = stage.order.items.filter(product__is_glass=True)
+				if glass_items.exists():
+					glass_count = glass_items.count()
+					glass_items.delete()
+					print(f"Удалено {glass_count} стеклянных товаров из заказа {stage.order.id} при переводе с пресса в цех {target_workshop_id}")
 			
 			if is_glass:
 				# Допускаем только перемещения между цехами 2 и 12
@@ -366,20 +373,8 @@ class OrderStageTransferAPIView(APIView):
 				return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': target_workshop_id, 'completed_quantity': completed_qty})
 			
 			# Нестеклянные — прежняя логика явного перевода
-			# Завершаем текущий этап на указанное количество (частично или полностью)
 			stage.confirm_stage(completed_qty)
 			
-			# АВТОМАТИЧЕСКОЕ УДАЛЕНИЕ СТЕКЛЯННЫХ ТОВАРОВ ПРИ ПЕРЕВОДЕ С ПРЕССА (ID5)
-			if current_workshop_id == 5 and target_workshop_id > 5:
-				# Удаляем все стеклянные товары из заказа при переводе с пресса
-				glass_items = stage.order.items.filter(product__is_glass=True)
-				if glass_items.exists():
-					glass_count = glass_items.count()
-					glass_items.delete()
-					# Логируем удаление
-					print(f"Удалено {glass_count} стеклянных товаров из заказа {stage.order.id} при переводе с пресса")
-			
-			# Явно создаём/активируем этап в выбранном цехе
 			from apps.operations.workshops.models import Workshop
 			workshop = get_object_or_404(Workshop, pk=target_workshop_id)
 			# Ищем следующий этап по заказу и позиции в выбранном цехе (без учёта sequence)
@@ -411,6 +406,16 @@ class OrderStageTransferAPIView(APIView):
 			return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': int(target_workshop_id), 'completed_quantity': completed_qty})
 		
 		# Fallback: прежнее поведение — перевод по workflow всего плана
+		# Если хотите удалять и здесь, добавьте логику определения "следующего" цеха
+		# Например, предположим следующий цех = current + 1 (упрощённо):
+		assumed_next_id = (current_workshop_id or 0) + 1
+		if current_workshop_id == 5 and assumed_next_id > 5:
+			glass_items = stage.order.items.filter(product__is_glass=True)
+			if glass_items.exists():
+				glass_count = glass_items.count()
+				glass_items.delete()
+				print(f"Удалено {glass_count} стеклянных товаров из заказа {stage.order.id} при fallback-переводе с пресса")
+		
 		stage.confirm_stage(stage.plan_quantity)
 		return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred'})
 
