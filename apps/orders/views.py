@@ -57,8 +57,16 @@ class OrderViewSet(viewsets.ModelViewSet):
 			workshops_info = {}
 			stages_query = order.stages.filter(status__in=['in_progress', 'partial'])
 			for stage in stages_query:
-				if stage.workshop and stage.workshop.id >= 6 and stage.order_item and stage.order_item.product.is_glass:
-					continue
+				if stage.workshop and stage.workshop.id >= 6:
+					if stage.order_item and stage.order_item.product.is_glass:
+						continue
+					elif stage.order_item is None:  # aggregated
+						quantity = sum(it.quantity for it in order.items.filter(product__is_glass=False))
+					else:
+						quantity = stage.plan_quantity
+				else:
+					quantity = stage.plan_quantity
+				
 				workshop_name = stage.workshop.name if stage.workshop else 'Не указан'
 				workshop_type = 'Стеклянные товары' if stage.parallel_group == 1 else 'Обычные товары'
 				
@@ -68,7 +76,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 						'quantity': 0,
 						'operation': stage.operation
 					}
-				workshops_info[workshop_name]['quantity'] += stage.plan_quantity
+				workshops_info[workshop_name]['quantity'] += quantity
 			
 			order_data['workshops_info'] = workshops_info
 			order_data['has_glass_items'] = order.has_glass_items
