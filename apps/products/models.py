@@ -31,7 +31,6 @@ class Product(models.Model):
     img = models.ImageField('Изображение', upload_to='products/', blank=True, null=True)
     services = models.ManyToManyField(Service, related_name="products", verbose_name="Услуги для продукта")
     price = models.DecimalField('Цена за продукт', max_digits=12, decimal_places=2, default=0)
-    is_3_floor = models.BooleanField('3-й этаж', default=False, help_text='Если True, то после цеха 8 заявка идет в цех 13, а этапы 9-12 выполняются автоматически')
     created_at = models.DateTimeField('Дата создания', auto_now_add=True)
     updated_at = models.DateTimeField('Дата обновления', auto_now=True)
 

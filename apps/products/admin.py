@@ -7,9 +7,9 @@ class MaterialConsumptionInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'type', 'is_glass', 'glass_type', 'is_3_floor', 'price', 'cost_price', 'get_services', 'created_at', 'updated_at')
+    list_display = ('name', 'type', 'is_glass', 'glass_type', 'price', 'cost_price', 'get_services', 'created_at', 'updated_at')
     search_fields = ('name', 'type')
-    list_filter = ('type', 'services', 'is_glass', 'glass_type', 'is_3_floor')
+    list_filter = ('type', 'services', 'is_glass', 'glass_type')
     filter_horizontal = ('services',)
     inlines = [MaterialConsumptionInline]
     
@@ -21,11 +21,6 @@ class ProductAdmin(admin.ModelAdmin):
             'fields': ('is_glass', 'glass_type'),
             'classes': ('collapse',),
             'description': 'Настройки для стеклянных изделий'
-        }),
-        ('3-й этаж', {
-            'fields': ('is_3_floor',),
-            'classes': ('collapse',),
-            'description': 'Настройки для продуктов 3-го этажа'
         }),
         ('Услуги и материалы', {
             'fields': ('services',),

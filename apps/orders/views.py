@@ -23,39 +23,6 @@ from apps.employees.models import User
 
 # Create your views here.
 
-def _auto_complete_3_floor_stages(order, order_item, quantity, current_sequence):
-    """
-    Автоматически создает и завершает этапы 9-12 для продуктов 3-го этажа
-    """
-    from apps.operations.workshops.models import Workshop
-    from .models import OrderStage, WORKSHOP_OPERATIONS
-    
-    # Цеха 9-12 для автоматического выполнения
-    auto_workshops = [9, 10, 11, 12]
-    
-    for i, workshop_id in enumerate(auto_workshops):
-        try:
-            workshop = Workshop.objects.get(pk=workshop_id)
-            # Создаем этап
-            stage = OrderStage.objects.create(
-                order=order,
-                order_item=order_item,
-                sequence=current_sequence + i + 1,
-                stage_type='workshop',
-                workshop=workshop,
-                operation=WORKSHOP_OPERATIONS.get(workshop_id, f'Операция {workshop_id}'),
-                plan_quantity=quantity,
-                deadline=timezone.now().date(),
-                status='done',  # Сразу завершаем
-                parallel_group=2,  # Группа для товаров 3-го этажа
-            )
-            # Подтверждаем этап
-            stage.confirm_stage(quantity)
-            stage.status = 'done'
-            stage.save()
-        except Workshop.DoesNotExist:
-            print(f"Workshop with ID {workshop_id} not found, skipping auto-completion")
-
 class OrderViewSet(viewsets.ModelViewSet):
 	queryset = Order.objects.select_related('client', 'workshop', 'product').prefetch_related('items__product', 'stages__workshop', 'order_defects__workshop').all().order_by('-created_at')
 	serializer_class = OrderSerializer
@@ -338,7 +305,6 @@ class OrderStageTransferAPIView(APIView):
 			completed_qty = stage.plan_quantity
 		
 		is_glass = bool(getattr(getattr(getattr(stage, 'order_item', None), 'product', None), 'is_glass', False))
-		is_3_floor = bool(getattr(getattr(getattr(stage, 'order_item', None), 'product', None), 'is_3_floor', False))
 		current_workshop_id = getattr(getattr(stage, 'workshop', None), 'id', None)
 		
 		if target_workshop_id:
@@ -346,31 +312,6 @@ class OrderStageTransferAPIView(APIView):
 				target_workshop_id = int(target_workshop_id)
 			except (TypeError, ValueError):
 				return Response({'error': 'target_workshop_id must be an integer'}, status=400)
-			
-			# ЛОГИКА ДЛЯ ПРОДУКТОВ 3-ГО ЭТАЖА: после цеха 8 идем в цех 13
-			if is_3_floor and current_workshop_id == 8:
-				# Для продуктов 3-го этажа после цеха 8 идем в цех 13
-				stage.confirm_stage(completed_qty)
-				from apps.operations.workshops.models import Workshop
-				workshop_13 = get_object_or_404(Workshop, pk=13)
-				
-				# Автоматически создаем и завершаем этапы 9-12 для продуктов 3-го этажа
-				_auto_complete_3_floor_stages(stage.order, stage.order_item, completed_qty, stage.sequence)
-				
-				# Создаем этап в цехе 13
-				OrderStage.objects.create(
-					order=stage.order,
-					order_item=stage.order_item,
-					sequence=stage.sequence + 5,  # +5 потому что создали 4 этапа (9-12)
-					stage_type='workshop',
-					workshop=workshop_13,
-					operation='3-й этаж',
-					plan_quantity=completed_qty,
-					deadline=timezone.now().date(),
-					status='in_progress',
-					parallel_group=2,  # Группа для товаров 3-го этажа
-				)
-				return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred', 'target_workshop_id': 13, 'completed_quantity': completed_qty})
 			
 			# АВТОМАТИЧЕСКОЕ УДАЛЕНИЕ СТЕКЛЯННЫХ ТОВАРОВ ПРИ ПЕРЕВОДЕ С ПРЕССА (ID5) В ЦЕХ >5
 			# Выносим это сюда, чтобы работало для любого этапа (glass или non-glass)
@@ -524,61 +465,6 @@ class OrderStageTransferAPIView(APIView):
 		
 		stage.confirm_stage(stage.plan_quantity)
 		return Response({'status': 'ok', 'stage': stage.id, 'action': 'transferred'})
-
-class OrderStageSendToStockAPIView(APIView):
-	permission_classes = [permissions.IsAuthenticated]
-	
-	def post(self, request, stage_id):
-		stage = get_object_or_404(OrderStage, pk=stage_id)
-		completed_qty = request.data.get('completed_quantity', stage.plan_quantity)
-		
-		try:
-			completed_qty = int(completed_qty) if completed_qty is not None else stage.plan_quantity
-		except (TypeError, ValueError):
-			completed_qty = stage.plan_quantity
-		
-		if completed_qty < 0:
-			completed_qty = 0
-		if completed_qty > stage.plan_quantity:
-			completed_qty = stage.plan_quantity
-		
-		# Проверяем, что это продукт 3-го этажа в цехе 13
-		is_3_floor = bool(getattr(getattr(getattr(stage, 'order_item', None), 'product', None), 'is_3_floor', False))
-		current_workshop_id = getattr(getattr(stage, 'workshop', None), 'id', None)
-		
-		if not is_3_floor or current_workshop_id != 13:
-			return Response({'error': 'This action is only available for 3rd floor products in workshop 13'}, status=400)
-		
-		# Завершаем этап
-		stage.confirm_stage(completed_qty)
-		stage.status = 'done'
-		stage.save()
-		
-		# Создаем запись в finished_goods
-		from apps.finished_goods.models import FinishedGood
-		from apps.operations.workshops.models import Workshop
-		
-		try:
-			workshop_13 = Workshop.objects.get(pk=13)
-			finished_good = FinishedGood.objects.create(
-				product=stage.order_item.product,
-				order_item=stage.order_item,
-				order=stage.order,
-				quantity=completed_qty,
-				status='stock',
-				workshop=workshop_13,
-				comment=f'Отправлено с цеха 13 (3-й этаж)'
-			)
-			
-			return Response({
-				'status': 'ok', 
-				'stage': stage.id, 
-				'action': 'sent_to_stock', 
-				'completed_quantity': completed_qty,
-				'finished_good_id': finished_good.id
-			})
-		except Exception as e:
-			return Response({'error': f'Error creating finished good: {str(e)}'}, status=500)
 
 class OrderStagePostponeAPIView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
