@@ -284,6 +284,14 @@ class OrderStage(models.Model):
             if self.is_packaging_stage():
                 self._create_finished_good(completed_qty)
             
+            # Специальная логика для цеха ID4 (Пресс) - завершаем заказ
+            if self.workshop and self.workshop.id == 4:
+                # Завершаем весь заказ
+                self.order.status = 'completed'
+                self.order.save()
+                print(f"Заказ {self.order.id} завершен после выполнения этапа в цеху 4")
+                return True, "Заказ завершен"
+            
             self._activate_next_stage(self.plan_quantity)
         elif completed_qty > 0:
             # Часть выполнено, часть — остаток
@@ -301,6 +309,14 @@ class OrderStage(models.Model):
             # Если это этап упаковки, создаем запись в finished_goods
             if self.is_packaging_stage():
                 self._create_finished_good(completed_qty)
+            
+            # Специальная логика для цеха ID4 (Пресс) - завершаем заказ даже при частичном выполнении
+            if self.workshop and self.workshop.id == 4:
+                # Завершаем весь заказ
+                self.order.status = 'completed'
+                self.order.save()
+                print(f"Заказ {self.order.id} завершен после частичного выполнения этапа в цеху 4")
+                return True, "Заказ завершен"
             
             self._activate_next_stage(completed_qty)
             # Создаём новый этап-остаток в этом же цехе
