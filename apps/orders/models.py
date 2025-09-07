@@ -659,7 +659,7 @@ class OrderItem(models.Model):
                     'size': self.size,
                     'photo': self.product.img.url if self.product.img else None,
                 })
-            elif 'заготовк' in workshop_name.lower():
+            elif 'заготовк' in workshop_name.lower() or 'пресс' in workshop_name.lower():
                 info.update({
                     'preparation_specs': self.preparation_specs,
                     'size': self.size,
@@ -755,17 +755,16 @@ class OrderItem(models.Model):
 # Словарь названий операций для каждого цеха
 WORKSHOP_OPERATIONS = {
     1: "Распил",
-    2: "Распил стекла", 
-    3: "ЧПУ",
-    4: "Заготовка",
-    5: "Пресс",
-    6: "Кромка",
-    7: "Шлифовка апарат",
-    8: "Шлифовка сухая",
-    9: "Грунтовка",
-    10: "Шлифовка белая",
-    11: "Покраска",
-    12: "Упаковка",
+    2: "ЧПУ",
+    3: "Заготовка",
+    4: "Пресс",
+    5: "Кромка",
+    6: "Шкурка аппарат",
+    7: "Шкурка сухой",
+    8: "Грутовка",
+    9: "Шкурка белый",
+    10: "Покраска",
+    11: "Упаковка",
 }
 
 ORDER_WORKFLOW = [
@@ -783,7 +782,6 @@ ORDER_WORKFLOW = [
     {"workshop": 9, "operation": WORKSHOP_OPERATIONS[9], "sequence": 8, "parallel_group": 1},
     {"workshop": 10, "operation": WORKSHOP_OPERATIONS[10], "sequence": 9, "parallel_group": 1},
     {"workshop": 11, "operation": WORKSHOP_OPERATIONS[11], "sequence": 10, "parallel_group": 1},
-    {"workshop": 12, "operation": WORKSHOP_OPERATIONS[12], "sequence": 11, "parallel_group": 1},
 ]
 
 
@@ -806,10 +804,10 @@ def create_order_stages(order):
     if now.hour >= 18:
         deadline_dt += timedelta(days=1)
     
-    # Создаем этапы для цехов ID1 и ID4 одновременно
+    # Создаем этапы для цехов ID1 и ID3 одновременно
     try:
         workshop_1 = Workshop.objects.get(pk=1)  # Цех ID 1 (Распил)
-        workshop_4 = Workshop.objects.get(pk=4)  # Цех ID 4 (Заготовка)
+        workshop_3 = Workshop.objects.get(pk=3)  # Цех ID 3 (Заготовка)
         total_qty = sum(item.quantity for item in order_items)
         
         # Определяем parallel_group в зависимости от наличия стеклянных товаров
@@ -838,35 +836,35 @@ def create_order_stages(order):
             stage_1.deadline = deadline_dt.date()
             stage_1.save(update_fields=['plan_quantity', 'status', 'deadline'])
         
-        # Создаем этап в цехе 4 (Заготовка) - только для нестеклянных товаров
+        # Создаем этап в цехе 3 (Заготовка) - только для нестеклянных товаров
         non_glass_qty = sum(item.quantity for item in order_items if item.product and not item.product.is_glass)
         
         if non_glass_qty > 0:
-            stage_4, created_4 = OrderStage.objects.get_or_create(
+            stage_3, created_3 = OrderStage.objects.get_or_create(
                 order=order,
                 order_item=None,  # Агрегированный этап для всех товаров
                 stage_type='workshop',
-                workshop=workshop_4,
+                workshop=workshop_3,
                 sequence=1,
                 parallel_group=parallel_group,
                 defaults={
-                    'operation': WORKSHOP_OPERATIONS[4],
+                    'operation': WORKSHOP_OPERATIONS[3],
                     'plan_quantity': non_glass_qty,
                     'deadline': deadline_dt.date(),
                     'status': 'in_progress',
                 }
             )
             
-            if not created_4:
+            if not created_3:
                 # Обновляем плановое количество и статус
-                stage_4.plan_quantity = non_glass_qty
-                stage_4.status = 'in_progress'
-                stage_4.deadline = deadline_dt.date()
-                stage_4.save(update_fields=['plan_quantity', 'status', 'deadline'])
+                stage_3.plan_quantity = non_glass_qty
+                stage_3.status = 'in_progress'
+                stage_3.deadline = deadline_dt.date()
+                stage_3.save(update_fields=['plan_quantity', 'status', 'deadline'])
             
-            print(f"Created/updated stages for order {order.id}: {total_qty} items in workshop 1, {non_glass_qty} non-glass items in workshop 4")
+            print(f"Created/updated stages for order {order.id}: {total_qty} items in workshop 1, {non_glass_qty} non-glass items in workshop 3")
         else:
-            print(f"Created/updated stage for order {order.id}: {total_qty} items in workshop 1 (no non-glass items for workshop 4)")
+            print(f"Created/updated stage for order {order.id}: {total_qty} items in workshop 1 (no non-glass items for workshop 3)")
             
     except Workshop.DoesNotExist:
         print("Workshop with ID 1 or 4 not found, skipping stage creation")
