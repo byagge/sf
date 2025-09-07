@@ -295,8 +295,16 @@
                                         <span>Не переводить</span>
                                     </button>
                                 </template>
-                                <!-- Кнопка отметки выполнения для цехов 4, 8 и 10 -->
-                                <template x-if="(workshops[selectedWorkshopIdx] && (workshops[selectedWorkshopIdx].id === 4 || workshops[selectedWorkshopIdx].id === 8 || workshops[selectedWorkshopIdx].id === 10))">
+                                <!-- Кнопка отметки выполнения для цеха 4 (Пресс) - простое подтверждение -->
+                                <template x-if="(workshops[selectedWorkshopIdx] && workshops[selectedWorkshopIdx].id === 4)">
+                                    <button @click.stop="openSimpleCompletionModal(stage)" 
+                                            class="px-2 py-1.5 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 bg-yellow-500 text-white flex items-center justify-center space-x-1 font-semibold text-xs">
+                                        <i data-lucide="check-square" class="w-3 h-3"></i>
+                                        <span>Выполнено</span>
+                                    </button>
+                                </template>
+                                <!-- Кнопка отметки выполнения для цехов 8 и 10 - с назначениями -->
+                                <template x-if="(workshops[selectedWorkshopIdx] && (workshops[selectedWorkshopIdx].id === 8 || workshops[selectedWorkshopIdx].id === 10))">
                                     <button @click.stop="openMarkCompletionModal(stage)" 
                                             class="px-2 py-1.5 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 bg-yellow-500 text-white flex items-center justify-center space-x-1 font-semibold text-xs">
                                         <i data-lucide="check-square" class="w-3 h-3"></i>
@@ -1305,8 +1313,16 @@
                                 Не переводить
                             </button>
                         </template>
-                        <!-- Кнопка отметки выполнения для цехов 4, 8 и 10 -->
-                        <template x-if="(workshops[selectedWorkshopIdx] && (workshops[selectedWorkshopIdx].id === 4 || workshops[selectedWorkshopIdx].id === 8 || workshops[selectedWorkshopIdx].id === 10))">
+                        <!-- Кнопка отметки выполнения для цеха 4 (Пресс) - простое подтверждение -->
+                        <template x-if="(workshops[selectedWorkshopIdx] && workshops[selectedWorkshopIdx].id === 4)">
+                            <button @click="openSimpleCompletionModal(selectedStage)" 
+                                    class="flex-1 px-4 py-3 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors">
+                                <i data-lucide="check-square" class="w-4 h-4 inline mr-2"></i>
+                                Выполнено
+                            </button>
+                        </template>
+                        <!-- Кнопка отметки выполнения для цехов 8 и 10 - с назначениями -->
+                        <template x-if="(workshops[selectedWorkshopIdx] && (workshops[selectedWorkshopIdx].id === 8 || workshops[selectedWorkshopIdx].id === 10))">
                             <button @click="openMarkCompletionModal(selectedStage)" 
                                     class="flex-1 px-4 py-3 bg-yellow-500 text-white rounded-lg font-semibold hover:bg-yellow-600 transition-colors">
                                 <i data-lucide="check-square" class="w-4 h-4 inline mr-2"></i>
@@ -1859,6 +1875,39 @@
         </div>
     </template>
     
+    <!-- Модальное окно простого подтверждения выполнения для цеха 4 (Пресс) -->
+    <template x-if="showSimpleCompletionModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center modal-bg">
+            <div class="modal-content bg-white p-6 mx-4">
+                <div class="text-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Подтверждение выполнения</h3>
+                    <p class="text-gray-600 mb-2">Мастер, подтвердите что работа в цехе Пресс выполнена и проверена.</p>
+                    
+                    <!-- Информация о заказе -->
+                    <template x-if="simpleCompletionStage">
+                        <div class="mt-4 p-3 bg-blue-50 rounded-lg text-left text-sm border-l-4 border-blue-400">
+                            <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
+                            <div class="space-y-1 text-xs text-blue-700">
+                                <div><span class="font-medium">Заявка:</span> <span x-text="simpleCompletionStage.order_name || 'Не указано'"></span></div>
+                                <div><span class="font-medium">Операция:</span> <span x-text="simpleCompletionStage.operation || 'Прессование'"></span></div>
+                                <div><span class="font-medium">Количество:</span> <span x-text="simpleCompletionStage.plan_quantity || 0"></span> шт.</div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div class="flex responsive-btn-row flex-wrap gap-2 mt-4">
+                    <button type="button" @click="cancelSimpleCompletion()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 border border-gray-300 text-gray-700 font-semibold text-base">Отмена</button>
+                    <button type="button" @click="confirmSimpleCompletion()" class="flex-1 px-4 py-3 rounded-lg shadow transition transform hover:scale-105 focus:ring-2 focus:ring-offset-2 focus:ring-green-400 bg-green-600 text-white font-semibold text-base" :disabled="isSubmittingSimpleCompletion">
+                        <template x-if="isSubmittingSimpleCompletion">
+                            <i data-lucide="loader" class="w-5 h-5 animate-spin mr-2"></i>
+                        </template>
+                        <span x-text="isSubmittingSimpleCompletion ? 'Завершается...' : 'Да, работа выполнена'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+    
     <!-- Модальное окно отметки выполнения -->
     <template x-if="showMarkCompletionModal">
         <div class="fixed inset-0 z-50 flex items-end justify-center modal-bg" @click.self="showMarkCompletionModal = false">
@@ -2109,6 +2158,9 @@
             showMarkCompletionModal: false,
             markCompletionStage: null,
             isSubmittingMarkCompletion: false,
+            showSimpleCompletionModal: false,
+            simpleCompletionStage: null,
+            isSubmittingSimpleCompletion: false,
             showQuickAssignmentsModal: false,
             quickAssignmentsStage: null,
             editingAssignId: null,
@@ -2854,6 +2906,72 @@
                     this.showToast('Ошибка при сохранении выполнения', 'error');
                 } finally {
                     this.isSubmittingMarkCompletion = false;
+                }
+            },
+            
+            // Функции для простого подтверждения выполнения (цех 4)
+            openSimpleCompletionModal(stage) {
+                this.simpleCompletionStage = { ...stage };
+                this.showSimpleCompletionModal = true;
+                lucide.createIcons();
+            },
+            
+            cancelSimpleCompletion() {
+                this.showSimpleCompletionModal = false;
+                this.simpleCompletionStage = null;
+            },
+            
+            async confirmSimpleCompletion() {
+                if (!this.simpleCompletionStage) return;
+                
+                this.isSubmittingSimpleCompletion = true;
+                
+                try {
+                    // Завершаем этап в цехе 4
+                    const stageResp = await fetch(`/orders/api/stages/${this.simpleCompletionStage.id}/confirm/`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCsrfToken()
+                        },
+                        body: JSON.stringify({
+                            completed_quantity: this.simpleCompletionStage.plan_quantity
+                        })
+                    });
+                    
+                    if (stageResp.ok) {
+                        // Завершаем весь заказ
+                        const orderResp = await fetch(`/orders/api/orders/${this.simpleCompletionStage.order}/`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': this.getCsrfToken()
+                            },
+                            body: JSON.stringify({
+                                status: 'completed'
+                            })
+                        });
+                        
+                        if (orderResp.ok) {
+                            this.showToast('Заказ успешно завершен!', 'success');
+                        } else {
+                            this.showToast('Работа выполнена, но не удалось завершить заказ', 'warning');
+                        }
+                    } else {
+                        this.showToast('Ошибка при завершении этапа', 'error');
+                    }
+                    
+                    // Обновляем список этапов
+                    await this.loadStages();
+                    
+                    this.showSimpleCompletionModal = false;
+                    this.simpleCompletionStage = null;
+                    
+                } catch (error) {
+                    console.error('Ошибка при завершении заказа:', error);
+                    this.showToast('Ошибка при завершении заказа', 'error');
+                } finally {
+                    this.isSubmittingSimpleCompletion = false;
                 }
             },
             

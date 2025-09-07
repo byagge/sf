@@ -746,12 +746,12 @@ class OrderItem(models.Model):
 
 ORDER_WORKFLOW = [
     # Основной поток для обычных товаров (цех ID 1)
-    {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": None},
+    {"workshop": 1, "operation": "Распил", "sequence": 1, "parallel_group": None},
     # Параллельный поток для стеклянных товаров: 1 -> 3 -> 4 -> 5
-    {"workshop": 1, "operation": "Резка", "sequence": 1, "parallel_group": 1},
-    {"workshop": 3, "operation": "", "sequence": 2, "parallel_group": 1},
-    {"workshop": 4, "operation": "", "sequence": 3, "parallel_group": 1},
-    {"workshop": 5, "operation": "", "sequence": 4, "parallel_group": 1},
+    {"workshop": 1, "operation": "Распил", "sequence": 1, "parallel_group": 1},
+    {"workshop": 3, "operation": "Заготовка", "sequence": 2, "parallel_group": 1},
+    {"workshop": 4, "operation": "Прессование", "sequence": 3, "parallel_group": 1},
+    {"workshop": 5, "operation": "Кромка", "sequence": 4, "parallel_group": 1},
 ]
 
 
@@ -792,7 +792,7 @@ def create_order_stages(order):
             sequence=1,
             parallel_group=parallel_group,
             defaults={
-                'operation': 'Резка',
+                'operation': 'Распил',
                 'plan_quantity': total_qty,
                 'deadline': deadline_dt.date(),
                 'status': 'in_progress',
@@ -818,7 +818,7 @@ def create_order_stages(order):
                 sequence=1,
                 parallel_group=parallel_group,
                 defaults={
-                    'operation': 'Пресс',
+                    'operation': 'Прессование',
                     'plan_quantity': non_glass_qty,
                     'deadline': deadline_dt.date(),
                     'status': 'in_progress',
@@ -848,11 +848,11 @@ def _create_stage_for_order_item(order, order_item):
     if order_item.product and order_item.product.is_glass:
         # Для стеклянных: стартуем в цехе 1
         workshop_id = 1
-        operation = "Резка"
+        operation = "Распил"
         parallel_group = 1
     else:
         workshop_id = 1  # Цех для обычных товаров
-        operation = "Резка"
+        operation = "Распил"
         parallel_group = None
     
     try:
