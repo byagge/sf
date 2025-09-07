@@ -744,14 +744,38 @@ class OrderItem(models.Model):
                 'glass_cutting_quantity': 0,
             }
 
+# Словарь названий операций для каждого цеха
+WORKSHOP_OPERATIONS = {
+    1: "Распил",
+    2: "Распил стекла", 
+    3: "ЧПУ",
+    4: "Заготовка",
+    5: "Пресс",
+    6: "Кромка",
+    7: "Шлифовка апарат",
+    8: "Шлифовка сухая",
+    9: "Грунтовка",
+    10: "Шлифовка белая",
+    11: "Покраска",
+    12: "Упаковка",
+}
+
 ORDER_WORKFLOW = [
     # Основной поток для обычных товаров (цех ID 1)
-    {"workshop": 1, "operation": "Распил", "sequence": 1, "parallel_group": None},
-    # Параллельный поток для стеклянных товаров: 1 -> 3 -> 4 -> 5
-    {"workshop": 1, "operation": "Распил", "sequence": 1, "parallel_group": 1},
-    {"workshop": 3, "operation": "Заготовка", "sequence": 2, "parallel_group": 1},
-    {"workshop": 4, "operation": "Прессование", "sequence": 3, "parallel_group": 1},
-    {"workshop": 5, "operation": "Кромка", "sequence": 4, "parallel_group": 1},
+    {"workshop": 1, "operation": WORKSHOP_OPERATIONS[1], "sequence": 1, "parallel_group": None},
+    # Параллельный поток для стеклянных товаров: 2 -> 3 -> 4 -> 5
+    {"workshop": 2, "operation": WORKSHOP_OPERATIONS[2], "sequence": 1, "parallel_group": 1},
+    {"workshop": 3, "operation": WORKSHOP_OPERATIONS[3], "sequence": 2, "parallel_group": 1},
+    {"workshop": 4, "operation": WORKSHOP_OPERATIONS[4], "sequence": 3, "parallel_group": 1},
+    {"workshop": 5, "operation": WORKSHOP_OPERATIONS[5], "sequence": 4, "parallel_group": 1},
+    # Дополнительные цеха
+    {"workshop": 6, "operation": WORKSHOP_OPERATIONS[6], "sequence": 5, "parallel_group": 1},
+    {"workshop": 7, "operation": WORKSHOP_OPERATIONS[7], "sequence": 6, "parallel_group": 1},
+    {"workshop": 8, "operation": WORKSHOP_OPERATIONS[8], "sequence": 7, "parallel_group": 1},
+    {"workshop": 9, "operation": WORKSHOP_OPERATIONS[9], "sequence": 8, "parallel_group": 1},
+    {"workshop": 10, "operation": WORKSHOP_OPERATIONS[10], "sequence": 9, "parallel_group": 1},
+    {"workshop": 11, "operation": WORKSHOP_OPERATIONS[11], "sequence": 10, "parallel_group": 1},
+    {"workshop": 12, "operation": WORKSHOP_OPERATIONS[12], "sequence": 11, "parallel_group": 1},
 ]
 
 
@@ -777,7 +801,7 @@ def create_order_stages(order):
     # Создаем этапы для цехов ID1 и ID4 одновременно
     try:
         workshop_1 = Workshop.objects.get(pk=1)  # Цех ID 1 (Распил)
-        workshop_4 = Workshop.objects.get(pk=4)  # Цех ID 4 (Пресс)
+        workshop_4 = Workshop.objects.get(pk=4)  # Цех ID 4 (Заготовка)
         total_qty = sum(item.quantity for item in order_items)
         
         # Определяем parallel_group в зависимости от наличия стеклянных товаров
@@ -792,7 +816,7 @@ def create_order_stages(order):
             sequence=1,
             parallel_group=parallel_group,
             defaults={
-                'operation': 'Распил',
+                'operation': WORKSHOP_OPERATIONS[1],
                 'plan_quantity': total_qty,
                 'deadline': deadline_dt.date(),
                 'status': 'in_progress',
@@ -806,7 +830,7 @@ def create_order_stages(order):
             stage_1.deadline = deadline_dt.date()
             stage_1.save(update_fields=['plan_quantity', 'status', 'deadline'])
         
-        # Создаем этап в цехе 4 (Пресс) - только для нестеклянных товаров
+        # Создаем этап в цехе 4 (Заготовка) - только для нестеклянных товаров
         non_glass_qty = sum(item.quantity for item in order_items if item.product and not item.product.is_glass)
         
         if non_glass_qty > 0:
@@ -818,7 +842,7 @@ def create_order_stages(order):
                 sequence=1,
                 parallel_group=parallel_group,
                 defaults={
-                    'operation': 'Прессование',
+                    'operation': WORKSHOP_OPERATIONS[4],
                     'plan_quantity': non_glass_qty,
                     'deadline': deadline_dt.date(),
                     'status': 'in_progress',
@@ -846,13 +870,13 @@ def _create_stage_for_order_item(order, order_item):
     
     # Определяем цех в зависимости от типа товара
     if order_item.product and order_item.product.is_glass:
-        # Для стеклянных: стартуем в цехе 1
-        workshop_id = 1
-        operation = "Распил"
+        # Для стеклянных: стартуем в цехе 2
+        workshop_id = 2
+        operation = WORKSHOP_OPERATIONS[2]
         parallel_group = 1
     else:
         workshop_id = 1  # Цех для обычных товаров
-        operation = "Распил"
+        operation = WORKSHOP_OPERATIONS[1]
         parallel_group = None
     
     try:

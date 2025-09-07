@@ -1881,7 +1881,7 @@
             <div class="modal-content bg-white p-6 mx-4">
                 <div class="text-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-900 mb-2">Подтверждение выполнения</h3>
-                    <p class="text-gray-600 mb-2">Мастер, подтвердите что работа в цехе Пресс выполнена и проверена.</p>
+                    <p class="text-gray-600 mb-2">Мастер, подтвердите что работа в цехе Заготовка выполнена и проверена.</p>
                     
                     <!-- Информация о заказе -->
                     <template x-if="simpleCompletionStage">
@@ -1889,7 +1889,7 @@
                             <div class="text-sm font-semibold text-blue-800 mb-2">Информация о заказе:</div>
                             <div class="space-y-1 text-xs text-blue-700">
                                 <div><span class="font-medium">Заявка:</span> <span x-text="simpleCompletionStage.order_name || 'Не указано'"></span></div>
-                                <div><span class="font-medium">Операция:</span> <span x-text="simpleCompletionStage.operation || 'Прессование'"></span></div>
+                                <div><span class="font-medium">Операция:</span> <span x-text="simpleCompletionStage.operation || 'Заготовка'"></span></div>
                                 <div><span class="font-medium">Количество:</span> <span x-text="simpleCompletionStage.plan_quantity || 0"></span> шт.</div>
                             </div>
                         </div>
