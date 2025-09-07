@@ -774,16 +774,17 @@ def create_order_stages(order):
     if now.hour >= 18:
         deadline_dt += timedelta(days=1)
     
-    # Создаем ОДИН этап для всех товаров заказа
+    # Создаем этапы для цехов ID1 и ID4 одновременно
     try:
-        workshop_1 = Workshop.objects.get(pk=1)  # Цех ID 1
+        workshop_1 = Workshop.objects.get(pk=1)  # Цех ID 1 (Распил)
+        workshop_4 = Workshop.objects.get(pk=4)  # Цех ID 4 (Пресс)
         total_qty = sum(item.quantity for item in order_items)
         
         # Определяем parallel_group в зависимости от наличия стеклянных товаров
         parallel_group = 1 if has_glass_items else None
         
-        # Создаем единый этап для всех товаров заказа
-        stage, created = OrderStage.objects.get_or_create(
+        # Создаем этап в цехе 1 (Распил)
+        stage_1, created_1 = OrderStage.objects.get_or_create(
             order=order,
             order_item=None,  # Агрегированный этап для всех товаров
             stage_type='workshop',
@@ -798,23 +799,45 @@ def create_order_stages(order):
             }
         )
         
-        if not created:
+        if not created_1:
             # Обновляем плановое количество и статус
-            stage.plan_quantity = total_qty
-            stage.status = 'in_progress'
-            stage.deadline = deadline_dt.date()
-            stage.save(update_fields=['plan_quantity', 'status', 'deadline'])
+            stage_1.plan_quantity = total_qty
+            stage_1.status = 'in_progress'
+            stage_1.deadline = deadline_dt.date()
+            stage_1.save(update_fields=['plan_quantity', 'status', 'deadline'])
+        
+        # Создаем этап в цехе 4 (Пресс) - только для нестеклянных товаров
+        non_glass_qty = sum(item.quantity for item in order_items if item.product and not item.product.is_glass)
+        
+        if non_glass_qty > 0:
+            stage_4, created_4 = OrderStage.objects.get_or_create(
+                order=order,
+                order_item=None,  # Агрегированный этап для всех товаров
+                stage_type='workshop',
+                workshop=workshop_4,
+                sequence=1,
+                parallel_group=parallel_group,
+                defaults={
+                    'operation': 'Пресс',
+                    'plan_quantity': non_glass_qty,
+                    'deadline': deadline_dt.date(),
+                    'status': 'in_progress',
+                }
+            )
             
-        item_types = []
-        if has_glass_items:
-            item_types.append('стеклянные')
-        if any(item.product and not item.product.is_glass for item in order_items):
-            item_types.append('обычные')
-        
-        print(f"Created/updated unified stage for order {order.id}: {total_qty} items ({', '.join(item_types)}) in workshop 1")
-        
+            if not created_4:
+                # Обновляем плановое количество и статус
+                stage_4.plan_quantity = non_glass_qty
+                stage_4.status = 'in_progress'
+                stage_4.deadline = deadline_dt.date()
+                stage_4.save(update_fields=['plan_quantity', 'status', 'deadline'])
+            
+            print(f"Created/updated stages for order {order.id}: {total_qty} items in workshop 1, {non_glass_qty} non-glass items in workshop 4")
+        else:
+            print(f"Created/updated stage for order {order.id}: {total_qty} items in workshop 1 (no non-glass items for workshop 4)")
+            
     except Workshop.DoesNotExist:
-        print("Workshop with ID 1 not found, skipping stage creation")
+        print("Workshop with ID 1 or 4 not found, skipping stage creation")
 
 
 def _create_stage_for_order_item(order, order_item):

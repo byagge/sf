@@ -26,6 +26,7 @@ urlpatterns = [
     # API для планов мастера и этапов
     path('api/stages/', WorkshopStagesView.as_view(), name='api-stages-list'),
     path('api/stages/<int:stage_id>/', StageDetailView.as_view(), name='api-stages-detail'),
+    path('api/stages/<int:stage_id>/confirm/', OrderStageConfirmAPIView.as_view(), name='api-stages-confirm'),
     path('api/stages/<int:stage_id>/transfer/', OrderStageTransferAPIView.as_view(), name='api-stages-transfer'),
     path('api/stages/<int:stage_id>/no-transfer/', OrderStageNoTransferAPIView.as_view(), name='api-stages-no-transfer'),
     
