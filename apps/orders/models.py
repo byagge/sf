@@ -851,35 +851,30 @@ def create_order_stages(order):
             stage_1.deadline = deadline_dt.date()
             stage_1.save(update_fields=['plan_quantity', 'status', 'deadline'])
         
-        # Создаем этап в цехе 4 (Пресс) - только для нестеклянных товаров
-        non_glass_qty = sum(item.quantity for item in order_items if item.product and not item.product.is_glass)
+        # Создаем этап в цехе 4 (Пресс) - для всех товаров
+        stage_4, created_4 = OrderStage.objects.get_or_create(
+            order=order,
+            order_item=None,  # Агрегированный этап для всех товаров
+            stage_type='workshop',
+            workshop=workshop_4,
+            sequence=1,
+            parallel_group=parallel_group,
+            defaults={
+                'operation': WORKSHOP_OPERATIONS[4],
+                'plan_quantity': total_qty,
+                'deadline': deadline_dt.date(),
+                'status': 'in_progress',
+            }
+        )
         
-        if non_glass_qty > 0:
-            stage_4, created_4 = OrderStage.objects.get_or_create(
-                order=order,
-                order_item=None,  # Агрегированный этап для всех товаров
-                stage_type='workshop',
-                workshop=workshop_4,
-                sequence=1,
-                parallel_group=parallel_group,
-                defaults={
-                    'operation': WORKSHOP_OPERATIONS[4],
-                    'plan_quantity': non_glass_qty,
-                    'deadline': deadline_dt.date(),
-                    'status': 'in_progress',
-                }
-            )
-            
-            if not created_4:
-                # Обновляем плановое количество и статус
-                stage_4.plan_quantity = non_glass_qty
-                stage_4.status = 'in_progress'
-                stage_4.deadline = deadline_dt.date()
-                stage_4.save(update_fields=['plan_quantity', 'status', 'deadline'])
-            
-            print(f"Created/updated stages for order {order.id}: {total_qty} items in workshop 1, {non_glass_qty} non-glass items in workshop 4")
-        else:
-            print(f"Created/updated stage for order {order.id}: {total_qty} items in workshop 1 (no non-glass items for workshop 4)")
+        if not created_4:
+            # Обновляем плановое количество и статус
+            stage_4.plan_quantity = total_qty
+            stage_4.status = 'in_progress'
+            stage_4.deadline = deadline_dt.date()
+            stage_4.save(update_fields=['plan_quantity', 'status', 'deadline'])
+        
+        print(f"Created/updated stages for order {order.id}: {total_qty} items in workshop 1, {total_qty} items in workshop 4")
             
     except Workshop.DoesNotExist:
         print("Workshop with ID 1 or 4 not found, skipping stage creation")
