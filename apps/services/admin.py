@@ -8,7 +8,7 @@ class ServiceMaterialInline(admin.TabularInline):
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'unit', 'is_active', 'created_at', 'updated_at')
-    search_fields = ('name', 'code', 'description')
+    search_fields = ('name', 'description')
     list_filter = ('is_active', 'unit')
     ordering = ('name',)
     inlines = [ServiceMaterialInline]
