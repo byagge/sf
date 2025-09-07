@@ -1435,6 +1435,7 @@ def create_request(request):
 			paint_color = item_data.get('paint_color', '')
 			cnc_specs = item_data.get('cnc_specs', '')
 			cutting_specs = item_data.get('cutting_specs', '')
+			preparation_specs = item_data.get('preparation_specs', '')
 			packaging_notes = item_data.get('packaging_notes', '')
 			price = item_data.get('price', 0)
 			
@@ -1452,6 +1453,7 @@ def create_request(request):
 				paint_color=paint_color,
 				cnc_specs=cnc_specs,
 				cutting_specs=cutting_specs,
+				preparation_specs=preparation_specs,
 				packaging_notes=packaging_notes,
 				price=price
 			)

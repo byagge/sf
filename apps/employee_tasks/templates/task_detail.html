@@ -496,6 +496,12 @@
                                     <span class="font-medium text-gray-900" x-text="task.workshop_info.cnc_specs"></span>
                                 </div>
                             </template>
+                            <template x-if="task.workshop_info.preparation_specs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Заготовка:</span>
+                                    <span class="font-medium text-gray-900" x-text="task.workshop_info.preparation_specs"></span>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </template>

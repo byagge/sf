@@ -399,7 +399,7 @@
                                     </template>
                                     
                                     <!-- Спецификации этапа -->
-                                    <template x-if="stage.cnc_specs || stage.cutting_specs || stage.paint_type || stage.paint_color">
+                                    <template x-if="stage.cnc_specs || stage.cutting_specs || stage.preparation_specs || stage.paint_type || stage.paint_color">
                                         <div class="mt-2 pt-2 border-t border-gray-100">
                                             <div class="text-xs text-gray-500">
                                                 <span class="font-medium">Спецификации:</span>
@@ -414,6 +414,12 @@
                                                         <div class="flex items-center">
                                                             <i data-lucide="scissors" class="w-3 h-3 mr-1 text-orange-500"></i>
                                                             <span x-text="stage.cutting_specs"></span>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="stage.preparation_specs">
+                                                        <div class="flex items-center">
+                                                            <i data-lucide="settings" class="w-3 h-3 mr-1 text-purple-500"></i>
+                                                            <span x-text="stage.preparation_specs"></span>
                                                         </div>
                                                     </template>
                                                     <template x-if="stage.paint_type">
@@ -431,7 +437,7 @@
                                     </template>
                                     
                                     <!-- Информация о цехе -->
-                                    <template x-if="stage.workshop_info && (stage.workshop_info.cutting_specs || stage.workshop_info.cnc_specs || stage.workshop_info.paint_type || stage.workshop_info.paint_color)">
+                                    <template x-if="stage.workshop_info && (stage.workshop_info.cutting_specs || stage.workshop_info.cnc_specs || stage.workshop_info.preparation_specs || stage.workshop_info.paint_type || stage.workshop_info.paint_color)">
                                         <div class="mt-2 pt-2 border-t border-gray-100">
                                             <div class="text-xs text-gray-500">
                                                 <span class="font-medium">Спецификации цеха:</span>
@@ -446,6 +452,12 @@
                                                         <div class="flex items-center">
                                                             <i data-lucide="cpu" class="w-3 h-3 mr-1 text-green-500"></i>
                                                             <span x-text="stage.workshop_info.cnc_specs"></span>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="stage.workshop_info.preparation_specs">
+                                                        <div class="flex items-center">
+                                                            <i data-lucide="settings" class="w-3 h-3 mr-1 text-purple-500"></i>
+                                                            <span x-text="stage.workshop_info.preparation_specs"></span>
                                                         </div>
                                                     </template>
                                                     <template x-if="stage.workshop_info.paint_type">
@@ -598,7 +610,7 @@
                                             <span class="text-blue-900" x-text="selectedStage.finished_good.name || selectedStage.finished_good"></span>
                                         </div>
                                     </template>
-                                    <template x-if="selectedStage.cnc_specs || selectedStage.cutting_specs || selectedStage.paint_type || selectedStage.paint_color">
+                                    <template x-if="selectedStage.cnc_specs || selectedStage.cutting_specs || selectedStage.preparation_specs || selectedStage.paint_type || selectedStage.paint_color">
                                         <div class="mt-3 pt-3 border-t border-blue-200">
                                             <div class="text-blue-800 font-medium mb-2">Спецификации этапа:</div>
                                             <template x-if="selectedStage.cnc_specs">
@@ -611,6 +623,12 @@
                                                 <div class="flex justify-between">
                                                     <span class="text-blue-700 font-medium">Распил:</span>
                                                     <span class="text-blue-900" x-text="selectedStage.cutting_specs"></span>
+                                                </div>
+                                            </template>
+                                            <template x-if="selectedStage.preparation_specs">
+                                                <div class="flex justify-between">
+                                                    <span class="text-blue-700 font-medium">Заготовка:</span>
+                                                    <span class="text-blue-900" x-text="selectedStage.preparation_specs"></span>
                                                 </div>
                                             </template>
                                             <template x-if="selectedStage.paint_type">
@@ -840,6 +858,16 @@
                                             </div>
                                         </template>
                                         
+                                        <template x-if="selectedStage.order_item.preparation_specs">
+                                            <div class="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                                                <div class="flex items-center text-purple-800">
+                                                    <i data-lucide="settings" class="w-4 h-4 mr-2"></i>
+                                                    <span class="font-medium">Заготовка</span>
+                                                </div>
+                                                <div class="text-purple-700 text-sm mt-1" x-text="selectedStage.order_item.preparation_specs"></div>
+                                            </div>
+                                        </template>
+                                        
                                         <template x-if="selectedStage.order_item.packaging_notes">
                                             <div class="bg-indigo-50 rounded-lg p-3 border border-indigo-200">
                                                 <div class="flex items-center text-indigo-800">
@@ -885,7 +913,7 @@
                                                     </template>
                                                 </div>
                                                 <!-- Дополнительные характеристики -->
-                                                <template x-if="item.glass_type || item.paint_type || item.cnc_specs || item.cutting_specs || item.packaging_notes">
+                                                <template x-if="item.glass_type || item.paint_type || item.cnc_specs || item.cutting_specs || item.preparation_specs || item.packaging_notes">
                                                     <div class="text-xs text-gray-500 mt-1 space-y-1">
                                                         <template x-if="item.glass_type">
                                                             <div class="flex items-center">
@@ -912,6 +940,12 @@
                                                             <div class="flex items-center">
                                                                 <i data-lucide="scissors" class="w-3 h-3 mr-1 text-orange-500"></i>
                                                                 <span x-text="item.cutting_specs"></span>
+                                                            </div>
+                                                        </template>
+                                                        <template x-if="item.preparation_specs">
+                                                            <div class="flex items-center">
+                                                                <i data-lucide="settings" class="w-3 h-3 mr-1 text-purple-500"></i>
+                                                                <span x-text="item.preparation_specs"></span>
                                                             </div>
                                                         </template>
                                                         <template x-if="item.packaging_notes">

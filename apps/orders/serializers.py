@@ -81,7 +81,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'product', 'product_id', 'quantity', 'size', 'color',
             'glass_type', 'glass_type_display', 'paint_type', 'paint_color',
-            'cnc_specs', 'cutting_specs', 'packaging_notes',
+            'cnc_specs', 'cutting_specs', 'preparation_specs', 'packaging_notes',
             'glass_cutting_completed', 'glass_cutting_quantity', 'packaging_received_quantity',
             'order'
         ]
@@ -146,7 +146,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         """Переопределяем для безопасной обработки null значений"""
         data = super().to_representation(instance)
         # Sanitize potentially byte-valued fields
-        for key in ['size', 'color', 'glass_type', 'paint_type', 'paint_color', 'cnc_specs', 'cutting_specs', 'packaging_notes']:
+        for key in ['size', 'color', 'glass_type', 'paint_type', 'paint_color', 'cnc_specs', 'cutting_specs', 'preparation_specs', 'packaging_notes']:
             if key in data:
                 data[key] = _safe_str(data.get(key))
         # Sanitize nested product name if present
@@ -227,7 +227,7 @@ class OrderStageSerializer(serializers.ModelSerializer):
                     'color': info.get('color') if isinstance(info, dict) else it.color,
                 }
                 # Дополнительные поля если присутствуют
-                for k in ['glass_type','paint_type','paint_color','cnc_specs','cutting_specs','packaging_notes']:
+                for k in ['glass_type','paint_type','paint_color','cnc_specs','cutting_specs','preparation_specs','packaging_notes']:
                     v = None
                     if isinstance(info, dict):
                         v = info.get(k)

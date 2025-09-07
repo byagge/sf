@@ -664,6 +664,7 @@ class Request(models.Model):
                 paint_color=item.paint_color,
                 cnc_specs=item.cnc_specs,
                 cutting_specs=item.cutting_specs,
+                preparation_specs=item.preparation_specs,
                 packaging_notes=item.packaging_notes
             )
         
@@ -693,6 +694,7 @@ class RequestItem(models.Model):
     paint_color = models.CharField('Цвет краски', max_length=100, blank=True)
     cnc_specs = models.TextField('Спецификации для ЧПУ', blank=True)
     cutting_specs = models.TextField('Спецификации для распила', blank=True)
+    preparation_specs = models.TextField('Спецификации для цеха заготовки', blank=True, help_text='Комментарии и спецификации для цеха заготовки (ID 4)')
     packaging_notes = models.TextField('Заметки для упаковки', blank=True)
     
     class Meta:

@@ -601,6 +601,7 @@ class OrderItem(models.Model):
     paint_color = models.CharField('Цвет краски', max_length=100, blank=True)
     cnc_specs = models.TextField('Спецификации для ЧПУ', blank=True)
     cutting_specs = models.TextField('Спецификации для распила', blank=True)
+    preparation_specs = models.TextField('Спецификации для цеха заготовки', blank=True, help_text='Комментарии и спецификации для цеха заготовки (ID 4)')
     packaging_notes = models.TextField('Заметки для упаковки', blank=True)
     
     # Поля для отслеживания прогресса по цехам
@@ -656,6 +657,13 @@ class OrderItem(models.Model):
                     'paint_type': self.paint_type,
                     'paint_color': self.paint_color,
                     'size': self.size,
+                    'photo': self.product.img.url if self.product.img else None,
+                })
+            elif 'заготовк' in workshop_name.lower():
+                info.update({
+                    'preparation_specs': self.preparation_specs,
+                    'size': self.size,
+                    'color': self.color,
                     'photo': self.product.img.url if self.product.img else None,
                 })
             elif 'упаковк' in workshop_name.lower():
