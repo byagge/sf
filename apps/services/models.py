@@ -9,8 +9,8 @@ class Service(models.Model):
     description = models.TextField("Описание", blank=True)
     unit = models.CharField("Единица измерения", max_length=50, default="услуга")
     workshop = models.ForeignKey(Workshop, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Цех")
-    service_price = models.DecimalField("Оплата за услугу", max_digits=12, decimal_places=2, default=0)
-    defect_penalty = models.DecimalField("Штраф за брак", max_digits=12, decimal_places=2, default=0)
+    service_price = models.DecimalField("Оплата за услугу", max_digits=12, decimal_places=5, default=0)
+    defect_penalty = models.DecimalField("Штраф за брак", max_digits=12, decimal_places=5, default=0)
     materials = models.ManyToManyField(
         RawMaterial,
         through='ServiceMaterial',

@@ -796,6 +796,7 @@ WORKSHOP_OPERATIONS = {
     9: "Шкурка белый",
     10: "Покраска",
     11: "Упаковка",
+    13: "3-й этаж",
 }
 
 ORDER_WORKFLOW = [
@@ -813,6 +814,8 @@ ORDER_WORKFLOW = [
     {"workshop": 9, "operation": WORKSHOP_OPERATIONS[9], "sequence": 8, "parallel_group": 1},
     {"workshop": 10, "operation": WORKSHOP_OPERATIONS[10], "sequence": 9, "parallel_group": 1},
     {"workshop": 11, "operation": WORKSHOP_OPERATIONS[11], "sequence": 10, "parallel_group": 1},
+    # Цех 3-го этажа для продуктов с is_3_floor=True
+    {"workshop": 13, "operation": WORKSHOP_OPERATIONS[13], "sequence": 8, "parallel_group": 2},
 ]
 
 
@@ -827,8 +830,9 @@ def create_order_stages(order):
         print(f"Warning: No items found for order {order.id}, skipping stage creation")
         return
     
-    # Определяем тип заказа: есть ли стеклянные товары
+    # Определяем тип заказа: есть ли стеклянные товары и товары 3-го этажа
     has_glass_items = any(item.product and item.product.is_glass for item in order_items)
+    has_3_floor_items = any(item.product and item.product.is_3_floor for item in order_items)
     
     now = timezone.now()
     deadline_dt = now.replace(hour=18, minute=0, second=0, microsecond=0)
@@ -841,8 +845,13 @@ def create_order_stages(order):
         workshop_4 = Workshop.objects.get(pk=4)  # Цех ID 4 (Пресс)
         total_qty = sum(item.quantity for item in order_items)
         
-        # Определяем parallel_group в зависимости от наличия стеклянных товаров
-        parallel_group = 1 if has_glass_items else None
+        # Определяем parallel_group в зависимости от наличия стеклянных товаров и товаров 3-го этажа
+        if has_3_floor_items:
+            parallel_group = 2  # Группа для товаров 3-го этажа
+        elif has_glass_items:
+            parallel_group = 1  # Группа для стеклянных товаров
+        else:
+            parallel_group = None  # Обычные товары
         
         # Создаем этап в цехе 1 (Распил)
         stage_1, created_1 = OrderStage.objects.get_or_create(

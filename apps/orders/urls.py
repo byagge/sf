@@ -1,5 +1,5 @@
 from rest_framework.routers import DefaultRouter
-from .views import OrderViewSet, OrderPageView, OrderCreateAPIView, OrderStageConfirmAPIView, StageViewSet, OrderStageTransferAPIView, OrderStagePostponeAPIView, OrderStageNoTransferAPIView, DashboardOverviewAPIView, DashboardRevenueChartAPIView, PlansMasterView, PlansMasterDetailView
+from .views import OrderViewSet, OrderPageView, OrderCreateAPIView, OrderStageConfirmAPIView, StageViewSet, OrderStageTransferAPIView, OrderStagePostponeAPIView, OrderStageNoTransferAPIView, OrderStageSendToStockAPIView, DashboardOverviewAPIView, DashboardRevenueChartAPIView, PlansMasterView, PlansMasterDetailView
 from .api import WorkshopStagesView, StageDetailView
 from django.urls import path, include
 from django.views.generic import TemplateView, RedirectView
@@ -29,6 +29,7 @@ urlpatterns = [
     path('api/stages/<int:stage_id>/confirm/', OrderStageConfirmAPIView.as_view(), name='api-stages-confirm'),
     path('api/stages/<int:stage_id>/transfer/', OrderStageTransferAPIView.as_view(), name='api-stages-transfer'),
     path('api/stages/<int:stage_id>/no-transfer/', OrderStageNoTransferAPIView.as_view(), name='api-stages-no-transfer'),
+    path('api/stages/<int:stage_id>/send-to-stock/', OrderStageSendToStockAPIView.as_view(), name='api-stages-send-to-stock'),
     
     # API для одобрения заявок
     path('api/requests/approve/<int:request_id>/', ApproveRequestAPIView.as_view(), name='approve-request'),
