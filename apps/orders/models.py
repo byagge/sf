@@ -207,6 +207,10 @@ class OrderStage(models.Model):
             items_info = []
             total_qty = 0
             product_names = []
+            
+            # Если это цех ID 3 или 4, добавляем preparation_specs из всех товаров
+            preparation_specs_list = []
+            
             for item in self.order.items.all():
                 info = item.get_workshop_info(workshop_name)
                 # добавим название товара в каждую запись
@@ -217,11 +221,22 @@ class OrderStage(models.Model):
                     info['product'] = 'Не указан'
                 total_qty += info.get('quantity', 0) or 0
                 items_info.append(info)
-            return {
+                
+                # Собираем preparation_specs для цехов ID 3 и 4
+                if self.workshop and self.workshop.id in [3, 4] and item.preparation_specs:
+                    preparation_specs_list.append(item.preparation_specs)
+            
+            result = {
                 'items': items_info,
                 'total_quantity': total_qty,
                 'products': ', '.join(product_names),
             }
+            
+            # Добавляем preparation_specs для цехов ID 3 и 4
+            if self.workshop and self.workshop.id in [3, 4] and preparation_specs_list:
+                result['preparation_specs'] = '; '.join(preparation_specs_list)
+            
+            return result
         return {}
     
     def is_glass_stage(self):
@@ -659,7 +674,7 @@ class OrderItem(models.Model):
                     'size': self.size,
                     'photo': self.product.img.url if self.product.img else None,
                 })
-            elif 'заготовк' in workshop_name.lower() or 'пресс' in workshop_name.lower():
+            elif 'заготовк' in workshop_name.lower() or 'пресс' in workshop_name.lower() or 'заготовительн' in workshop_name.lower():
                 info.update({
                     'preparation_specs': self.preparation_specs,
                     'size': self.size,
